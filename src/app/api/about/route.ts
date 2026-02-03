@@ -3,6 +3,9 @@ import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/auth';
 import { isAdmin } from '@/lib/permissions';
 
+// Force dynamic rendering - prevents static prerendering during build
+export const dynamic = 'force-dynamic';
+
 // Get About info (Public or specified user)
 // Query param: username (optional, if NOT provided, try to get current user or default)
 export async function GET(req: NextRequest) {

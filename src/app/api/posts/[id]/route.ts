@@ -4,6 +4,8 @@ import { getAuthenticatedUser } from '@/lib/auth';
 import { isAdmin } from '@/lib/permissions';
 import { z } from 'zod';
 
+export const dynamic = 'force-dynamic';
+
 const updatePostSchema = z.object({
     title: z.string().min(1).optional(),
     content: z.string().min(1).optional(),

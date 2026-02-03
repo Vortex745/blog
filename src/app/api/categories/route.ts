@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/auth';
 import { z } from 'zod';
 
+export const dynamic = 'force-dynamic';
+
 const categorySchema = z.object({
     name: z.string().min(1, "Name is required").max(20, "Name must be 20 characters or less"),
 });

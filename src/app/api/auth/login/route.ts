@@ -4,6 +4,8 @@ import bcrypt from 'bcrypt';
 import { signToken } from '@/lib/auth';
 import { z } from 'zod';
 
+export const dynamic = 'force-dynamic';
+
 const loginSchema = z.object({
     email: z.string().email(),
     password: z.string(),
@@ -42,8 +44,7 @@ export async function POST(req: NextRequest) {
                 id: user.id,
                 username: user.username,
                 email: user.email,
-                avatar: user.avatar,
-                tagline: user.tagline
+                avatar: user.avatar
             }
         });
 

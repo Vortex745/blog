@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/auth';
 import { isAdmin } from '@/lib/permissions';
 
+export const dynamic = 'force-dynamic';
+
 export async function PUT(req: NextRequest) {
     try {
         const user = await getAuthenticatedUser(req);
@@ -18,7 +20,7 @@ export async function PUT(req: NextRequest) {
         const userId = user.id;
 
         const body = await req.json();
-        const { username, avatar, tagline } = body;
+        const { username, avatar } = body;
 
         // Validation
         if (!username || username.trim().length < 2) {
@@ -42,15 +44,13 @@ export async function PUT(req: NextRequest) {
             where: { id: userId },
             data: {
                 username,
-                avatar,
-                tagline
+                avatar
             },
             select: {
                 id: true,
                 username: true,
                 email: true,
-                avatar: true,
-                tagline: true,
+                avatar: true
             }
         });
 

@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/auth';
 import { z } from 'zod';
 
+export const dynamic = 'force-dynamic';
+
 const createCommentSchema = z.object({
     post_id: z.number({ required_error: "Post ID is required", invalid_type_error: "Post ID must be a number" }),
     content: z.string({ required_error: "Content is required" }).min(1, "Content is required").max(300, "Content must be 300 characters or less"),
