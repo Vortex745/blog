@@ -4,7 +4,7 @@ import api from '@/lib/axios';
 import { useAuth } from '@/context/AuthContext';
 import { CardBody, CardContainer, CardItem } from '@/components/ui/3d-card';
 import Link from 'next/link';
-import { Github, Globe, Pin, FolderGit2, Plus, ArrowRight } from 'lucide-react';
+import { Github, Globe, Pin, FolderGit2, Plus, ArrowRight, Smartphone, Monitor, Terminal, Package, Gamepad2, MoreHorizontal } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface Project {
@@ -14,6 +14,7 @@ interface Project {
     techStack: string;
     repoUrl?: string;
     demoUrl?: string;
+    projectType?: string;
     isPinned: boolean;
     author: {
         username: string;
@@ -21,15 +22,29 @@ interface Project {
     cover?: string;
 }
 
+const PROJECT_TYPES = [
+    { value: 'all', label: '全部', icon: FolderGit2 },
+    { value: 'web', label: 'Web', icon: Globe },
+    { value: 'mobile', label: '移动端', icon: Smartphone },
+    { value: 'desktop', label: '桌面端', icon: Monitor },
+    { value: 'cli', label: '命令行', icon: Terminal },
+    { value: 'library', label: '开源库', icon: Package },
+    { value: 'game', label: '游戏', icon: Gamepad2 },
+    { value: 'other', label: '其他', icon: MoreHorizontal },
+];
+
 export default function ProjectsPage() {
     const { user } = useAuth();
     const [projects, setProjects] = useState<Project[]>([]);
     const [loading, setLoading] = useState(true);
+    const [activeType, setActiveType] = useState('all');
 
     useEffect(() => {
         const fetchProjects = async () => {
+            setLoading(true);
             try {
-                const res = await api.get('/projects');
+                const params = activeType !== 'all' ? `?projectType=${activeType}` : '';
+                const res = await api.get(`/projects${params}`);
                 setProjects(res.data.data);
             } catch (error) {
                 console.error("Failed to fetch projects:", error);
@@ -38,7 +53,7 @@ export default function ProjectsPage() {
             }
         };
         fetchProjects();
-    }, []);
+    }, [activeType]);
 
     // 焦糖色调渐变背景
     const gradients = [
@@ -89,6 +104,28 @@ export default function ProjectsPage() {
                     </motion.p>
                 </header>
 
+                {/* Filter Tabs */}
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="flex flex-wrap gap-2 mb-10"
+                >
+                    {PROJECT_TYPES.map(({ value, label, icon: Icon }) => (
+                        <button
+                            key={value}
+                            onClick={() => setActiveType(value)}
+                            className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${activeType === value
+                                ? 'bg-primary text-white shadow-warm'
+                                : 'bg-surface border border-border text-muted hover:border-primary/50 hover:text-foreground'
+                                }`}
+                        >
+                            <Icon size={14} />
+                            {label}
+                        </button>
+                    ))}
+                </motion.div>
+
                 <div className="max-w-6xl mx-auto">
                     {loading ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -103,12 +140,21 @@ export default function ProjectsPage() {
                                     <CardBody className="bg-surface relative group/card hover:shadow-warm-lg hover:border-primary/30 border-border border w-full h-auto rounded-2xl p-6 transition-all duration-300">
 
                                         <div className="flex justify-between items-start mb-5">
-                                            <CardItem
-                                                translateZ="30"
-                                                className="text-xl font-serif font-bold text-foreground group-hover/card:text-primary transition-colors"
-                                            >
-                                                {project.title}
-                                            </CardItem>
+                                            <div className="flex-1">
+                                                <CardItem
+                                                    translateZ="30"
+                                                    className="text-xl font-serif font-bold text-foreground group-hover/card:text-primary transition-colors"
+                                                >
+                                                    {project.title}
+                                                </CardItem>
+                                                {project.projectType && project.projectType !== 'web' && (
+                                                    <CardItem translateZ="15" className="mt-2">
+                                                        <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold text-accent-alt bg-accent/10 px-2 py-0.5 rounded-full">
+                                                            {PROJECT_TYPES.find(t => t.value === project.projectType)?.label || project.projectType}
+                                                        </span>
+                                                    </CardItem>
+                                                )}
+                                            </div>
                                             {project.isPinned && (
                                                 <CardItem translateZ="20">
                                                     <Pin size={18} className="text-accent fill-accent rotate-45" />

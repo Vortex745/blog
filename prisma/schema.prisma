@@ -112,6 +112,7 @@ model Project {
   repoUrl     String?  @map("repo_url")
   demoUrl     String?  @map("demo_url")
   cover       String?
+  projectType String   @default("web") @map("project_type") // web, mobile, desktop, cli, library, game, other
   isPinned    Boolean  @default(false) @map("is_pinned")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")

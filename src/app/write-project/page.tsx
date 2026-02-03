@@ -4,7 +4,7 @@ import api from '@/lib/axios';
 import { useRouter, useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Link from 'next/link';
-import { ArrowLeft, Save, FolderGit2, Link as LinkIcon, Layers, FileText, Sparkles, Pin } from 'lucide-react';
+import { ArrowLeft, Save, FolderGit2, Link as LinkIcon, Layers, FileText, Sparkles, Pin, Globe, Smartphone, Monitor, Terminal, Package, Gamepad2, MoreHorizontal } from 'lucide-react';
 import { motion } from 'framer-motion';
 import ImageUploader from '@/components/ImageUploader';
 
@@ -23,6 +23,7 @@ export default function WriteProjectPage() {
         techStack: '',
         repoUrl: '',
         demoUrl: '',
+        projectType: 'web',
         isPinned: false,
         cover: '',
     });
@@ -41,6 +42,7 @@ export default function WriteProjectPage() {
                         techStack: project.techStack || '',
                         repoUrl: project.repoUrl || '',
                         demoUrl: project.demoUrl || '',
+                        projectType: project.projectType || 'web',
                         isPinned: project.isPinned,
                         cover: project.cover || '',
                     });
@@ -58,6 +60,7 @@ export default function WriteProjectPage() {
                 techStack: '',
                 repoUrl: '',
                 demoUrl: '',
+                projectType: 'web',
                 isPinned: false,
                 cover: '',
             });
@@ -160,6 +163,38 @@ export default function WriteProjectPage() {
                                 value={formData.title}
                                 onChange={e => setFormData({ ...formData, title: e.target.value })}
                             />
+                        </div>
+
+                        {/* Project Type */}
+                        <div className="space-y-3">
+                            <label className="flex items-center gap-2 text-sm font-bold text-foreground pl-1">
+                                <Layers size={16} className="text-accent" />
+                                项目类型
+                            </label>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                {[
+                                    { value: 'web', label: 'Web 应用', icon: Globe },
+                                    { value: 'mobile', label: '移动端', icon: Smartphone },
+                                    { value: 'desktop', label: '桌面端', icon: Monitor },
+                                    { value: 'cli', label: '命令行', icon: Terminal },
+                                    { value: 'library', label: '开源库', icon: Package },
+                                    { value: 'game', label: '游戏', icon: Gamepad2 },
+                                    { value: 'other', label: '其他', icon: MoreHorizontal },
+                                ].map(({ value, label, icon: Icon }) => (
+                                    <button
+                                        key={value}
+                                        type="button"
+                                        onClick={() => setFormData({ ...formData, projectType: value })}
+                                        className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-sm font-bold transition-all ${formData.projectType === value
+                                                ? 'bg-primary text-white border-primary shadow-warm'
+                                                : 'bg-surface/80 text-muted border-border hover:border-primary/50 hover:text-foreground'
+                                            }`}
+                                    >
+                                        <Icon size={16} />
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
 
                         {/* Description */}

@@ -13,17 +13,23 @@ const createProjectSchema = z.object({
     repoUrl: z.string().optional(),
     demoUrl: z.string().optional(),
     cover: z.string().optional(),
+    projectType: z.enum(['web', 'mobile', 'desktop', 'cli', 'library', 'game', 'other']).default('web'),
     isPinned: z.boolean().default(false),
 });
 
 export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const isPinned = searchParams.get('isPinned');
+    const projectType = searchParams.get('projectType');
 
     const where: any = {};
 
     if (isPinned === 'true') {
         where.isPinned = true;
+    }
+
+    if (projectType && projectType !== 'all') {
+        where.projectType = projectType;
     }
 
     try {
