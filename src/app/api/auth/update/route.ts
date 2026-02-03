@@ -20,7 +20,7 @@ export async function PUT(req: NextRequest) {
         const userId = user.id;
 
         const body = await req.json();
-        const { username, avatar } = body;
+        const { username, avatar, tagline } = body;
 
         // Validation
         if (!username || username.trim().length < 2) {
@@ -44,13 +44,15 @@ export async function PUT(req: NextRequest) {
             where: { id: userId },
             data: {
                 username,
-                avatar
+                avatar,
+                tagline
             },
             select: {
                 id: true,
                 username: true,
                 email: true,
-                avatar: true
+                avatar: true,
+                tagline: true
             }
         });
 
