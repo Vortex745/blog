@@ -8,7 +8,7 @@ import { ArrowLeft, Send, Sparkles, FileText, Hash, AlignLeft, Layers, Image as 
 import { motion } from 'framer-motion';
 import ImageUploader from '@/components/ImageUploader';
 import { useAuth } from '@/context/AuthContext';
-import { isAdmin } from '@/lib/permissions';
+
 
 const PITFALL_TEMPLATE = `## 😱 问题描述
 (请贴上报错日志或截图，描述异常行为)
@@ -70,12 +70,7 @@ export default function WritePage() {
         }
     }, [postId]);
 
-    useEffect(() => {
-        if (!authLoading && user && !isAdmin(user.username)) {
-            // Redirect non-admins to home
-            router.push('/');
-        }
-    }, [user, authLoading, router]);
+
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

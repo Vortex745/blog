@@ -9,7 +9,7 @@ import { motion } from 'framer-motion';
 import ImageUploader from '@/components/ImageUploader';
 
 import { useAuth } from '@/context/AuthContext';
-import { isAdmin } from '@/lib/permissions';
+
 
 export default function WriteProjectPage() {
     const router = useRouter();
@@ -52,12 +52,7 @@ export default function WriteProjectPage() {
         }
     }, [projectId]);
 
-    useEffect(() => {
-        if (!authLoading && user && !isAdmin(user.username)) {
-            // Redirect non-admins to home or projects list
-            router.push('/projects');
-        }
-    }, [user, authLoading, router]);
+
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
