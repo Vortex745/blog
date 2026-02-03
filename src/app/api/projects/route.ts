@@ -1,0 +1,77 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { getAuthenticatedUser } from '@/lib/auth';
+import { isAdmin } from '@/lib/permissions';
+import { z } from 'zod';
+
+const createProjectSchema = z.object({
+    title: z.string().min(1, "Title is required"),
+    description: z.string().min(1, "Description is required"),
+    techStack: z.string().optional(),
+    repoUrl: z.string().optional(),
+    demoUrl: z.string().optional(),
+    cover: z.string().optional(),
+    isPinned: z.boolean().default(false),
+});
+
+export async function GET(req: NextRequest) {
+    const { searchParams } = new URL(req.url);
+    const isPinned = searchParams.get('isPinned');
+
+    const where: any = {};
+
+    if (isPinned === 'true') {
+        where.isPinned = true;
+    }
+
+    try {
+        const projects = await prisma.project.findMany({
+            where,
+            orderBy: [
+                { isPinned: 'desc' },
+                { createdAt: 'desc' }
+            ],
+            include: {
+                author: { select: { id: true, username: true } }
+            }
+        });
+
+        return NextResponse.json({ data: projects });
+    } catch (error) {
+        console.error(error);
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    }
+}
+
+export async function POST(req: NextRequest) {
+    try {
+        const user = await getAuthenticatedUser(req);
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        // Restrict project creation to Admin only
+        if (!isAdmin(user.username)) {
+            return NextResponse.json({ error: 'Permission denied: View only mode' }, { status: 403 });
+        }
+
+        const body = await req.json();
+        const validation = createProjectSchema.safeParse(body);
+
+        if (!validation.success) {
+            return NextResponse.json({ error: validation.error.format() }, { status: 400 });
+        }
+
+        const project = await prisma.project.create({
+            data: {
+                ...validation.data,
+                userId: user.id
+            }
+        });
+
+        return NextResponse.json(project, { status: 201 });
+    } catch (error) {
+        console.error(error);
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    }
+}
