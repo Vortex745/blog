@@ -48,41 +48,27 @@ export default function ImageUploader({
             const compressedFile = await imageCompression(file, options);
             setUploadProgress(60);
 
-            // 创建预览
+            // 直接使用 Base64（跳过服务器上传，因为 Vercel 文件系统只读）
             const reader = new FileReader();
             reader.onload = (e) => {
                 const result = e.target?.result as string;
                 setPreview(result);
-                setUploadProgress(80);
+                onChange(result); // 直接把 Base64 传给父组件
+                setUploadProgress(100);
             };
             reader.readAsDataURL(compressedFile);
 
-            // 上传到服务器
-            const formData = new FormData();
-            formData.append('file', compressedFile);
-
-            const response = await fetch('/api/upload', {
-                method: 'POST',
-                body: formData,
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                onChange(data.url);
-                setUploadProgress(100);
-            } else {
-                throw new Error('Upload failed');
-            }
         } catch (error) {
-            console.error('Upload error:', error);
-            // 即使上传失败也保持预览（用Base64）
+            console.error('Compression error:', error);
+            // 降级：如果压缩失败，使用原图 Base64
             const reader = new FileReader();
             reader.onload = (e) => {
                 const result = e.target?.result as string;
                 setPreview(result);
-                onChange(result); // 暂时使用Base64
+                onChange(result);
             };
             reader.readAsDataURL(file);
+
         } finally {
             setUploading(false);
             setTimeout(() => setUploadProgress(0), 1000);

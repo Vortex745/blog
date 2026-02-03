@@ -54,7 +54,7 @@ export default function ProfilePage() {
         },
         {
             label: "账号权限",
-            value: "认证作者",
+            value: user.role === 'admin' ? "认证作者" : "普通用户",
             icon: <Shield className="text-accent" size={20} />,
             bg: "bg-accent/10",
         },
@@ -115,7 +115,7 @@ export default function ProfilePage() {
                                 className="inline-flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-primary/5 to-accent/5 border border-primary/10 text-primary rounded-full text-xs font-bold mb-4"
                             >
                                 <Sparkles size={12} className="text-primary" />
-                                <span>认证作者</span>
+                                <span>{user.role === 'admin' ? '认证作者' : '普通用户'}</span>
                             </motion.div>
                             <div className="flex items-center justify-center md:justify-start gap-4">
                                 <motion.h1

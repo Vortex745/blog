@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/auth';
-import { isAdmin } from '@/lib/permissions';
+
 
 export const dynamic = 'force-dynamic';
 
@@ -12,10 +12,7 @@ export async function PUT(req: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Enforce View-Only mode for non-admins
-        if (!isAdmin(user.username)) {
-            return NextResponse.json({ error: 'Permission denied: View only mode' }, { status: 403 });
-        }
+
 
         const userId = user.id;
 
@@ -52,7 +49,8 @@ export async function PUT(req: NextRequest) {
                 username: true,
                 email: true,
                 avatar: true,
-                tagline: true
+                tagline: true,
+                role: true
             }
         });
 
