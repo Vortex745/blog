@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/auth';
-import { isAdmin } from '@/lib/permissions';
+
 import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
@@ -52,7 +52,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             return NextResponse.json({ error: 'Project not found' }, { status: 404 });
         }
 
-        if (project.userId !== user.id && !isAdmin(user.username)) {
+        if (project.userId !== user.id && user.role !== 'admin') {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 
@@ -90,7 +90,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
             return NextResponse.json({ error: 'Project not found' }, { status: 404 });
         }
 
-        if (project.userId !== user.id && !isAdmin(user.username)) {
+        if (project.userId !== user.id && user.role !== 'admin') {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 

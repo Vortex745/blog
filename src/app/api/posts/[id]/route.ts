@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/auth';
-import { isAdmin } from '@/lib/permissions';
+
 import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
@@ -63,8 +63,8 @@ export async function PUT(
             return NextResponse.json({ error: 'Post not found' }, { status: 404 });
         }
 
-        if (existingPost.userId !== user.id && !isAdmin(user.username)) {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        if (existingPost.userId !== user.id && user.role !== 'admin') {
+            return NextResponse.json({ error: 'Forbidden: You can only edit your own posts' }, { status: 403 });
         }
 
         const body = await req.json();
@@ -123,8 +123,8 @@ export async function DELETE(
             return NextResponse.json({ error: 'Post not found' }, { status: 404 });
         }
 
-        if (existingPost.userId !== user.id && !isAdmin(user.username)) {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        if (existingPost.userId !== user.id && user.role !== 'admin') {
+            return NextResponse.json({ error: 'Forbidden: You can only delete your own posts' }, { status: 403 });
         }
 
         await prisma.postCategory.deleteMany({ where: { postId } });

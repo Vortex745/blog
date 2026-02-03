@@ -34,11 +34,12 @@ export async function DELETE(
             return NextResponse.json({ error: 'Comment not found' }, { status: 404 });
         }
 
-        // Check permissions: either the comment author OR the post author can delete
+        // Check permissions: either the comment author OR the post author OR admin can delete
         const isCommentAuthor = comment.userId === user.id;
         const isPostAuthor = comment.post.userId === user.id;
+        const isAdminUser = user.role === 'admin';
 
-        if (!isCommentAuthor && !isPostAuthor) {
+        if (!isCommentAuthor && !isPostAuthor && !isAdminUser) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 

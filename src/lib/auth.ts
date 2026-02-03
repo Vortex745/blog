@@ -8,6 +8,7 @@ export interface AuthUser {
     id: number;
     email: string;
     username: string;
+    role?: string;
 }
 
 export async function getAuthenticatedUser(req: NextRequest): Promise<AuthUser | null> {
@@ -22,17 +23,19 @@ export async function getAuthenticatedUser(req: NextRequest): Promise<AuthUser |
     try {
         const decoded = jwt.verify(token, JWT_SECRET) as any;
 
-        // Optional: Verify user still exists in DB
-        // const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
-        // return user;
-
-        // For performance, trusting the token payload might be enough if expiration is short
         if (decoded && decoded.userId) {
-            return {
-                id: decoded.userId,
-                email: decoded.email,
-                username: decoded.username
-            };
+            const user = await prisma.user.findUnique({
+                where: { id: decoded.userId }
+            });
+
+            if (user) {
+                return {
+                    id: user.id,
+                    email: user.email,
+                    username: user.username,
+                    role: user.role
+                };
+            }
         }
         return null;
     } catch (error) {
