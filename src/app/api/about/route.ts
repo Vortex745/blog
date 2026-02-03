@@ -17,12 +17,15 @@ export async function GET(req: NextRequest) {
         if (username) {
             user = await prisma.user.findUnique({ where: { username } });
         } else {
-            // If no username, try to get the first user (Site Owner) or authenticated user
-            // For a personal blog, usually we want the "Owner's" about page.
-            // Let's assume the first user created is the owner for simplicity, 
-            // or we might require a username.
-            // Let's fallback to returning the first user if exists.
-            user = await prisma.user.findFirst({ orderBy: { id: 'asc' } });
+            // Get the admin user (site owner) for the about page
+            user = await prisma.user.findFirst({
+                where: { role: 'admin' },
+                orderBy: { id: 'asc' }
+            });
+            // Fallback to first user if no admin found
+            if (!user) {
+                user = await prisma.user.findFirst({ orderBy: { id: 'asc' } });
+            }
         }
 
         if (!user) {
