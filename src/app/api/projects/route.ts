@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/auth';
-import { isAdmin } from '@/lib/permissions';
+
 import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
@@ -52,10 +52,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Restrict project creation to Admin only
-        if (!isAdmin(user.username)) {
-            return NextResponse.json({ error: 'Permission denied: View only mode' }, { status: 403 });
-        }
+
 
         const body = await req.json();
         const validation = createProjectSchema.safeParse(body);
