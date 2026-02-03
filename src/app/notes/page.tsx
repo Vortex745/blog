@@ -1,9 +1,11 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import api from '@/lib/axios';
+import { useAuth } from '@/context/AuthContext';
 import { HoverEffect } from '@/components/ui/card-hover-effect';
-import { BookOpen, Calendar, Sparkles, ArrowRight } from 'lucide-react';
+import { BookOpen, Calendar, Sparkles, ArrowRight, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
+import Link from 'next/link';
 
 interface Note {
     id: number;
@@ -14,6 +16,7 @@ interface Note {
 }
 
 export default function NotesPage() {
+    const { user } = useAuth();
     const [notes, setNotes] = useState<Note[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -121,6 +124,18 @@ export default function NotesPage() {
                     )}
                 </div>
             </main>
+
+            {user && (
+                <div className="fixed bottom-10 right-10 z-50">
+                    <Link
+                        href="/write?type=note"
+                        className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-full shadow-warm-lg hover:scale-105 hover:bg-primary-dark transition-all duration-200 font-bold"
+                    >
+                        <Plus size={18} />
+                        <span>发布笔记</span>
+                    </Link>
+                </div>
+            )}
         </div>
     );
 }
