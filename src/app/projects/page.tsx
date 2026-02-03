@@ -201,17 +201,15 @@ export default function ProjectsPage() {
                 </div>
             </main>
 
-            {user && (
-                <div className="fixed bottom-10 right-10 z-50">
-                    <Link
-                        href="/write-project"
-                        className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-full shadow-warm-lg hover:scale-105 hover:bg-primary-dark transition-all duration-200 font-bold"
-                    >
-                        <Plus size={18} />
-                        <span>发布项目</span>
-                    </Link>
-                </div>
-            )}
+            <div className="fixed bottom-10 right-10 z-[999]">
+                <Link
+                    href="/write-project"
+                    className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-full shadow-warm-lg hover:scale-105 hover:bg-primary-dark transition-all duration-200 font-bold"
+                >
+                    <Plus size={18} />
+                    <span>发布项目</span>
+                </Link>
+            </div>
         </div>
     );
 }

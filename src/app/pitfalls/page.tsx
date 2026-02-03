@@ -227,17 +227,15 @@ export default function PitfallsPage() {
                     </div>
                 )}
             </main>
-            {user && (
-                <div className="fixed bottom-10 right-10 z-50">
-                    <Link
-                        href="/write?type=pitfall"
-                        className="flex items-center gap-2 px-6 py-3 bg-warning text-white rounded-full shadow-warm-lg hover:scale-105 hover:bg-warning-dark transition-all duration-200 font-bold"
-                    >
-                        <Plus size={18} />
-                        <span>记录新坑</span>
-                    </Link>
-                </div>
-            )}
+            <div className="fixed bottom-10 right-10 z-[999]">
+                <Link
+                    href="/write?type=pitfall"
+                    className="flex items-center gap-2 px-6 py-3 bg-warning text-white rounded-full shadow-warm-lg hover:scale-105 hover:bg-warning-dark transition-all duration-200 font-bold"
+                >
+                    <Plus size={18} />
+                    <span>记录新坑</span>
+                </Link>
+            </div>
         </div>
     );
 }
