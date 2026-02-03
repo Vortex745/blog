@@ -17,7 +17,8 @@ export async function POST(req: NextRequest) {
         const validation = loginSchema.safeParse(body);
 
         if (!validation.success) {
-            return NextResponse.json({ error: validation.error.format() }, { status: 400 });
+            const firstError = Object.values(validation.error.flatten().fieldErrors)[0]?.[0] || '参数验证失败';
+            return NextResponse.json({ error: firstError }, { status: 400 });
         }
 
         const { email, password } = validation.data;
