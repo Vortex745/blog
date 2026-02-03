@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import api from '@/lib/axios';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Link from 'next/link';
 import { ArrowLeft, Send, Sparkles, FileText, Hash, AlignLeft, Layers, Image as ImageIcon } from 'lucide-react';
@@ -33,8 +33,10 @@ Error: ...
 
 export default function WritePage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { user, isLoading: authLoading } = useAuth();
-    const [searchParams] = useState(new URLSearchParams(typeof window !== 'undefined' ? window.location.search : ''));
+
+    // Get params directly from the hook
     const initialType = searchParams.get('type') || 'note';
     const postId = searchParams.get('id');
 
@@ -48,6 +50,7 @@ export default function WritePage() {
     const [loading, setLoading] = useState(false);
 
     // Fetch post if editing
+    // Fetch post if editing, or reset if creating
     useEffect(() => {
         if (postId) {
             setLoading(true);
@@ -67,8 +70,17 @@ export default function WritePage() {
                     alert('加载文章失败');
                 })
                 .finally(() => setLoading(false));
+        } else {
+            // Reset form when not editing (e.g. switching from edit to create, or changing type via URL)
+            setFormData({
+                title: '',
+                content: initialType === 'pitfall' ? PITFALL_TEMPLATE : '',
+                summary: '',
+                type: initialType,
+                cover: '',
+            });
         }
-    }, [postId]);
+    }, [postId, initialType]);
 
 
 
