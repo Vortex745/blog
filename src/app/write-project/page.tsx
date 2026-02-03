@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import api from '@/lib/axios';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Link from 'next/link';
 import { ArrowLeft, Save, FolderGit2, Link as LinkIcon, Layers, FileText, Sparkles, Pin } from 'lucide-react';
@@ -13,8 +13,8 @@ import { useAuth } from '@/context/AuthContext';
 
 export default function WriteProjectPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { user, isLoading: authLoading } = useAuth();
-    const [searchParams] = useState(new URLSearchParams(typeof window !== 'undefined' ? window.location.search : ''));
     const projectId = searchParams.get('id');
 
     const [formData, setFormData] = useState({
@@ -28,6 +28,7 @@ export default function WriteProjectPage() {
     });
     const [loading, setLoading] = useState(false);
 
+    // Fetch project if editing, or reset if creating new
     useEffect(() => {
         if (projectId) {
             setLoading(true);
@@ -49,6 +50,17 @@ export default function WriteProjectPage() {
                     alert('加载项目失败');
                 })
                 .finally(() => setLoading(false));
+        } else {
+            // Reset form when creating new project
+            setFormData({
+                title: '',
+                description: '',
+                techStack: '',
+                repoUrl: '',
+                demoUrl: '',
+                isPinned: false,
+                cover: '',
+            });
         }
     }, [projectId]);
 
