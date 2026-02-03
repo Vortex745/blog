@@ -4,7 +4,7 @@ import api from '@/lib/axios';
 import { useAuth } from '@/context/AuthContext';
 import { CardBody, CardContainer, CardItem } from '@/components/ui/3d-card';
 import Link from 'next/link';
-import { Github, Globe, Pin, FolderGit2, Plus, ArrowRight, Smartphone, Monitor, Terminal, Package, Gamepad2, MoreHorizontal } from 'lucide-react';
+import { Github, Globe, Pin, FolderGit2, Plus, ArrowRight, Smartphone, Monitor, Terminal, Package, Gamepad2, MoreHorizontal, Edit2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface Project {
@@ -37,14 +37,11 @@ export default function ProjectsPage() {
     const { user } = useAuth();
     const [projects, setProjects] = useState<Project[]>([]);
     const [loading, setLoading] = useState(true);
-    const [activeType, setActiveType] = useState('all');
 
     useEffect(() => {
         const fetchProjects = async () => {
-            setLoading(true);
             try {
-                const params = activeType !== 'all' ? `?projectType=${activeType}` : '';
-                const res = await api.get(`/projects${params}`);
+                const res = await api.get('/projects');
                 setProjects(res.data.data);
             } catch (error) {
                 console.error("Failed to fetch projects:", error);
@@ -53,7 +50,7 @@ export default function ProjectsPage() {
             }
         };
         fetchProjects();
-    }, [activeType]);
+    }, []);
 
     // 焦糖色调渐变背景
     const gradients = [
@@ -103,28 +100,6 @@ export default function ProjectsPage() {
                         每一个项目都是一次对未知的探索。
                     </motion.p>
                 </header>
-
-                {/* Filter Tabs */}
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="flex flex-wrap gap-2 mb-10"
-                >
-                    {PROJECT_TYPES.map(({ value, label, icon: Icon }) => (
-                        <button
-                            key={value}
-                            onClick={() => setActiveType(value)}
-                            className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${activeType === value
-                                ? 'bg-primary text-white shadow-warm'
-                                : 'bg-surface border border-border text-muted hover:border-primary/50 hover:text-foreground'
-                                }`}
-                        >
-                            <Icon size={14} />
-                            {label}
-                        </button>
-                    ))}
-                </motion.div>
 
                 <div className="max-w-6xl mx-auto">
                     {loading ? (
@@ -224,14 +199,27 @@ export default function ProjectsPage() {
                                                     </CardItem>
                                                 )}
                                             </div>
-                                            <CardItem
-                                                translateZ={30}
-                                                as={Link}
-                                                href={`/projects/${project.id}`}
-                                                className="flex items-center gap-1 text-sm font-bold text-foreground hover:text-primary transition-colors cursor-pointer"
-                                            >
-                                                详情 <ArrowRight size={14} />
-                                            </CardItem>
+                                            <div className="flex items-center gap-2">
+                                                {user && (
+                                                    <CardItem
+                                                        translateZ={20}
+                                                        as={Link}
+                                                        href={`/write-project?id=${project.id}`}
+                                                        className="p-2.5 rounded-xl text-muted hover:text-accent hover:bg-accent/10 transition-colors"
+                                                        title="编辑项目"
+                                                    >
+                                                        <Edit2 size={16} />
+                                                    </CardItem>
+                                                )}
+                                                <CardItem
+                                                    translateZ={30}
+                                                    as={Link}
+                                                    href={`/projects/${project.id}`}
+                                                    className="flex items-center gap-1 text-sm font-bold text-foreground hover:text-primary transition-colors cursor-pointer"
+                                                >
+                                                    详情 <ArrowRight size={14} />
+                                                </CardItem>
+                                            </div>
                                         </div>
                                     </CardBody>
                                 </CardContainer>
