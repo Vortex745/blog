@@ -85,20 +85,9 @@ export default function PitfallsPage() {
                         <AlertTriangle size={12} />
                         踩坑总结
                     </div>
-                    <div className="flex items-end justify-between mb-3">
-                        <h1 className="text-4xl md:text-5xl font-serif font-bold text-foreground">
-                            故障 <span className="text-warning">档案</span>
-                        </h1>
-                        <div className="hidden md:block">
-                            <Link
-                                href="/write?type=pitfall"
-                                className="flex items-center gap-2 px-6 py-2.5 bg-warning/10 text-warning hover:bg-warning hover:text-white border border-warning/20 rounded-full font-bold transition-all duration-300"
-                            >
-                                <Plus size={18} />
-                                <span>记录新坑</span>
-                            </Link>
-                        </div>
-                    </div>
+                    <h1 className="text-4xl md:text-5xl font-serif font-bold text-foreground mb-3">
+                        故障 <span className="text-warning">档案</span>
+                    </h1>
                     <p className="text-muted max-w-2xl">
                         记录开发路上的那些坑。有模板的技术总结文章，包含问题描述、原因分析、解决方案和避坑指南。
                     </p>

@@ -76,26 +76,14 @@ export default function NotesPage() {
                         <span>碎片思考</span>
                     </motion.div>
 
-                    <div className="flex items-end justify-between mb-6">
-                        <motion.h1
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.1 }}
-                            className="text-4xl md:text-5xl font-serif font-bold text-foreground"
-                        >
-                            笔记 & <span className="gradient-text">随想</span>
-                        </motion.h1>
-
-                        <div className="hidden md:block">
-                            <Link
-                                href="/write?type=note"
-                                className="flex items-center gap-2 px-6 py-2.5 bg-primary/10 text-primary hover:bg-primary hover:text-white border border-primary/20 rounded-full font-bold transition-all duration-300"
-                            >
-                                <Plus size={18} />
-                                <span>写笔记</span>
-                            </Link>
-                        </div>
-                    </div>
+                    <motion.h1
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 }}
+                        className="text-4xl md:text-5xl font-serif font-bold text-foreground mb-6"
+                    >
+                        笔记 & <span className="gradient-text">随想</span>
+                    </motion.h1>
 
                     <motion.p
                         initial={{ opacity: 0, y: 20 }}
