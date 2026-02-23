@@ -13,9 +13,9 @@ module.exports = {
     theme: {
         extend: {
             fontFamily: {
-                serif: ['Noto Serif SC', 'Georgia', 'serif'],
-                sans: ['Inter', 'system-ui', 'sans-serif'],
-                mono: ['JetBrains Mono', 'monospace'],
+                serif: ['var(--font-noto-serif)', 'Noto Serif SC', 'Georgia', 'serif'],
+                sans: ['var(--font-inter)', 'Inter', 'system-ui', 'sans-serif'],
+                mono: ['var(--font-jetbrains)', 'JetBrains Mono', 'monospace'],
             },
             colors: {
                 // 科技蓝紫粉白配色 (ID-0076)

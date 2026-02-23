@@ -1,11 +1,11 @@
 "use client";
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { PenTool, User, LogOut, BookOpen, FolderGit2, Bug, Info, Home, Archive, Menu, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Navbar() {
     const { user, logout } = useAuth();
@@ -35,7 +35,14 @@ export default function Navbar() {
                     href="/"
                     className="flex items-center gap-2 font-serif font-bold text-xl text-foreground hover:text-primary transition-colors group"
                 >
-                    <img src="/logo.png" alt="Logo" className="w-8 h-8 rounded-lg shadow-blue group-hover:scale-110 transition-transform object-cover" />
+                    <Image
+                        src="/logo.png"
+                        alt="Logo"
+                        width={32}
+                        height={32}
+                        className="rounded-lg shadow-blue group-hover:scale-110 transition-transform object-cover"
+                        priority
+                    />
                     <span>未完稿</span>
                 </Link>
 
@@ -48,18 +55,10 @@ export default function Navbar() {
                             className={cn(
                                 "relative px-4 py-2 text-sm font-medium rounded-lg transition-colors",
                                 isActive(item.href)
-                                    ? "text-primary"
+                                    ? "text-primary bg-primary/10"
                                     : "text-muted hover:text-foreground hover:bg-surface-hover"
                             )}
                         >
-                            {/* Active Indicator */}
-                            {isActive(item.href) && (
-                                <motion.div
-                                    layoutId="navbar-indicator"
-                                    className="absolute inset-0 bg-primary/10 rounded-lg"
-                                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                                />
-                            )}
                             <span className="relative z-10 flex items-center gap-1.5">
                                 <item.icon size={15} />
                                 {item.name}
@@ -81,9 +80,16 @@ export default function Navbar() {
                     {user ? (
                         <div className="relative group">
                             <button className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-surface-hover transition-colors">
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-accent to-primary flex items-center justify-center text-white text-xs font-bold ring-2 ring-white">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-accent to-primary flex items-center justify-center text-white text-xs font-bold ring-2 ring-white overflow-hidden">
                                     {user.avatar ? (
-                                        <img src={user.avatar} alt={user.username} className="w-full h-full rounded-full object-cover" />
+                                        <Image
+                                            src={user.avatar}
+                                            alt={user.username}
+                                            width={32}
+                                            height={32}
+                                            className="w-full h-full rounded-full object-cover"
+                                            unoptimized
+                                        />
                                     ) : (
                                         user.username?.[0]?.toUpperCase()
                                     )}
@@ -127,36 +133,32 @@ export default function Navbar() {
                 </div>
             </div>
 
-            {/* Mobile Menu */}
-            <AnimatePresence>
-                {mobileMenuOpen && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="md:hidden border-t border-border bg-surface overflow-hidden"
-                    >
-                        <div className="px-4 py-4 space-y-2">
-                            {navItems.map((item) => (
-                                <Link
-                                    key={item.href}
-                                    href={item.href}
-                                    onClick={() => setMobileMenuOpen(false)}
-                                    className={cn(
-                                        "flex items-center gap-3 px-4 py-3 rounded-xl transition-colors",
-                                        isActive(item.href)
-                                            ? "bg-primary/10 text-primary font-bold"
-                                            : "text-muted hover:bg-surface-hover"
-                                    )}
-                                >
-                                    <item.icon size={18} />
-                                    {item.name}
-                                </Link>
-                            ))}
-                        </div>
-                    </motion.div>
+            {/* Mobile Menu — CSS transition to avoid framer-motion in critical path */}
+            <div
+                className={cn(
+                    "md:hidden border-t border-border bg-surface overflow-hidden transition-all duration-300 ease-in-out",
+                    mobileMenuOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
                 )}
-            </AnimatePresence>
+            >
+                <div className="px-4 py-4 space-y-2">
+                    {navItems.map((item) => (
+                        <Link
+                            key={item.href}
+                            href={item.href}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className={cn(
+                                "flex items-center gap-3 px-4 py-3 rounded-xl transition-colors",
+                                isActive(item.href)
+                                    ? "bg-primary/10 text-primary font-bold"
+                                    : "text-muted hover:bg-surface-hover"
+                            )}
+                        >
+                            <item.icon size={18} />
+                            {item.name}
+                        </Link>
+                    ))}
+                </div>
+            </div>
         </header>
     );
 }

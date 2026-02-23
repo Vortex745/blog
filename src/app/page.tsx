@@ -1,14 +1,39 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
+import dynamic from 'next/dynamic';
 import api from '@/lib/axios';
 import { useAuth } from '@/context/AuthContext';
 import { BookOpen, Layers, Bug, PenLine, Github, Mail, Calendar, ArrowRight, Eye, MessageCircle, Rss, Edit2, Check, X } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { isAdmin } from '@/lib/permissions';
-import { FlipWords } from '@/components/ui/flip-words';
 import { BentoGrid, BentoGridItem } from '@/components/ui/bento-grid';
+
+// Dynamic import: FlipWords uses framer-motion AnimatePresence — not critical for FCP
+const FlipWords = dynamic(
+    () => import('@/components/ui/flip-words').then(mod => ({ default: mod.FlipWords })),
+    {
+        ssr: false,
+        loading: () => <span className="text-primary">构建未来</span>,
+    }
+);
+
+// Dynamic import: motion from framer-motion — defer to after hydration
+const MotionArticle = dynamic(
+    () => import('framer-motion').then(mod => {
+        const { motion } = mod;
+        return {
+            default: ({ children, ...props }: any) => (
+                <motion.article {...props}>{children}</motion.article>
+            ),
+        };
+    }),
+    {
+        ssr: false,
+        loading: () => <article />,
+    }
+);
 
 interface Post {
     id: number;
@@ -48,24 +73,11 @@ export default function HomePage() {
         if (!taglineValue.trim()) return;
         setIsSavingTagline(true);
         try {
-            // Need to preserve other user fields if the API requires full update? 
-            // Our API at /auth/update handles partial updates mostly, but let's check.
-            // Looking at route.ts: const { username, avatar, tagline } = body;
-            // It expects username. Validation check: if (!username...) return error.
-            // Ah, the validation in route.ts requires username to be present!
-            // "if (!username || username.trim().length < 2) ..."
-            // So we MUST send username.
-
             if (!user) return;
 
             const res = await api.put('/auth/update', {
-                username: user.username, // Send current username
+                username: user.username,
                 tagline: taglineValue
-                // avatar is optional in backend? "const { username, avatar, tagline } = body"
-                // It updates avatar if passed. undefined is fine? 
-                // DB update: username, avatar, tagline.
-                // If avatar is undefined in body, Prisma usually ignores unless explicitly set to null.
-                // However, let's be safe. But `user.avatar` might be null.
             });
             updateProfile(res.data);
             setIsEditingTagline(false);
@@ -132,7 +144,7 @@ export default function HomePage() {
                                 posts.slice(0, 4).map((post, i) => {
                                     const config = getTypeConfig(post.type);
                                     return (
-                                        <motion.article
+                                        <MotionArticle
                                             key={post.id}
                                             initial={{ opacity: 0, y: 10 }}
                                             animate={{ opacity: 1, y: 0 }}
@@ -155,7 +167,7 @@ export default function HomePage() {
                                                     className="h-full"
                                                 />
                                             </Link>
-                                        </motion.article>
+                                        </MotionArticle>
                                     );
                                 })
                             )}
@@ -167,11 +179,26 @@ export default function HomePage() {
 
                         {/* 个人卡片 */}
                         <div className="p-6 bg-surface border border-border rounded-xl text-center">
-                            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center overflow-hidden">
                                 {user?.avatar ? (
-                                    <img src={user.avatar} alt={user.username || 'User'} className="w-full h-full rounded-full object-cover" />
+                                    <Image
+                                        src={user.avatar}
+                                        alt={user.username || 'User'}
+                                        width={80}
+                                        height={80}
+                                        className="w-full h-full rounded-full object-cover"
+                                        loading="lazy"
+                                        unoptimized
+                                    />
                                 ) : (
-                                    <img src="/logo.png" alt="Logo" className="w-full h-full rounded-full object-cover" />
+                                    <Image
+                                        src="/logo.png"
+                                        alt="Logo"
+                                        width={80}
+                                        height={80}
+                                        className="w-full h-full rounded-full object-cover"
+                                        priority
+                                    />
                                 )}
                             </div>
                             <h3 className="font-bold text-foreground mb-1">{user?.username || '未完稿'}</h3>
