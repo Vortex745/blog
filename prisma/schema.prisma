@@ -1,0 +1,122 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  username  String    @unique
+  email     String    @unique
+  password  String
+  avatar    String?
+  tagline   String?   @default("全栈开发者 / 终身学习者")
+  role      String    @default("user") // admin, user
+  createdAt DateTime  @default(now()) @map("created_at")
+  posts     Post[]
+  comments  Comment[]
+  about     About?    // One-to-one relation
+  projects  Project[] // One-to-many relation to projects
+
+  @@map("users")
+}
+
+model Post {
+  id         Int            @id @default(autoincrement())
+  userId     Int            @map("user_id")
+  title      String
+  content    String
+  summary    String?
+  cover      String?
+  status     String         @default("published") // published, draft
+  type       String         @default("note")      // note, project, life
+  views      Int            @default(0)
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+  author     User           @relation(fields: [userId], references: [id])
+  categories PostCategory[]
+  tags       PostTag[]
+  comments   Comment[]
+
+  @@map("posts")
+}
+
+model Category {
+  id        Int            @id @default(autoincrement())
+  name      String         @unique
+  createdAt DateTime       @default(now()) @map("created_at")
+  posts     PostCategory[]
+
+  @@map("categories")
+}
+
+model PostCategory {
+  postId     Int      @map("post_id")
+  categoryId Int      @map("category_id")
+  post       Post     @relation(fields: [postId], references: [id])
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  @@id([postId, categoryId])
+  @@map("post_categories")
+}
+
+model Tag {
+  id    Int       @id @default(autoincrement())
+  name  String    @unique
+  posts PostTag[]
+
+  @@map("tags")
+}
+
+model PostTag {
+  postId Int  @map("post_id")
+  tagId  Int  @map("tag_id")
+  post   Post @relation(fields: [postId], references: [id])
+  tag    Tag  @relation(fields: [tagId], references: [id])
+
+  @@id([postId, tagId])
+  @@map("post_tags")
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  postId    Int      @map("post_id")
+  userId    Int      @map("user_id")
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+  post      Post     @relation(fields: [postId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("comments")
+}
+
+model About {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique @map("user_id")
+  content   String
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("about")
+}
+
+model Project {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user_id")
+  title       String
+  description String
+  techStack   String?  @map("tech_stack")
+  repoUrl     String?  @map("repo_url")
+  demoUrl     String?  @map("demo_url")
+  cover       String?
+  projectType String   @default("web") @map("project_type") // web, mobile, desktop, cli, library, game, other
+  isPinned    Boolean  @default(false) @map("is_pinned")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  author      User     @relation(fields: [userId], references: [id])
+
+  @@map("projects")
+}
