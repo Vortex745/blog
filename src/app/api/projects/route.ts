@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/auth';
+import { unstable_cache, revalidateTag } from 'next/cache';
 
 import { z } from 'zod';
 
@@ -22,6 +23,8 @@ export async function GET(req: NextRequest) {
     const isPinned = searchParams.get('isPinned');
     const projectType = searchParams.get('projectType');
 
+    const cacheKey = `projects-pinned-${isPinned || 'all'}-type-${projectType || 'all'}`;
+
     const where: any = {};
 
     if (isPinned === 'true') {
@@ -33,16 +36,24 @@ export async function GET(req: NextRequest) {
     }
 
     try {
-        const projects = await prisma.project.findMany({
-            where,
-            orderBy: [
-                { isPinned: 'desc' },
-                { createdAt: 'desc' }
-            ],
-            include: {
-                author: { select: { id: true, username: true } }
-            }
-        });
+        const getCachedProjects = unstable_cache(
+            async () => {
+                return await prisma.project.findMany({
+                    where,
+                    orderBy: [
+                        { isPinned: 'desc' },
+                        { createdAt: 'desc' }
+                    ],
+                    include: {
+                        author: { select: { id: true, username: true } }
+                    }
+                });
+            },
+            [cacheKey],
+            { revalidate: 3600, tags: ['projects'] }
+        );
+
+        const projects = await getCachedProjects();
 
         return NextResponse.json({ data: projects });
     } catch (error) {
@@ -73,6 +84,8 @@ export async function POST(req: NextRequest) {
                 userId: user.id
             }
         });
+
+        revalidateTag('projects');
 
         return NextResponse.json(project, { status: 201 });
     } catch (error) {

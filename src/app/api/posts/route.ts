@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/auth';
+import { unstable_cache, revalidateTag } from 'next/cache';
 
 import { z } from 'zod';
 
@@ -52,6 +53,8 @@ export async function POST(req: NextRequest) {
             },
         });
 
+        revalidateTag('posts');
+
         return NextResponse.json(post, { status: 201 });
     } catch (error) {
         console.error(error);
@@ -67,7 +70,8 @@ export async function GET(req: NextRequest) {
     const keyword = searchParams.get('keyword');
     const type = searchParams.get('type');
 
-    const skip = (page - 1) * pageSize;
+    // Create a deterministic cache key string
+    const cacheKey = `posts-page-${page}-size-${pageSize}-cat-${category || 'all'}-kw-${keyword || 'none'}-type-${type || 'all'}`;
 
     const where: any = {};
 
@@ -90,20 +94,31 @@ export async function GET(req: NextRequest) {
     }
 
     try {
-        const [posts, total] = await Promise.all([
-            prisma.post.findMany({
-                where,
-                skip,
-                take: pageSize,
-                orderBy: { createdAt: 'desc' },
-                include: {
-                    author: { select: { id: true, username: true, avatar: true } },
-                    categories: { include: { category: true } },
-                    tags: { include: { tag: true } }
-                }
-            }),
-            prisma.post.count({ where })
-        ]);
+        // Use Next.js unstable_cache to act as a Redis-like layer
+        const getCachedPosts = unstable_cache(
+            async () => {
+                const skip = (page - 1) * pageSize;
+                const [posts, total] = await Promise.all([
+                    prisma.post.findMany({
+                        where,
+                        skip,
+                        take: pageSize,
+                        orderBy: { createdAt: 'desc' },
+                        include: {
+                            author: { select: { id: true, username: true, avatar: true } },
+                            categories: { include: { category: true } },
+                            tags: { include: { tag: true } }
+                        }
+                    }),
+                    prisma.post.count({ where })
+                ]);
+                return { posts, total };
+            },
+            [cacheKey], // Cache key parts
+            { revalidate: 3600, tags: ['posts'] } // Cache for 1 hour, tag for on-demand invalidation
+        );
+
+        const { posts, total } = await getCachedPosts();
 
         return NextResponse.json({ data: posts, total, page, pageSize });
     } catch (error) {
