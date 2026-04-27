@@ -1,7 +1,7 @@
 /* Tailwind CSS v4 */
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
-@import "@fontsource-variable/inter";
+@import "@fontsource-variable/inter" layer(base);
 
 @custom-variant dark (&:is(.dark *));
 
@@ -668,7 +668,6 @@ body {
   color: var(--color-near-black);
   box-shadow: none;
   transform: translateY(0) scale(1);
-  will-change: transform;
   transition:
     border-color var(--motion-duration-standard) var(--motion-ease-out),
     box-shadow var(--motion-duration-standard) var(--motion-ease-out),
@@ -694,7 +693,6 @@ body {
   padding: 1.5rem;
   box-shadow: none;
   transform: translateY(0) scale(1);
-  will-change: transform;
   transition:
     border-color var(--motion-duration-standard) var(--motion-ease-out),
     background-color var(--motion-duration-standard) var(--motion-ease-out),
@@ -727,7 +725,6 @@ body {
 .hero-note-card,
 .gallery-card {
   transform: translateY(0) scale(1);
-  will-change: transform;
   transition:
     border-color var(--motion-duration-standard) var(--motion-ease-out),
     background-color var(--motion-duration-standard) var(--motion-ease-out),

@@ -1,12 +1,15 @@
 ---
 import "../styles/globals.css";
+import { ClientRouter } from "astro:transitions";
+import { fade } from "astro:transitions";
 
 export interface Props {
   title: string;
   current?: string;
 }
 
-const { title, current = "" } = Astro.props;
+const { current = "" } = Astro.props;
+const adminBrowserTitle = "子衿的个人博客后台";
 
 const navItems = [
   { id: "dashboard", label: "总览", href: "/admin" },
@@ -15,6 +18,7 @@ const navItems = [
   { id: "articles", label: "文章", href: "/admin/articles" },
   { id: "gallery", label: "图库", href: "/admin/gallery" },
   { id: "about", label: "关于", href: "/admin/about" },
+  { id: "api", label: "API", href: "/admin/api" },
 ];
 ---
 
@@ -23,13 +27,31 @@ const navItems = [
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>{title} — 管理后台</title>
+    <meta name="theme-color" content="#f4f6fa" />
+    <link rel="icon" type="image/jpeg" href="/favicon.jpg" />
+    <title>{adminBrowserTitle}</title>
+    <ClientRouter />
+    <!-- Inline critical CSS to prevent FOUC and reduce CLS -->
+    <style is:inline>{`
+      .admin-body{margin:0;padding:0;background:#f4f6fa;font-family:"Inter","SF Pro Text","Helvetica Neue",Helvetica,Arial,sans-serif;color:#181c23;min-height:100vh}
+      .admin-shell{display:flex;min-height:100vh;transition:opacity 0.15s ease}
+      .admin-shell--hidden{opacity:0}
+      .admin-sidebar{width:220px;flex-shrink:0;background:rgba(255,255,255,0.7);border-right:1px solid rgba(193,198,214,0.4);display:flex;flex-direction:column;padding:24px 0;position:sticky;top:0;height:100vh}
+      .admin-main{flex:1;padding:32px 40px;overflow-y:auto}
+      @media(max-width:768px){.admin-sidebar{display:none}.admin-main{padding:24px}}
+    `}</style>
+    <script is:inline>
+      // Auth guard: redirect BEFORE paint to prevent flash of admin content
+      if (localStorage.getItem("admin-auth") !== "1") {
+        var redirect = encodeURIComponent(window.location.pathname);
+        window.location.replace("/admin/login?redirect=" + redirect);
+      }
+    </script>
   </head>
   <body class="admin-body">
-    <div class="admin-shell">
+    <div class="admin-shell admin-shell--hidden">
       <!-- Sidebar -->
-      <aside class="admin-sidebar">
+      <aside class="admin-sidebar" transition:persist>
         <div class="admin-sidebar-header">
           <a href="/" class="admin-logo">子衿</a>
           <span class="admin-badge">管理后台</span>
@@ -43,6 +65,7 @@ const navItems = [
                 <a
                   href={item.href}
                   class={`admin-nav-link ${isActive ? "is-active" : ""}`}
+                  data-prefetch
                 >
                   {item.label}
                 </a>
@@ -63,19 +86,31 @@ const navItems = [
       </aside>
 
       <!-- Main -->
-      <main class="admin-main" data-admin-module={current}>
+      <main class="admin-main" data-admin-module={current} transition:animate={fade({ duration: "160ms" })}>
         <slot />
       </main>
     </div>
 
     <script>
-      (function() {
-        // Auth guard: redirect to login if not authenticated
-        const isAuthed = localStorage.getItem("admin-auth") === "1";
-        if (!isAuthed) {
-          window.location.replace("/admin/login");
-          return;
-        }
+      import { initAdminAnimations } from "../scripts/admin-animations";
+
+      const adminRuntime = window as Window & {
+        __adminLayoutReady?: boolean;
+        __adminLayoutAbort?: AbortController;
+      };
+
+      function revealShell(doc: Document = document) {
+        const shell = doc.querySelector(".admin-shell");
+        if (shell) shell.classList.remove("admin-shell--hidden");
+      }
+
+      function setupAdminPage() {
+        // Show shell immediately (auth check already done in <head>)
+        revealShell();
+
+        adminRuntime.__adminLayoutAbort?.abort();
+        const controller = new AbortController();
+        adminRuntime.__adminLayoutAbort = controller;
 
         // Logout handler
         const logoutBtn = document.getElementById("admin-logout");
@@ -85,14 +120,24 @@ const navItems = [
             localStorage.removeItem("admin-auth-time");
             window.location.replace("/admin/login");
           }
-        });
-      })();
-    </script>
+        }, { signal: controller.signal });
 
-    <!-- Admin Animation System -->
-    <script>
-      import { initAdminAnimations } from "../scripts/admin-animations";
-      initAdminAnimations();
+        // Init animations
+        initAdminAnimations();
+      }
+
+      // First load
+      setupAdminPage();
+      if (!adminRuntime.__adminLayoutReady) {
+        adminRuntime.__adminLayoutReady = true;
+        // Before swap: ensure incoming shell is visible immediately (no opacity:0 flash)
+        document.addEventListener("astro:before-swap", (e) => {
+          const newDoc = (e as CustomEvent).detail?.newDocument as Document | undefined;
+          if (newDoc) revealShell(newDoc);
+        });
+        // After swap: re-bind events and animations
+        document.addEventListener("astro:after-swap", setupAdminPage);
+      }
     </script>
   </body>
 </html>
@@ -109,6 +154,28 @@ const navItems = [
   .admin-shell {
     display: flex;
     min-height: 100vh;
+  }
+  .admin-shell--hidden {
+    opacity: 0;
+  }
+  /* Override Astro's default fade keyframes with slide-enhanced version */
+  @keyframes astroFadeOut {
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(-6px); }
+  }
+  @keyframes astroFadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    @keyframes astroFadeOut {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
+    @keyframes astroFadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
   }
   .admin-sidebar {
     width: 220px;
@@ -167,7 +234,6 @@ const navItems = [
     transform: translate3d(0, 0, 0);
     transform-origin: 50% 50%;
     backface-visibility: hidden;
-    will-change: transform, opacity;
   }
   .admin-nav-link {
     display: flex;
@@ -183,7 +249,6 @@ const navItems = [
     transition: color 0.18s cubic-bezier(0.23, 1, 0.32, 1), transform 0.12s cubic-bezier(0.23, 1, 0.32, 1);
     transform: scale(1);
     transform-origin: 50% 50%;
-    will-change: transform;
   }
   @media (hover: hover) and (pointer: fine) {
     .admin-nav-link:hover {
@@ -192,9 +257,6 @@ const navItems = [
   }
   .admin-nav-link.is-active {
     color: #0059b5;
-  }
-  .admin-nav[data-switching="true"] .admin-nav-link {
-    pointer-events: none;
   }
   .admin-nav-link:active {
     transform: scale(0.97);
@@ -249,7 +311,6 @@ const navItems = [
     flex: 1;
     padding: 32px 40px;
     overflow-y: auto;
-    will-change: transform, opacity;
   }
   @media (max-width: 768px) {
     .admin-sidebar {

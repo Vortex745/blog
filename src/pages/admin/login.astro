@@ -7,8 +7,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>登录 — 管理后台</title>
+    <link rel="icon" type="image/jpeg" href="/favicon.jpg" />
+    <title>子衿的个人博客后台</title>
     <link rel="stylesheet" href="/styles/globals.css" />
     <style>
       .login-body {
@@ -141,7 +141,7 @@
   <body class="login-body">
     <div class="login-card">
       <div class="login-brand">
-        <h1>子衿的个人博客网站</h1>
+        <h1>子衿的个人博客后台</h1>
         <p>管理后台登录</p>
       </div>
 
@@ -189,7 +189,8 @@
       (function() {
         // If already logged in, redirect to admin dashboard
         if (localStorage.getItem("admin-auth") === "1") {
-          window.location.replace("/admin");
+          const redirect = new URLSearchParams(window.location.search).get("redirect") || "/admin";
+          window.location.replace(redirect);
           return;
         }
 
@@ -220,7 +221,8 @@
           if (username === "admin" && password === "1234") {
             localStorage.setItem("admin-auth", "1");
             localStorage.setItem("admin-auth-time", String(Date.now()));
-            window.location.replace("/admin");
+            const redirect = new URLSearchParams(window.location.search).get("redirect") || "/admin";
+            window.location.replace(redirect);
           } else {
             errorEl?.classList.add("is-visible");
             passwordEl && (passwordEl.value = "");

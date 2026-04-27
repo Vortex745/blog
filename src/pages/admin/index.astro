@@ -53,6 +53,15 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
           <p>编辑个人简介和联系信息</p>
         </div>
       </a>
+      <a href="/admin/api" class="admin-card">
+        <div class="admin-card-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z"/><circle cx="12" cy="15" r="1"/></svg>
+        </div>
+        <div class="admin-card-body">
+          <h3>API 管理</h3>
+          <p>配置 LLM API 连接和 AI 润色</p>
+        </div>
+      </a>
     </div>
   </div>
 </AdminLayout>
@@ -90,7 +99,6 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     text-decoration: none;
     transition: background-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.15s cubic-bezier(0.23, 1, 0.32, 1);
     transform: scale(1) translateY(0);
-    will-change: transform;
   }
   .admin-card:hover {
     background: rgba(255,255,255,0.9);

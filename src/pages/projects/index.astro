@@ -42,45 +42,53 @@ const formatDate = (date: Date) =>
       </div>
 
       {/* Dense Project Grid */}
-      <div class="projects-dense-grid" data-animate="stagger" id="projects-list">
-        {sortedProjects.map((project, idx) => (
-          <div class="project-item" data-tags={JSON.stringify(project.data.tags)}>
-            <a href={`/projects/${project.id.replace(/\.mdx?$/, "")}`} class="project-card">
-              <div class="project-card-header">
-                <div class="project-card-num">{String(idx + 1).padStart(2, "0")}</div>
-                <div class="project-card-meta">
-                  <span class="project-card-date">{formatDate(project.data.date)}</span>
-                  <div class="project-card-tags">
-                    {project.data.tags.slice(0, 3).map((tag) => (
-                      <span class="project-card-tag">{tag}</span>
-                    ))}
+      {sortedProjects.length > 0 ? (
+        <div class="projects-dense-grid" data-animate="stagger" id="projects-list">
+          {sortedProjects.map((project, idx) => (
+            <div class="project-item" data-tags={JSON.stringify(project.data.tags)}>
+              <a href={`/projects/${project.id.replace(/\.mdx?$/, "")}`} class="project-card">
+                <div class="project-card-header">
+                  <div class="project-card-num">{String(idx + 1).padStart(2, "0")}</div>
+                  <div class="project-card-meta">
+                    <span class="project-card-date">{formatDate(project.data.date)}</span>
+                    <div class="project-card-tags">
+                      {project.data.tags.slice(0, 3).map((tag) => (
+                        <span class="project-card-tag">{tag}</span>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-              <h3 class="project-card-title">{project.data.title}</h3>
-              <p class="project-card-desc">{project.data.description}</p>
-            </a>
-            <div class="project-card-links">
-              {project.data.githubUrl && (
-                <a href={project.data.githubUrl} target="_blank" rel="noopener noreferrer" class="project-link">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>
-                  GitHub
-                </a>
-              )}
-              {project.data.demoUrl && (
-                <a href={project.data.demoUrl} target="_blank" rel="noopener noreferrer" class="project-link">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                  演示
-                </a>
-              )}
-              <a href={`/projects/${project.id.replace(/\.mdx?$/, "")}`} class="project-link project-link-primary">
-                详情
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                <h3 class="project-card-title">{project.data.title}</h3>
+                <p class="project-card-desc">{project.data.description}</p>
               </a>
+              <div class="project-card-links">
+                {project.data.githubUrl && (
+                  <a href={project.data.githubUrl} target="_blank" rel="noopener noreferrer" class="project-link">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>
+                    GitHub
+                  </a>
+                )}
+                {project.data.demoUrl && (
+                  <a href={project.data.demoUrl} target="_blank" rel="noopener noreferrer" class="project-link">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                    演示
+                  </a>
+                )}
+                <a href={`/projects/${project.id.replace(/\.mdx?$/, "")}`} class="project-link project-link-primary">
+                  详情
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                </a>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div class="empty-placeholder">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="empty-icon"><path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Z"/><path d="M16 3v4"/><path d="M8 3v4"/><path d="M2 11h20"/></svg>
+          <p class="empty-title">暂无项目</p>
+          <p class="empty-desc">还没有添加任何项目，请在后台添加内容。</p>
+        </div>
+      )}
 
       {/* Empty State */}
       <div id="empty-state" class="empty-state hidden">
@@ -375,6 +383,35 @@ const formatDate = (date: Date) =>
 
   .empty-state.hidden {
     display: none;
+  }
+
+  /* Empty Placeholder */
+  .empty-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 24px;
+    text-align: center;
+    border: 2px dashed rgba(193,198,214,0.4);
+    border-radius: 16px;
+    background: rgba(244,246,250,0.4);
+  }
+  .empty-icon {
+    color: #c1c6d6;
+    margin-bottom: 16px;
+  }
+  .empty-placeholder .empty-title {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 600;
+    color: #181c23;
+    margin: 0 0 8px;
+  }
+  .empty-placeholder .empty-desc {
+    font-size: 14px;
+    color: #717785;
+    margin: 0;
   }
 
   /* Responsive */

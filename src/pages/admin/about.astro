@@ -98,9 +98,48 @@ import { profile } from "../../data/profile";
             <button type="button" class="toolbar-btn" data-action="ul" title="无序列表">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></svg>
             </button>
+            <span class="toolbar-divider"></span>
+            <button type="button" class="toolbar-btn toolbar-btn-polish" id="btn-polish" title="AI 润色">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+            </button>
           </div>
         </div>
         <textarea id="philosophy-content" name="philosophy" class="field-input field-textarea editor-textarea" rows="10" placeholder="在此输入 Markdown 格式的理念内容...&#10;&#10;每段之间用空行分隔。">{profile.philosophy.join("\n\n")}</textarea>
+
+        {/* AI Polish Options */}
+        <div class="polish-options hidden" id="polish-options">
+          <div class="polish-options-bar">
+            <label class="field-label" style="margin-bottom:0">AI 润色</label>
+            <div class="polish-presets">
+              <button type="button" class="polish-preset active" data-preset="polite">润色修饰</button>
+              <button type="button" class="polish-preset" data-preset="concise">精简紧凑</button>
+              <button type="button" class="polish-preset" data-preset="expand">扩写丰富</button>
+              <button type="button" class="polish-preset" data-preset="translate">翻译为英文</button>
+            </div>
+            <div class="polish-actions">
+              <button type="button" id="btn-polish-run" class="btn-primary btn-small">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                执行润色
+              </button>
+              <button type="button" id="btn-polish-cancel" class="btn-secondary btn-small">取消</button>
+            </div>
+          </div>
+          <div class="polish-custom-prompt">
+            <input id="polish-custom" type="text" class="field-input" placeholder="自定义润色指令，如：用更学术的语气改写（可选）" />
+          </div>
+          <div id="polish-status" class="polish-status"></div>
+          {/* Diff Preview */}
+          <div class="polish-diff hidden" id="polish-diff">
+            <div class="diff-header">
+              <span class="diff-label">润色结果预览</span>
+              <div class="diff-actions">
+                <button type="button" id="btn-apply-polish" class="btn-primary btn-small">应用</button>
+                <button type="button" id="btn-discard-polish" class="btn-secondary btn-small">放弃</button>
+              </div>
+            </div>
+            <div class="diff-body" id="polish-diff-body"></div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -416,6 +455,154 @@ import { profile } from "../../data/profile";
   // Init
   loadSavedData();
   renderSkills();
+
+  // ===== AI Polish =====
+  const LLM_KEY = "admin-llm-settings";
+  const polishOptions = document.getElementById("polish-options");
+  const btnPolish = document.getElementById("btn-polish");
+  const btnPolishRun = document.getElementById("btn-polish-run");
+  const btnPolishCancelEl = document.getElementById("btn-polish-cancel");
+  const polishCustom = document.getElementById("polish-custom");
+  const polishStatusEl = document.getElementById("polish-status");
+  const polishDiff = document.getElementById("polish-diff");
+  const polishDiffBody = document.getElementById("polish-diff-body");
+  const btnApplyPolish = document.getElementById("btn-apply-polish");
+  const btnDiscardPolish = document.getElementById("btn-discard-polish");
+
+  let polishedContent = "";
+  let currentPreset = "polite";
+
+  const PRESET_PROMPTS = {
+    polite: "请润色以下 Markdown 文本，使其更加流畅、优雅，修正语法和用词，但保留原始含义和 Markdown 格式不变。只输出润色后的内容，不要解释。",
+    concise: "请精简以下 Markdown 文本，删除冗余词句，使其更加紧凑有力，但保留核心含义和 Markdown 格式不变。只输出精简后的内容，不要解释。",
+    expand: "请扩写以下 Markdown 文本，在保留原意的基础上增加更多细节和论述，使内容更加丰富充实，Markdown 格式不变。只输出扩写后的内容，不要解释。",
+    translate: "请将以下 Markdown 文本翻译为英文，保持 Markdown 格式不变。只输出翻译后的内容，不要解释。",
+  };
+
+  function getLlmSettings() {
+    try {
+      const raw = localStorage.getItem(LLM_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return null;
+  }
+
+  function escapeHtml(str) {
+    return (str || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+  }
+
+  function showPolishStatus(text, type) {
+    if (!polishStatusEl) return;
+    polishStatusEl.textContent = text;
+    polishStatusEl.className = "polish-status is-" + type;
+  }
+
+  document.querySelectorAll(".polish-preset").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".polish-preset").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      currentPreset = btn.dataset.preset || "polite";
+    });
+  });
+
+  btnPolish?.addEventListener("click", () => {
+    if (!philosophyInput?.value?.trim()) {
+      showStatus("请先输入理念内容", "error");
+      return;
+    }
+    const s = getLlmSettings();
+    if (!s || !s.baseUrl || !s.apiKey || !s.model) {
+      showStatus("请先在 API 管理中配置 LLM API", "error");
+      return;
+    }
+    if (polishOptions) polishOptions.classList.remove("hidden");
+    if (polishDiff) polishDiff.classList.add("hidden");
+    polishedContent = "";
+  });
+
+  btnPolishCancelEl?.addEventListener("click", () => {
+    if (polishOptions) polishOptions.classList.add("hidden");
+    if (polishDiff) polishDiff.classList.add("hidden");
+    polishedContent = "";
+  });
+
+  btnPolishRun?.addEventListener("click", async () => {
+    const content = philosophyInput?.value?.trim();
+    if (!content) {
+      showPolishStatus("没有可润色的内容", "error");
+      return;
+    }
+    const s = getLlmSettings();
+    if (!s || !s.baseUrl || !s.apiKey || !s.model) {
+      showPolishStatus("LLM API 未配置，请前往 API 管理页面配置", "error");
+      return;
+    }
+
+    const customPrompt = polishCustom?.value?.trim();
+    const systemPrompt = customPrompt || PRESET_PROMPTS[currentPreset] || PRESET_PROMPTS.polite;
+
+    if (btnPolishRun) btnPolishRun.disabled = true;
+    showPolishStatus("正在润色中，请稍候...", "info");
+
+    try {
+      const url = s.baseUrl.replace(/\/+$/, "") + "/chat/completions";
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + s.apiKey,
+        },
+        body: JSON.stringify({
+          model: s.model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: content },
+          ],
+          temperature: 0.7,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error?.message || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      polishedContent = data.choices?.[0]?.message?.content || "";
+      if (!polishedContent) throw new Error("API 返回内容为空");
+
+      showPolishStatus("润色完成，请预览对比", "success");
+      renderDiff(content, polishedContent);
+      if (polishDiff) polishDiff.classList.remove("hidden");
+    } catch (err) {
+      showPolishStatus("润色失败: " + (err instanceof Error ? err.message : String(err)), "error");
+    } finally {
+      if (btnPolishRun) btnPolishRun.disabled = false;
+    }
+  });
+
+  function renderDiff(original, polished) {
+    if (!polishDiffBody) return;
+    let html = '<div class="diff-content">';
+    html += '<div class="diff-section"><div class="diff-section-label">润色后</div><pre class="diff-pre diff-new">' + escapeHtml(polished) + '</pre></div>';
+    html += '<div class="diff-section"><div class="diff-section-label">原始内容</div><pre class="diff-pre diff-old">' + escapeHtml(original) + '</pre></div>';
+    html += '</div>';
+    polishDiffBody.innerHTML = html;
+  }
+
+  btnApplyPolish?.addEventListener("click", () => {
+    if (polishedContent && philosophyInput) {
+      philosophyInput.value = polishedContent;
+      showStatus("已应用润色结果", "success");
+    }
+    if (polishOptions) polishOptions.classList.add("hidden");
+    if (polishDiff) polishDiff.classList.add("hidden");
+    polishedContent = "";
+  });
+
+  btnDiscardPolish?.addEventListener("click", () => {
+    if (polishDiff) polishDiff.classList.add("hidden");
+    polishedContent = "";
+    showPolishStatus("已放弃润色结果", "info");
+  });
 </script>
 
 <style>
@@ -553,6 +740,148 @@ import { profile } from "../../data/profile";
   }
   .toolbar-btn:active {
     transform: scale(0.92);
+  }
+
+  /* Toolbar Divider */
+  .toolbar-divider {
+    width: 1px;
+    height: 20px;
+    background: rgba(193,198,214,0.6);
+    margin: 0 4px;
+  }
+  .toolbar-btn-polish {
+    color: #7c3aed;
+    background: rgba(124, 58, 237, 0.08);
+  }
+  .toolbar-btn-polish:hover {
+    background: rgba(124, 58, 237, 0.15);
+    color: #6d28d9;
+  }
+
+  /* Polish Options */
+  .polish-options {
+    margin-top: 12px;
+    padding: 16px;
+    background: rgba(244,246,250,0.6);
+    border: 1px solid rgba(124, 58, 237, 0.2);
+    border-radius: 12px;
+  }
+  .polish-options.hidden {
+    display: none;
+  }
+  .polish-options-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .polish-presets {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .polish-preset {
+    padding: 5px 12px;
+    border: 1px solid rgba(193,198,214,0.6);
+    border-radius: 6px;
+    background: #fff;
+    color: #414753;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .polish-preset:hover {
+    border-color: #7c3aed;
+    color: #7c3aed;
+  }
+  .polish-preset.active {
+    background: #7c3aed;
+    color: #fff;
+    border-color: #7c3aed;
+  }
+  .polish-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-left: auto;
+  }
+  .polish-custom-prompt {
+    margin-bottom: 8px;
+  }
+  .polish-status {
+    font-size: 13px;
+    margin-top: 6px;
+    min-height: 18px;
+  }
+  .polish-status.is-success { color: #059669; }
+  .polish-status.is-error { color: #dc2626; }
+  .polish-status.is-info { color: #0059b5; }
+  .polish-diff.hidden {
+    display: none;
+  }
+  .diff-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(193,198,214,0.35);
+  }
+  .diff-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #414753;
+  }
+  .diff-actions {
+    display: flex;
+    gap: 6px;
+  }
+  .diff-body {
+    max-height: 320px;
+    overflow: auto;
+  }
+  .diff-content {
+    display: flex;
+    gap: 12px;
+  }
+  .diff-section {
+    flex: 1;
+    min-width: 0;
+  }
+  .diff-section-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #717785;
+    margin-bottom: 6px;
+  }
+  .diff-pre {
+    font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    padding: 12px;
+    border-radius: 8px;
+    margin: 0;
+  }
+  .diff-new {
+    background: rgba(5, 150, 105, 0.06);
+    border: 1px solid rgba(5, 150, 105, 0.2);
+    color: #065f46;
+  }
+  .diff-old {
+    background: rgba(220, 38, 38, 0.04);
+    border: 1px solid rgba(220, 38, 38, 0.15);
+    color: #991b1b;
+  }
+  .btn-small {
+    padding: 6px 12px;
+    font-size: 13px;
+    min-height: 32px;
   }
 
   /* Avatar Upload */

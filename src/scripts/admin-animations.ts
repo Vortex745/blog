@@ -1,21 +1,22 @@
 import { gsap } from "gsap";
 
 /**
- * Admin Panel Animation System
- * Following Emil Kowalski's design engineering philosophy:
- * - Only animate low-frequency interactions (page load, modals, toasts)
- * - Never animate keyboard-initiated or high-frequency actions
- * - Use ease-out for entrances (feels responsive)
- * - Start from scale(0.95) + opacity: 0, never scale(0)
- * - Keep UI animations under 300ms; page entrances can be 400-600ms
- * - Stagger items 50-80ms apart
- * - Respect prefers-reduced-motion
+ * Admin Panel Animation System (v3 — Optimized for View Transitions)
+ *
+ * Root causes of 300-500ms stutter FIXED:
+ * 1. GSAP entrance animations conflicted with View Transition fade-in (double-flash)
+ *    → Entrance animations now only run on FIRST load; View Transition handles subsequent
+ * 2. Nav click listeners were re-attached on every swap (duplicate handlers)
+ *    → Use AbortController for clean teardown + re-bind
+ * 3. offsetTop/offsetHeight forced synchronous layout reflow
+ *    → Cache measurements, batch reads before writes
+ * 4. Persisted sidebar could keep "switching" locks across routes
+ *    → Navigation no longer disables pointer events; state is synced from the URL
  */
 
 const EASE = {
   out: "power2.out",
   outStrong: "power3.out",
-  inOut: "power2.inOut",
   nav: "power4.out",
 };
 
@@ -24,7 +25,7 @@ const DURATION = {
   standard: 0.2,
   entrance: 0.28,
   modal: 0.3,
-  navHandoff: 0.16,
+  navPill: 0.22,
 };
 
 const STAGGER = {
@@ -32,65 +33,77 @@ const STAGGER = {
   standard: 0.04,
 };
 
-const NAV_TRANSITION_KEY = "admin-nav-transition";
-const NAV_TRANSITION_MAX_AGE = 3000;
-
-type NavTransition = {
-  at: number;
-  from: number;
-  to: number;
-  settled?: boolean;
-};
-
 type NavPillContext = {
   nav: HTMLElement;
   pill: HTMLElement;
-  links: HTMLElement[];
+  links: HTMLAnchorElement[];
   current: number;
   getY: (index: number) => number;
 };
+
+/** Module-level nav transition state — persists across View Transition swaps */
+let pendingNavTo: number | null = null;
+let lastActiveNavIndex: number | null = null;
+
+/** Track whether this is the first page load (run entrance animations) vs a swap */
+let isFirstLoad = true;
+
+/** AbortController for nav click listener cleanup */
+let navAbortController: AbortController | null = null;
 
 function prefersReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-function readNavTransition(current: number, linkCount: number): NavTransition | null {
-  const raw = sessionStorage.getItem(NAV_TRANSITION_KEY);
-  sessionStorage.removeItem(NAV_TRANSITION_KEY);
-  if (!raw) return null;
-
-  try {
-    const transition = JSON.parse(raw) as NavTransition;
-    const isFresh = Date.now() - transition.at < NAV_TRANSITION_MAX_AGE;
-    const isInRange =
-      transition.from >= 0 &&
-      transition.from < linkCount &&
-      transition.to >= 0 &&
-      transition.to < linkCount;
-
-    if (!isFresh || !isInRange || transition.to !== current || transition.from === current) {
-      return null;
-    }
-
-    return transition;
-  } catch {
-    return null;
-  }
+function normalizePath(path: string): string {
+  const normalized = path.replace(/\/+$/, "");
+  return normalized || "/";
 }
 
+function isLinkActiveForCurrentLocation(link: HTMLAnchorElement): boolean {
+  const currentPath = normalizePath(window.location.pathname);
+  const linkPath = normalizePath(new URL(link.href, window.location.href).pathname);
+
+  if (linkPath === "/admin") {
+    return currentPath === "/admin";
+  }
+
+  return currentPath === linkPath || currentPath.startsWith(`${linkPath}/`);
+}
+
+function syncActiveLinkState(links: HTMLAnchorElement[]): number {
+  let activeIndex = links.findIndex(isLinkActiveForCurrentLocation);
+  if (activeIndex === -1) {
+    activeIndex = links.findIndex((link) => link.classList.contains("is-active"));
+  }
+
+  links.forEach((link, index) => {
+    link.classList.toggle("is-active", index === activeIndex);
+  });
+
+  return activeIndex;
+}
+
+/** Batch-read all link positions, then write pill position — avoids layout thrashing */
 function createNavPillContext(): NavPillContext | null {
   const nav = document.querySelector<HTMLElement>(".admin-nav");
   const pill = nav?.querySelector<HTMLElement>(".nav-pill");
-  const links = Array.from(nav?.querySelectorAll<HTMLElement>(".admin-nav-link") ?? []);
+  const links = Array.from(nav?.querySelectorAll<HTMLAnchorElement>(".admin-nav-link") ?? []);
   if (!nav || !pill || links.length === 0) return null;
 
-  const current = links.findIndex((l) => l.classList.contains("is-active"));
+  delete nav.dataset.switching;
+  nav.removeAttribute("aria-busy");
+
+  const current = syncActiveLinkState(links);
   if (current === -1) return null;
 
-  const baseTop = links[0].offsetTop;
-  const baseHeight = links[0].offsetHeight;
-  const getY = (index: number) => links[index].offsetTop - baseTop;
+  // Batch all layout READS first
+  const positions = links.map((l) => l.offsetTop);
+  const baseTop = positions[0];
+  const baseHeight = links[current].offsetHeight;
+  const getY = (index: number) => positions[index] - baseTop;
 
+  // Batch all layout WRITES after reads
   pill.style.top = `${baseTop}px`;
   pill.style.height = `${baseHeight}px`;
 
@@ -101,13 +114,13 @@ function animateNavPill(
   pill: HTMLElement,
   fromY: number,
   toY: number,
-  duration = DURATION.standard
+  duration = DURATION.navPill
 ): gsap.core.Timeline {
   const travel = Math.abs(toY - fromY);
   const direction = Math.sign(toY - fromY) || 1;
-  const stretch = Math.min(1.1, 1 + travel / 560);
-  const stretchDuration = Math.min(0.09, duration * 0.5);
-  const settleDuration = Math.min(0.18, duration * 0.85);
+  const stretch = Math.min(1.045, 1 + travel / 1200);
+  const stretchDuration = Math.min(0.06, duration * 0.4);
+  const settleDuration = Math.min(0.12, duration * 0.7);
 
   gsap.killTweensOf(pill);
   gsap.set(pill, {
@@ -118,8 +131,12 @@ function animateNavPill(
     transformOrigin: direction > 0 ? "50% 0%" : "50% 100%",
   });
 
-  const tl = gsap.timeline({ defaults: { overwrite: "auto" } });
-
+  const tl = gsap.timeline({
+    defaults: { overwrite: "auto" },
+    onComplete: () => {
+      gsap.set(pill, { y: toY, scaleX: 1, scaleY: 1, opacity: 1 });
+    },
+  });
   tl.to(pill, { y: toY, duration, ease: EASE.nav }, 0);
 
   if (stretch > 1.01) {
@@ -135,30 +152,6 @@ function animateNavPill(
   }
 
   return tl;
-}
-
-function animateModuleEntrance(transition: NavTransition | null) {
-  if (!transition || prefersReducedMotion()) return;
-
-  const main = document.querySelector<HTMLElement>(".admin-main");
-  if (!main) return;
-
-  const direction = Math.sign(transition.to - transition.from) || 1;
-  const offset = Math.min(10, 5 + Math.abs(transition.to - transition.from) * 1.25);
-
-  gsap.fromTo(
-    main,
-    { autoAlpha: 0.94, y: direction * offset, filter: "blur(2px)" },
-    {
-      autoAlpha: 1,
-      y: 0,
-      filter: "blur(0px)",
-      duration: DURATION.standard,
-      ease: EASE.outStrong,
-      overwrite: true,
-      clearProps: "opacity,visibility,transform,filter",
-    }
-  );
 }
 
 function isPlainLeftClick(event: MouseEvent): boolean {
@@ -177,7 +170,7 @@ function isSameOriginAdminHref(link: HTMLAnchorElement): boolean {
   return url.origin === window.location.origin && url.pathname.startsWith("/admin");
 }
 
-/** Page header entrance: title + desc fade up */
+/** Page header entrance — ONLY runs on first load */
 function animatePageHeader(container: Element) {
   if (prefersReducedMotion()) return;
   const items = container.querySelectorAll(".admin-page-title, .admin-page-desc");
@@ -193,7 +186,7 @@ function animatePageHeader(container: Element) {
   });
 }
 
-/** Staggered card/grid entrance */
+/** Staggered card entrance — ONLY runs on first load */
 function animateStaggerCards(container: Element) {
   if (prefersReducedMotion()) return;
   const cards = container.querySelectorAll(
@@ -211,7 +204,7 @@ function animateStaggerCards(container: Element) {
   });
 }
 
-/** Toolbar entrance */
+/** Toolbar entrance — ONLY runs on first load */
 function animateToolbar(container: Element) {
   if (prefersReducedMotion()) return;
   const toolbar = container.querySelector(".toolbar");
@@ -310,7 +303,7 @@ export function animateFadeOut(el: HTMLElement, onComplete?: () => void) {
   });
 }
 
-/** List item enter (for dynamically added items) */
+/** List item enter */
 export function animateListItemEnter(el: HTMLElement) {
   if (prefersReducedMotion()) return;
   gsap.fromTo(
@@ -338,25 +331,35 @@ export function animateListItemExit(el: HTMLElement, onComplete?: () => void) {
   });
 }
 
-/** Nav pill slide animation — compositor-only (y + opacity + scale) */
-function initNavPill(): { context: NavPillContext | null; transition: NavTransition | null } {
+/** Initialize nav pill position + click listeners (with cleanup) */
+function initNavPillAndListeners(): void {
+  // Clean up previous listener to prevent duplicates
+  if (navAbortController) {
+    navAbortController.abort();
+  }
+  navAbortController = new AbortController();
+
   const context = createNavPillContext();
-  if (!context) return { context: null, transition: null };
+  if (!context) return;
 
-  const { pill, links, current, getY } = context;
+  const { nav, pill, links, current, getY } = context;
+  const reducedMotion = prefersReducedMotion();
+  const pendingTo = pendingNavTo;
 
-  const transition = readNavTransition(current, links.length);
-
-  if (prefersReducedMotion()) {
+  if (reducedMotion) {
+    gsap.killTweensOf(pill);
     gsap.set(pill, { y: getY(current), opacity: 1, scale: 1 });
-  } else if (transition?.settled) {
-    gsap.set(pill, { y: getY(current), opacity: 1, scale: 1 });
-  } else if (transition) {
-    const fromY = getY(transition.from);
-    const toY = getY(current);
-    const duration = Math.min(0.28, Math.max(0.18, 0.16 + Math.abs(toY - fromY) / 1200));
-    animateNavPill(pill, fromY, toY, duration);
-  } else {
+    pendingNavTo = null;
+  } else if (pendingTo === current) {
+    if (!gsap.isTweening(pill)) {
+      gsap.set(pill, { y: getY(current), opacity: 1, scale: 1 });
+    }
+    pendingNavTo = null;
+  } else if (!isFirstLoad && lastActiveNavIndex !== null && lastActiveNavIndex !== current) {
+    animateNavPill(pill, getY(lastActiveNavIndex), getY(current), DURATION.navPill);
+    pendingNavTo = null;
+  } else if (isFirstLoad) {
+    // First load — subtle entrance
     gsap.fromTo(
       pill,
       { opacity: 0, y: getY(current), scaleX: 0.98, scaleY: 0.96 },
@@ -369,98 +372,65 @@ function initNavPill(): { context: NavPillContext | null; transition: NavTransit
         overwrite: true,
       }
     );
+  } else {
+    // Swap — pill should already be in position, just ensure visible
+    gsap.set(pill, { y: getY(current), opacity: 1, scale: 1 });
   }
+  lastActiveNavIndex = current;
 
-  return { context, transition };
-}
-
-function initNavClickListeners(context: NavPillContext | null): void {
-  if (!context) return;
-  const { nav, pill, links, current, getY } = context;
-  // Use event delegation on the nav container instead of per-link listeners
+  // Click listener with AbortController for clean teardown
   nav.addEventListener("click", (event) => {
     const link = (event.target as HTMLElement).closest<HTMLAnchorElement>(".admin-nav-link");
     if (!link) return;
 
     const index = links.indexOf(link);
+    const activeIndex = links.findIndex((item) => item.classList.contains("is-active"));
+    const fromIndex = activeIndex === -1 ? current : activeIndex;
     if (
       index === -1 ||
-      index === current ||
+      index === fromIndex ||
       !isPlainLeftClick(event as MouseEvent) ||
       !isSameOriginAdminHref(link)
     ) {
-      sessionStorage.removeItem(NAV_TRANSITION_KEY);
       return;
     }
 
-    const transition = {
-      at: Date.now(),
-      from: current,
-      to: index,
-      settled: !prefersReducedMotion(),
-    } satisfies NavTransition;
-
-    sessionStorage.setItem(
-      NAV_TRANSITION_KEY,
-      JSON.stringify(transition)
-    );
-
-    if (prefersReducedMotion()) return;
-
-    event.preventDefault();
-
-    nav.dataset.switching = "true";
-    links[current].classList.remove("is-active");
-    link.classList.add("is-active");
-
-    const main = document.querySelector<HTMLElement>(".admin-main");
-    const direction = Math.sign(index - current) || 1;
-    const tl = gsap.timeline({
-      defaults: { overwrite: "auto" },
-      onComplete: () => {
-        window.location.assign(link.href);
-      },
+    pendingNavTo = index;
+    lastActiveNavIndex = index;
+    links.forEach((item, itemIndex) => {
+      item.classList.toggle("is-active", itemIndex === index);
     });
 
-    tl.add(animateNavPill(pill, getY(current), getY(index), DURATION.navHandoff), 0);
-
-    if (main) {
-      tl.to(
-        main,
-        {
-          autoAlpha: 0.92,
-          y: -direction * 6,
-          filter: "blur(1.5px)",
-          duration: 0.12,
-          ease: EASE.out,
-        },
-        0
-      );
+    if (reducedMotion) {
+      gsap.set(pill, { y: getY(index), opacity: 1, scale: 1 });
+    } else {
+      animateNavPill(pill, getY(fromIndex), getY(index), DURATION.navPill);
     }
+  }, { signal: navAbortController.signal });
+}
+
+/** Run page entrance animations — ONLY on first load, NOT on swaps */
+function runPageEntranceAnimations(): void {
+  if (!isFirstLoad) return;
+  if (prefersReducedMotion()) return;
+
+  document.querySelectorAll(".admin-page-header").forEach(animatePageHeader);
+  document.querySelectorAll(".toolbar").forEach(animateToolbar);
+
+  requestAnimationFrame(() => {
+    document.querySelectorAll(".admin-main").forEach((main) => {
+      animateStaggerCards(main);
+    });
   });
 }
 
-/** Initialize all admin animations on page load */
-export function initAdminAnimations() {
-  // Nav pill
-  const { context, transition: navTransition } = initNavPill();
+/** Initialize all admin animations */
+export function initAdminAnimations(): void {
+  initNavPillAndListeners();
+  runPageEntranceAnimations();
 
-  // Nav click listeners (event delegation, only bind once)
-  initNavClickListeners(context);
-
-  if (prefersReducedMotion()) return;
-
-  // Module switch
-  animateModuleEntrance(navTransition);
-
-  if (!navTransition) {
-    document.querySelectorAll(".admin-page-header").forEach(animatePageHeader);
-    document.querySelectorAll(".toolbar").forEach(animateToolbar);
-
-    setTimeout(() => {
-      document.querySelectorAll(".admin-main").forEach((main) => {
-        animateStaggerCards(main);
-      });
-    }, 24);
+  // After first load, mark as not first load anymore
+  if (isFirstLoad) {
+    isFirstLoad = false;
   }
 }

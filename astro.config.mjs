@@ -15,5 +15,13 @@ export default defineConfig({
   integrations: [react(), sitemap()],
   vite: {
     plugins: [tailwindcss()],
+    build: {
+      cssMinify: true,
+      minify: true,
+    },
+  },
+  prefetch: {
+    prefetchAll: false,
+    defaultStrategy: "hover",
   },
 });
