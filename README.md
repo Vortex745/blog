@@ -16,7 +16,7 @@
 | 动画 | GSAP 3 |
 | 图标 | Lucide React |
 | 图床 | ImgBB |
-| 部署 | Node.js Standalone |
+| 部署 | Vercel Serverless + CDN |
 
 ## 项目结构
 
