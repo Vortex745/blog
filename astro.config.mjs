@@ -9,9 +9,7 @@ import vercel from "@astrojs/vercel";
 export default defineConfig({
   site: "https://changye.me",
   output: "server",
-  adapter: vercel({
-    edgeMiddleware: true,
-  }),
+  adapter: vercel(),
   integrations: [react(), sitemap()],
   vite: {
     plugins: [tailwindcss()],
