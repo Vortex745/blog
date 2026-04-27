@@ -1,0 +1,429 @@
+---
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import homeData from "../../data/home.json";
+---
+
+<AdminLayout title="首页管理" current="home">
+  <div class="admin-page-header">
+    <h1 class="admin-page-title">首页管理</h1>
+    <p class="admin-page-desc">编辑首页的前言和引言内容，修改后会立即生效。</p>
+  </div>
+
+  <form id="home-form" class="admin-form">
+    <!-- 前言编辑 -->
+    <section class="form-section">
+      <div class="section-header">
+        <h2 class="section-title">前言</h2>
+        <span class="section-badge">Hero 区域</span>
+      </div>
+      <p class="section-desc">首页顶部的大标题和描述文字。</p>
+
+      <div class="field-row">
+        <div class="field-group field-group-large">
+          <label for="hero-title" class="field-label">主标题</label>
+          <textarea
+            id="hero-title"
+            name="heroTitle"
+            class="field-input field-textarea"
+            rows="2"
+            placeholder="输入主标题，可用换行分隔"
+          >{homeData.heroTitle}</textarea>
+          <span class="field-hint">支持换行，首页会保留换行格式</span>
+        </div>
+
+        <div class="field-group field-group-large">
+          <label for="hero-lead" class="field-label">描述</label>
+          <textarea
+            id="hero-lead"
+            name="heroLead"
+            class="field-input field-textarea"
+            rows="3"
+            placeholder="输入描述文字"
+          >{homeData.heroLead}</textarea>
+          <span class="field-hint">简短描述，建议控制在 60 字以内</span>
+        </div>
+      </div>
+
+      <div class="preview-box">
+        <span class="preview-label">实时预览</span>
+        <div class="preview-hero">
+          <h3 id="preview-title" class="preview-title"></h3>
+          <p id="preview-lead" class="preview-lead"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 引言编辑 -->
+    <section class="form-section">
+      <div class="section-header">
+        <h2 class="section-title">引言</h2>
+        <span class="section-badge">Quote 卡片</span>
+      </div>
+      <p class="section-desc">首页 Bento 网格中的引言卡片。</p>
+
+      <div class="field-row">
+        <div class="field-group field-group-large">
+          <label for="quote-text" class="field-label">引言内容</label>
+          <textarea
+            id="quote-text"
+            name="quoteText"
+            class="field-input field-textarea"
+            rows="3"
+            placeholder="输入引言内容"
+          >{homeData.quoteText}</textarea>
+          <span class="field-hint">建议引用简洁有力的设计名言</span>
+        </div>
+
+        <div class="field-group field-group-small">
+          <label for="quote-author" class="field-label">作者</label>
+          <input
+            id="quote-author"
+            name="quoteAuthor"
+            type="text"
+            class="field-input"
+            placeholder="输入作者姓名"
+            value={homeData.quoteAuthor}
+          />
+        </div>
+      </div>
+
+      <div class="preview-box">
+        <span class="preview-label">实时预览</span>
+        <div class="preview-quote">
+          <span class="preview-quote-tag">引言</span>
+          <blockquote id="preview-quote-text" class="preview-quote-body"></blockquote>
+          <div class="preview-quote-author">
+            <span class="preview-quote-line"></span>
+            <span id="preview-quote-author"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 操作按钮 -->
+    <div class="form-actions">
+      <button type="submit" class="btn-primary">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        保存更改
+      </button>
+      <button type="button" id="btn-reset" class="btn-secondary">重置</button>
+      <span id="save-status" class="save-status"></span>
+    </div>
+  </form>
+</AdminLayout>
+
+<script>
+  const form = document.getElementById("home-form");
+  const heroTitle = document.getElementById("hero-title");
+  const heroLead = document.getElementById("hero-lead");
+  const quoteText = document.getElementById("quote-text");
+  const quoteAuthor = document.getElementById("quote-author");
+
+  const previewTitle = document.getElementById("preview-title");
+  const previewLead = document.getElementById("preview-lead");
+  const previewQuoteText = document.getElementById("preview-quote-text");
+  const previewQuoteAuthor = document.getElementById("preview-quote-author");
+  const saveStatus = document.getElementById("save-status");
+
+  function updatePreview() {
+    if (previewTitle) previewTitle.innerHTML = (heroTitle.value || "").replace(/\n/g, "<br>");
+    if (previewLead) previewLead.textContent = heroLead.value || "";
+    if (previewQuoteText) previewQuoteText.textContent = quoteText.value || "";
+    if (previewQuoteAuthor) previewQuoteAuthor.textContent = "—— " + (quoteAuthor.value || "");
+  }
+
+  [heroTitle, heroLead, quoteText, quoteAuthor].forEach((el) => {
+    el?.addEventListener("input", updatePreview);
+  });
+
+  updatePreview();
+
+  // Load saved data (localStorage overrides JSON defaults)
+  try {
+    const saved = localStorage.getItem("admin-home-data");
+    if (saved) {
+      const data = JSON.parse(saved);
+      if (heroTitle) heroTitle.value = data.heroTitle ?? heroTitle.value;
+      if (heroLead) heroLead.value = data.heroLead ?? heroLead.value;
+      if (quoteText) quoteText.value = data.quoteText ?? quoteText.value;
+      if (quoteAuthor) quoteAuthor.value = data.quoteAuthor ?? quoteAuthor.value;
+      updatePreview();
+    }
+  } catch {}
+
+  form?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const data = {
+      heroTitle: heroTitle?.value || "",
+      heroLead: heroLead?.value || "",
+      quoteText: quoteText?.value || "",
+      quoteAuthor: quoteAuthor?.value || "",
+    };
+    localStorage.setItem("admin-home-data", JSON.stringify(data));
+    if (saveStatus) {
+      saveStatus.textContent = "已保存到本地存储";
+      saveStatus.className = "save-status is-success";
+      setTimeout(() => {
+        saveStatus.textContent = "";
+        saveStatus.className = "save-status";
+      }, 3000);
+    }
+  });
+
+  document.getElementById("btn-reset")?.addEventListener("click", () => {
+    if (confirm("确定要重置为默认内容吗？")) {
+      localStorage.removeItem("admin-home-data");
+      location.reload();
+    }
+  });
+</script>
+
+<style>
+  .admin-page-header {
+    margin-bottom: 24px;
+  }
+  .admin-page-title {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 700;
+    color: #181c23;
+    margin-bottom: 6px;
+  }
+  .admin-page-desc {
+    font-size: 15px;
+    color: #717785;
+  }
+  .admin-form {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    max-width: 100%;
+  }
+  .form-section {
+    background: rgba(255,255,255,0.6);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(255,255,255,0.6);
+    border-radius: 20px;
+    padding: 28px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.03);
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+  .section-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #181c23;
+  }
+  .section-badge {
+    padding: 3px 10px;
+    border-radius: 8px;
+    background: rgba(0,89,181,0.08);
+    color: #0059b5;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .section-desc {
+    font-size: 14px;
+    color: #717785;
+    margin-bottom: 20px;
+  }
+
+  /* Field layout: horizontal row, large inputs */
+  .field-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+  .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .field-group-large {
+    /* default 2fr */
+  }
+  .field-group-small {
+    /* default 1fr */
+  }
+  .field-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #181c23;
+  }
+  .field-input {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(193,198,214,0.5);
+    background: rgba(255,255,255,0.7);
+    font-family: var(--font-body);
+    font-size: 15px;
+    color: #181c23;
+    outline: none;
+    transition: border-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.12s cubic-bezier(0.23, 1, 0.32, 1);
+    box-sizing: border-box;
+    transform: scale(1);
+  }
+  .field-input:active {
+    transform: scale(0.995);
+  }
+  .field-input:focus {
+    border-color: #0059b5;
+    box-shadow: 0 0 0 3px rgba(0,89,181,0.1);
+  }
+  .field-textarea {
+    resize: vertical;
+    min-height: 80px;
+    line-height: 1.6;
+  }
+  .field-hint {
+    font-size: 12px;
+    color: #717785;
+  }
+
+  /* Preview box */
+  .preview-box {
+    margin-top: 20px;
+    padding: 20px;
+    border-radius: 16px;
+    background: rgba(244,246,250,0.8);
+    border: 1px solid rgba(193,198,214,0.3);
+  }
+  .preview-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: #717785;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 16px;
+  }
+  .preview-hero {
+    padding: 24px;
+    background: rgba(255,255,255,0.8);
+    border-radius: 12px;
+  }
+  .preview-title {
+    font-family: var(--font-display);
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: #181c23;
+    margin: 0 0 12px;
+  }
+  .preview-lead {
+    font-size: 15px;
+    line-height: 1.5;
+    color: #414753;
+    margin: 0;
+  }
+  .preview-quote {
+    padding: 24px;
+    background: rgba(255,255,255,0.8);
+    border-radius: 12px;
+  }
+  .preview-quote-tag {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    background: rgba(193,198,214,0.3);
+    font-size: 12px;
+    font-weight: 500;
+    color: #414753;
+    margin-bottom: 16px;
+  }
+  .preview-quote-body {
+    font-size: 18px;
+    font-style: italic;
+    line-height: 1.5;
+    color: #181c23;
+    margin: 0 0 16px;
+    padding: 0;
+    border: none;
+  }
+  .preview-quote-author {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+    color: #717785;
+  }
+  .preview-quote-line {
+    display: block;
+    width: 32px;
+    height: 1px;
+    background: rgba(193,198,214,0.6);
+  }
+  .form-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-top: 8px;
+  }
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border-radius: 12px;
+    border: none;
+    background: #0059b5;
+    color: #ffffff;
+    font-family: var(--font-body);
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.15s cubic-bezier(0.23, 1, 0.32, 1);
+    transform: scale(1);
+  }
+  .btn-primary:hover {
+    background: #004a94;
+  }
+  .btn-primary:active {
+    transform: scale(0.97);
+  }
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    padding: 12px 20px;
+    border-radius: 12px;
+    border: 1px solid rgba(193,198,214,0.5);
+    background: rgba(255,255,255,0.6);
+    color: #414753;
+    font-family: var(--font-body);
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), border-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), color 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.15s cubic-bezier(0.23, 1, 0.32, 1);
+    transform: scale(1);
+  }
+  .btn-secondary:hover {
+    background: rgba(255,255,255,0.9);
+    border-color: rgba(113,119,133,0.4);
+    color: #181c23;
+  }
+  .btn-secondary:active {
+    transform: scale(0.97);
+  }
+  .save-status {
+    font-size: 14px;
+    color: #717785;
+    margin-left: 8px;
+    transition: opacity 0.3s cubic-bezier(0.23, 1, 0.32, 1), color 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .save-status.is-success {
+    color: #0d8a4f;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .field-row {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

@@ -1,0 +1,19 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="子衿的个人博客网站" description="您访问的页面不存在">
+  <section class="section-dark flex min-h-[calc(100vh-48px)] items-center justify-center px-5">
+    <div class="mx-auto max-w-[980px] text-center">
+      <p class="display-hero mb-2 text-white/20">404</p>
+      <h1 class="section-heading mb-4 text-white">页面未找到</h1>
+      <p class="body-text mb-8 text-white/60">
+        您访问的页面不存在或已被移除。
+      </p>
+      <div class="flex items-center justify-center gap-3">
+        <a href="/" class="btn-primary">返回首页</a>
+        <a href="/articles" class="pill-link pill-link-dark">浏览文章</a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

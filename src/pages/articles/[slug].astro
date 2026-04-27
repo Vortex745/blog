@@ -1,0 +1,184 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { getCollection, render } from "astro:content";
+
+const { slug } = Astro.params;
+
+const allArticles = await getCollection("articles");
+const article = allArticles.find(
+  (a) => a.id.replace(/\.mdx?$/, "") === slug
+);
+
+if (!article) {
+  return Astro.redirect("/404");
+}
+
+const { Content, headings } = await render(article);
+const tags = article.data.tags ?? [];
+
+const sortedArticles = allArticles.sort(
+  (a, b) => b.data.date.getTime() - a.data.date.getTime()
+);
+const currentIndex = sortedArticles.findIndex(
+  (item) => item.id === article.id
+);
+const prevArticle =
+  currentIndex > 0 ? sortedArticles[currentIndex - 1] : null;
+const nextArticle =
+  currentIndex >= 0 && currentIndex < sortedArticles.length - 1
+    ? sortedArticles[currentIndex + 1]
+    : null;
+const readingMinutes = Math.max(
+  1,
+  Math.ceil(article.body.split(/\s+/).length / 240)
+);
+const toc = headings.filter(
+  (heading: { depth: number }) => heading.depth > 1 && heading.depth < 4
+);
+---
+
+<BaseLayout
+  title="子衿的个人博客网站"
+  description={article.data.description}
+  type="article"
+  publishedTime={article.data.date.toISOString()}
+  tags={tags}
+  url={`/articles/${article.id.replace(/\.mdx?$/, "")}/`}
+>
+  <section class="section-light min-h-[100dvh] px-5 py-16 md:py-24">
+    <div class="mx-auto max-w-[1120px]">
+      <a
+        href="/articles"
+        class="link-text mb-8 inline-block text-[var(--color-link-blue)] no-underline hover:underline"
+        >← 返回文章列表</a
+      >
+
+      <header class="mb-12 max-w-3xl" data-animate="hero">
+        <div class="mb-5 flex flex-wrap gap-2" data-animate="hero-item">
+          {
+            tags.map((tag: string) => (
+              <a
+                href={`/articles?tag=${encodeURIComponent(tag)}`}
+                class="apple-badge no-underline"
+              >
+                {tag}
+              </a>
+            ))
+          }
+        </div>
+        <h1 class="display-hero text-[var(--color-near-black)]" data-animate="hero-item">
+          {article.data.title}
+        </h1>
+        <p class="body-text mt-5 text-[var(--color-text-secondary)]" data-animate="hero-item">
+          {article.data.description}
+        </p>
+        <div class="caption-text mt-5 flex flex-wrap gap-x-4 gap-y-2 text-[var(--color-text-secondary)]" data-animate="hero-item">
+          <time>{article.data.date.toLocaleDateString("zh-CN")}</time>
+          {
+            article.data.updated && (
+              <span>
+                更新于 {article.data.updated.toLocaleDateString("zh-CN")}
+              </span>
+            )
+          }
+          <span>{readingMinutes} 分钟阅读</span>
+        </div>
+      </header>
+
+      <div class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_240px]">
+        <article
+          class="prose prose-apple max-w-none rounded-[28px] bg-[var(--card)] p-6 md:p-10"
+          data-animate="fade-up"
+        >
+          <Content />
+        </article>
+
+        <aside class="hidden lg:block" data-animate="fade-up">
+          <div class="sticky top-20 rounded-[22px] bg-[var(--card)] p-5">
+            <p
+              class="caption-text mb-4 font-semibold text-[var(--color-near-black)]"
+            >
+              目录
+            </p>
+            {
+              toc.length > 0 ? (
+                <nav class="space-y-2">
+                  {toc.map(
+                    (heading: {
+                      slug: string;
+                      text: string;
+                      depth: number;
+                    }) => (
+                      <a
+                        href={`#${heading.slug}`}
+                        class:list={[
+                          "block text-sm text-[var(--color-text-secondary)] no-underline hover:text-[var(--color-link-blue)]",
+                          heading.depth === 3 && "pl-4",
+                        ]}
+                      >
+                        {heading.text}
+                      </a>
+                    )
+                  )}
+                </nav>
+              ) : (
+                <p class="micro-text text-[var(--color-text-secondary)]">
+                  本文暂无二级目录。
+                </p>
+              )
+            }
+          </div>
+        </aside>
+      </div>
+
+      <nav
+        class="mt-10 grid gap-4 md:grid-cols-2"
+        data-animate="stagger"
+        aria-label="上一篇和下一篇文章"
+      >
+        {
+          prevArticle ? (
+            <a
+              href={`/articles/${prevArticle.id.replace(/\.mdx?$/, "")}`}
+              class="apple-card no-underline"
+            >
+              <p class="micro-text mb-2 text-[var(--color-text-secondary)]">
+                上一篇
+              </p>
+              <h2 class="card-title text-[var(--color-near-black)]">
+                {prevArticle.data.title}
+              </h2>
+            </a>
+          ) : (
+            <div class="apple-card opacity-60">
+              <p class="caption-text text-[var(--color-text-secondary)]">
+                已经是最新文章
+              </p>
+            </div>
+          )
+        }
+        {
+          nextArticle ? (
+            <a
+              href={`/articles/${nextArticle.id.replace(/\.mdx?$/, "")}`}
+              class="apple-card text-right no-underline"
+            >
+              <p class="micro-text mb-2 text-[var(--color-text-secondary)]">
+                下一篇
+              </p>
+              <h2 class="card-title text-[var(--color-near-black)]">
+                {nextArticle.data.title}
+              </h2>
+            </a>
+          ) : (
+            <div class="apple-card text-right opacity-60">
+              <p class="caption-text text-[var(--color-text-secondary)]">
+                已经是最后一篇
+              </p>
+            </div>
+          )
+        }
+      </nav>
+    </div>
+  </section>
+</BaseLayout>

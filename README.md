@@ -1,283 +1,98 @@
-# 未完稿 · Unfinished Draft
+# 子衿博客
 
-> 一个面向个人成长的全栈博客系统 —— 记录学习历程、展示项目作品、分享技术踩坑。
+> 基于 Astro + React + Tailwind CSS 的个人博客，内置完整后台管理系统
 
-[![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue?logo=typescript)](https://www.typescriptlang.org/)
-[![Prisma](https://img.shields.io/badge/Prisma-5.22-2D3748?logo=prisma)](https://www.prisma.io/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Neon-336791?logo=postgresql)](https://neon.tech/)
-[![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3.x-38B2AC?logo=tailwind-css)](https://tailwindcss.com/)
-[![License](https://img.shields.io/badge/license-ISC-green)](LICENSE)
+![Astro](https://img.shields.io/badge/Astro-6.x-FF5D01?logo=astro&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-38B2AC?logo=tailwind-css&logoColor=white)
+![GSAP](https://img.shields.io/badge/GSAP-3.x-88CE02?logo=greensock&logoColor=white)
 
----
+## 技术栈
 
-## 📖 项目简介
-
-**未完稿** 是一个基于 Next.js 16 全栈开发的个人博客系统，采用 App Router 架构，前后端一体，数据库托管于 Neon (PostgreSQL)。项目旨在提供一个简洁、美观、功能完整的个人内容展示平台，支持文章创作、项目展示、笔记管理、踩坑记录等多种内容形式。
-
-界面采用「蓝紫粉白」渐变设计语言，结合 Framer Motion 动画和 Aceternity UI 组件，打造出兼具科技感与温度感的现代博客体验。
-
----
-
-## ✨ 主要功能
-
-### 📝 内容创作
-- **文章系统**：支持 Markdown 编写、封面上传、分类/标签管理、草稿/发布状态切换
-- **AI 智能润色**：内置 NVIDIA AI 接入，一键对文章执行 8 维度优化（语法、简洁、连贯、流畅、词汇、吸引力、上下文适应、原创性），并生成详细优化报告，支持撤销
-- **笔记模块（Notes）**：轻量级笔记记录，独立于文章的快速内容沉淀区
-- **踩坑记录（Pitfalls）**：专门记录技术踩坑与解决方案的模块
-- **归档视图（Archive）**：按时间轴浏览历史内容
-
-### 🗂️ 项目展示
-- **3D 卡片项目墙**：基于 Aceternity UI 的 3D 悬浮卡片，展示个人开源/作品项目
-- 支持项目分类（Web / 移动端 / 桌面端 / 命令行 / 开源库 / 游戏 / 其他）
-- 支持项目置顶、封面图、GitHub 链接、在线演示链接
-- 管理员可直接在列表页编辑项目
-
-### 👤 用户系统
-- 用户注册 / 登录（JWT 无状态鉴权）
-- 密码 bcrypt 加密存储
-- 个人中心：编辑头像、个人简介
-- **关于我页面**：支持管理员自定义 Markdown 内容
-
-### 💬 互动功能
-- 文章评论系统（发表 / 查看评论）
-- 文章阅读量统计
-- 文章分类 & 标签筛选
-
-### 🎨 界面体验
-- 响应式布局，PC 优先，完整适配平板与移动端
-- Framer Motion 页面过渡与微动效
-- Aceternity UI 组件（BentoGrid、3D Card、CardStack 等）
-- 图片自动压缩上传（browser-image-compression）
-- 懒加载图片 + 加载失败兜底占位图
-
----
-
-## 🛠️ 技术栈
-
-| 层级 | 技术 |
+| 类别 | 技术 |
 |------|------|
-| **前端框架** | Next.js 16 (App Router) |
-| **语言** | TypeScript 5.x |
-| **样式** | TailwindCSS 3.x + 自定义 CSS 变量设计系统 |
-| **动画** | Framer Motion |
-| **UI 组件** | Aceternity UI (BentoGrid, 3D Card, CardStack) |
-| **图标** | Lucide React |
-| **ORM** | Prisma 5.22 |
-| **数据库** | PostgreSQL（Neon 云托管） |
-| **认证** | JWT (jsonwebtoken) + bcrypt |
-| **AI 接入** | NVIDIA NIM API (llama-3.1-8b-instruct) |
-| **图片处理** | browser-image-compression (Base64 压缩) |
-| **HTTP 客户端** | Axios |
-| **数据校验** | Zod |
-| **部署平台** | Vercel |
+| 框架 | Astro 6 + React 19 |
+| 样式 | Tailwind CSS 4 + shadcn/ui |
+| 动画 | GSAP 3 |
+| 图标 | Lucide React |
+| 图床 | ImgBB |
+| 部署 | Node.js Standalone |
 
----
-
-## 🚀 本地安装与运行
-
-### 前提条件
-
-- Node.js >= 18.x
-- npm >= 9.x
-- 一个 [Neon](https://neon.tech/) PostgreSQL 数据库实例
-
-### 1. 克隆仓库
-
-```bash
-git clone https://github.com/Vortex745/blog.git
-cd blog
-```
-
-### 2. 安装依赖
-
-```bash
-npm install
-```
-
-### 3. 配置环境变量
-
-在项目根目录创建 `.env` 文件：
-
-```env
-# Neon PostgreSQL 连接字符串
-DATABASE_URL="postgresql://user:password@host/dbname?sslmode=require"
-
-# JWT 密钥（自定义任意强密钥）
-JWT_SECRET="your-secret-key-here"
-
-# NVIDIA AI API 密钥（可选，用于 AI 润色功能）
-NVIDIA_API_KEY="nvapi-xxxxxxxxxxxx"
-```
-
-### 4. 初始化数据库
-
-```bash
-# 执行数据库迁移
-npm run db:init
-
-# （可选）填充初始种子数据
-npm run db:seed
-```
-
-### 5. 启动开发服务器
-
-```bash
-npm run dev
-```
-
-访问 [http://localhost:3000](http://localhost:3000) 即可看到博客首页。
-
----
-
-## ⚙️ 配置说明
-
-### 环境变量说明
-
-| 变量名 | 必填 | 说明 |
-|--------|------|------|
-| `DATABASE_URL` | ✅ | Neon PostgreSQL 连接字符串，需包含 `?sslmode=require` |
-| `JWT_SECRET` | ✅ | JWT 签名密钥，建议使用随机长字符串 |
-| `NVIDIA_API_KEY` | ❌ | NVIDIA NIM API Key，用于 AI 润色功能，不填则该功能不可用 |
-
-### 管理员账户
-
-系统通过用户名来判断管理员身份，默认管理员用户名为 `zijin`。
-
-如需修改，请编辑 `src/lib/permissions.ts`：
-
-```typescript
-export const ADMIN_USERNAME = 'your-username';
-```
-
-管理员拥有额外权限：发布文章、管理项目、编辑"关于我"页面等。
-
----
-
-## 🗄️ 数据库结构
-
-项目使用 Prisma 管理数据模型，主要包含以下数据表：
-
-| 表名 | 说明 |
-|------|------|
-| `User` | 用户信息（用户名、邮箱、密码哈希、头像） |
-| `Post` | 文章（标题、Markdown 内容、封面、状态、阅读量） |
-| `Category` | 文章分类 |
-| `Tag` | 文章标签 |
-| `Comment` | 文章评论 |
-| `Project` | 项目展示（标题、描述、技术栈、封面、类型、链接） |
-| `About` | 关于我页面内容（Markdown） |
-
-详细字段设计参见 [database.md](./database.md)。
-
----
-
-## 🌐 部署步骤（Vercel）
-
-### 自动部署（推荐）
-
-1. 将本仓库 Fork 到你的 GitHub 账号
-2. 登录 [Vercel](https://vercel.com/)，点击 **New Project**，导入该 GitHub 仓库
-3. 在 **Environment Variables** 中填写以下变量：
-   - `DATABASE_URL`
-   - `JWT_SECRET`
-   - `NVIDIA_API_KEY`（可选）
-4. **Build Command** 保持默认（`prisma generate && next build`）
-5. 点击 **Deploy**，等待构建完成
-
-### 手动构建
-
-```bash
-npm run build
-npm run start
-```
-
-> ⚠️ **注意**：Vercel 使用只读文件系统，图片上传已适配为 Base64 编码存入数据库，无需额外的文件存储服务。
-
----
-
-## 📁 项目目录结构
+## 项目结构
 
 ```
-blog/
-├── prisma/               # Prisma schema 与数据库迁移文件
-│   ├── schema.prisma
-│   └── seed.ts
-├── public/               # 静态资源
+├── public/                  # 静态资源
 ├── src/
-│   ├── app/              # Next.js App Router 页面
-│   │   ├── page.tsx      # 首页（文章列表 + BentoGrid）
-│   │   ├── post/         # 文章详情
-│   │   ├── write/        # 写文章（含 AI 润色）
-│   │   ├── projects/     # 项目展示（3D 卡片墙）
-│   │   ├── write-project/# 项目创建/编辑
-│   │   ├── notes/        # 笔记模块
-│   │   ├── pitfalls/     # 踩坑记录
-│   │   ├── archive/      # 归档视图
-│   │   ├── about/        # 关于我
-│   │   ├── profile/      # 个人中心
-│   │   ├── login/        # 登录页
-│   │   ├── register/     # 注册页
-│   │   └── api/          # API 路由（RESTful）
-│   ├── components/       # 可复用 UI 组件
-│   │   ├── ui/           # Aceternity UI 组件
-│   │   ├── ImageUploader.tsx
-│   │   ├── ProtectedRoute.tsx
-│   │   └── Navbar.tsx
-│   ├── context/          # React Context
-│   │   └── AuthContext.tsx
-│   └── lib/              # 工具函数
-│       ├── axios.ts      # Axios 实例（自动附加 JWT Token）
-│       ├── prisma.ts     # Prisma 客户端单例
-│       └── permissions.ts# 权限配置
-├── .env                  # 环境变量（不提交到 Git）
-├── next.config.js
-├── tailwind.config.js
+│   ├── components/          # React 组件
+│   ├── content/             # 内容集合配置
+│   ├── layouts/             # 页面布局
+│   ├── lib/                 # 工具函数
+│   ├── pages/               # 路由页面（含 API）
+│   │   ├── admin/           #   后台管理页面
+│   │   ├── api/             #   服务端 API
+│   │   └── ...              #   前台页面
+│   ├── scripts/             # 客户端脚本
+│   └── styles/              # 全局样式
+├── astro.config.mjs         # Astro 配置
+├── components.json          # shadcn/ui 配置
+├── package.json
 └── tsconfig.json
 ```
 
----
+## 快速开始
 
-## 🤝 贡献指南
+```bash
+# 安装依赖
+pnpm install
 
-欢迎提交 Issue 和 Pull Request！
+# 启动开发服务器
+pnpm dev
 
-1. Fork 本仓库
-2. 创建你的功能分支：`git checkout -b feature/amazing-feature`
-3. 提交更改：`git commit -m 'feat: add amazing feature'`
-4. 推送到分支：`git push origin feature/amazing-feature`
-5. 提交 Pull Request
+# 构建生产版本
+pnpm build
 
-### Commit 规范
+# 预览生产构建
+pnpm preview
+```
 
-本项目遵循 [Conventional Commits](https://www.conventionalcommits.org/) 规范：
+开发服务器默认运行在 `http://localhost:4321`，后台地址 `http://localhost:4321/admin`。
 
-| 类型 | 说明 |
-|------|------|
-| `feat` | 新功能 |
-| `fix` | Bug 修复 |
-| `docs` | 文档更新 |
-| `style` | 代码格式调整 |
-| `refactor` | 重构（不影响功能） |
-| `perf` | 性能优化 |
-| `chore` | 构建/工具链变更 |
+## 功能特性
 
----
+### 前台展示
+- **首页** — Hero 区域 + 文章/项目/图库概览
+- **文章** — Markdown 渲染、目录导航、代码高亮
+- **项目** — 作品展示卡片
+- **图库** — 瀑布流相册，按来源分类筛选
+- **关于** — 个人信息展示
+- 响应式设计 + 深色模式
+- GSAP 页面过渡与微交互动画
 
-## 📜 许可证
+### 后台管理
+- **登录认证** — 基于 localStorage 的会话管理
+- **首页管理** — Hero 文案与展示内容编辑
+- **文章管理** — Markdown 编辑器 + LLM 润色功能
+- **项目管理** — 封面图上传（ImgBB 图床）
+- **图库管理** — 批量上传、URL 导入、拖拽排序
+- **关于管理** — 头像与个人信息编辑
 
-本项目基于 [ISC License](LICENSE) 开源。
+## 图床配置
 
----
+图片上传使用 [ImgBB](https://imgbb.com/) 图床，API Key 通过环境变量配置：
 
-## 👨‍💻 作者
+```bash
+IMGBB_API_KEY="your-api-key"
+```
 
-**zijin** · 一个热爱折腾的开发者
+支持的格式：JPG、PNG、GIF、WebP、BMP、TIFF，单张最大 32MB。
 
-- GitHub: [@Vortex745](https://github.com/Vortex745)
-- Blog: [未完稿](https://github.com/Vortex745/blog)
+## 后台登录
 
----
+| 字段 | 值 |
+|------|----|
+| 用户名 | `admin` |
+| 密码 | `1234` |
 
-*「有些梦并不遥远，用代码丈量每一步」*
+## 许可证
+
+MIT

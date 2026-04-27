@@ -1,0 +1,240 @@
+---
+// Admin login page — no layout, centred card
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>登录 — 管理后台</title>
+    <link rel="stylesheet" href="/styles/globals.css" />
+    <style>
+      .login-body {
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #f4f6fa 0%, #e8ecf2 100%);
+        font-family: var(--font-body, 'Inter', system-ui, sans-serif);
+      }
+      .login-card {
+        width: 100%;
+        max-width: 420px;
+        padding: 48px 40px;
+        background: rgba(255,255,255,0.7);
+        backdrop-filter: blur(40px);
+        border: 1px solid rgba(255,255,255,0.6);
+        border-radius: 28px;
+        box-shadow: 0 24px 64px rgba(0,0,0,0.08);
+      }
+      .login-brand {
+        text-align: center;
+        margin-bottom: 32px;
+      }
+      .login-brand h1 {
+        font-family: var(--font-display, 'Inter', system-ui, sans-serif);
+        font-size: 28px;
+        font-weight: 700;
+        color: #181c23;
+        margin: 0 0 8px;
+        letter-spacing: -0.02em;
+      }
+      .login-brand p {
+        font-size: 15px;
+        color: #717785;
+        margin: 0;
+      }
+      .login-form {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+      .field-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .field-label {
+        font-size: 14px;
+        font-weight: 500;
+        color: #181c23;
+      }
+      .field-input {
+        width: 100%;
+        padding: 14px 16px;
+        border-radius: 14px;
+        border: 1px solid rgba(193,198,214,0.5);
+        background: rgba(255,255,255,0.7);
+        font-family: var(--font-body, 'Inter', system-ui, sans-serif);
+        font-size: 15px;
+        color: #181c23;
+        outline: none;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        box-sizing: border-box;
+      }
+      .field-input:focus {
+        border-color: #0059b5;
+        box-shadow: 0 0 0 4px rgba(0,89,181,0.1);
+      }
+      .btn-login {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        padding: 14px;
+        border-radius: 14px;
+        border: none;
+        background: #0059b5;
+        color: #ffffff;
+        font-family: var(--font-body, 'Inter', system-ui, sans-serif);
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.15s cubic-bezier(0.23, 1, 0.32, 1);
+        margin-top: 8px;
+        transform: scale(1);
+      }
+      .btn-login:hover {
+        background: #004a94;
+      }
+      .btn-login:active {
+        transform: scale(0.97);
+      }
+      .login-error {
+        padding: 12px 16px;
+        border-radius: 12px;
+        background: rgba(220,38,38,0.08);
+        color: #b91c1c;
+        font-size: 14px;
+        text-align: center;
+        display: none;
+      }
+      .login-error.is-visible {
+        display: block;
+      }
+      .login-footer {
+        text-align: center;
+        margin-top: 24px;
+      }
+      .login-footer a {
+        font-size: 14px;
+        color: #717785;
+        text-decoration: none;
+        transition: color 0.2s ease;
+      }
+      .login-footer a:hover {
+        color: #181c23;
+      }
+      @media (max-width: 480px) {
+        .login-card {
+          margin: 20px;
+          padding: 36px 28px;
+        }
+      }
+    </style>
+  </head>
+  <body class="login-body">
+    <div class="login-card">
+      <div class="login-brand">
+        <h1>子衿的个人博客网站</h1>
+        <p>管理后台登录</p>
+      </div>
+
+      <form id="login-form" class="login-form">
+        <div id="login-error" class="login-error">账号或密码错误，请重试。</div>
+
+        <div class="field-group">
+          <label for="username" class="field-label">账号</label>
+          <input
+            id="username"
+            name="username"
+            type="text"
+            class="field-input"
+            placeholder="请输入账号"
+            autocomplete="username"
+            required
+          />
+        </div>
+
+        <div class="field-group">
+          <label for="password" class="field-label">密码</label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            class="field-input"
+            placeholder="请输入密码"
+            autocomplete="current-password"
+            required
+          />
+        </div>
+
+        <button type="submit" class="btn-login">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" x2="3" y1="12" y2="12"/></svg>
+          登录
+        </button>
+      </form>
+
+      <div class="login-footer">
+        <a href="/">← 返回网站首页</a>
+      </div>
+    </div>
+
+    <script>
+      (function() {
+        // If already logged in, redirect to admin dashboard
+        if (localStorage.getItem("admin-auth") === "1") {
+          window.location.replace("/admin");
+          return;
+        }
+
+        // Entrance animation for login card
+        const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const card = document.querySelector(".login-card");
+        if (card && !prefersReduced) {
+          card.style.opacity = "0";
+          card.style.transform = "translateY(16px) scale(0.97)";
+          requestAnimationFrame(() => {
+            card.style.transition = "opacity 0.5s cubic-bezier(0.23, 1, 0.32, 1), transform 0.5s cubic-bezier(0.23, 1, 0.32, 1)";
+            card.style.opacity = "1";
+            card.style.transform = "translateY(0) scale(1)";
+          });
+        }
+
+        const form = document.getElementById("login-form");
+        const errorEl = document.getElementById("login-error");
+        const usernameEl = document.getElementById("username");
+        const passwordEl = document.getElementById("password");
+
+        form?.addEventListener("submit", function(e) {
+          e.preventDefault();
+          const username = (usernameEl?.value || "").trim();
+          const password = (passwordEl?.value || "").trim();
+
+          // Hard-coded credentials: admin / 1234
+          if (username === "admin" && password === "1234") {
+            localStorage.setItem("admin-auth", "1");
+            localStorage.setItem("admin-auth-time", String(Date.now()));
+            window.location.replace("/admin");
+          } else {
+            errorEl?.classList.add("is-visible");
+            passwordEl && (passwordEl.value = "");
+            passwordEl?.focus();
+          }
+        });
+
+        // Hide error on input
+        [usernameEl, passwordEl].forEach(function(el) {
+          el?.addEventListener("input", function() {
+            errorEl?.classList.remove("is-visible");
+          });
+        });
+      })();
+    </script>
+  </body>
+</html>

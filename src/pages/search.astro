@@ -1,0 +1,728 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { getCollection } from "astro:content";
+
+const allArticles = (await getCollection("articles"))
+  .filter((a) => !a.data.draft)
+  .sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
+
+const allProjects = (await getCollection("projects"))
+  .sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
+
+// Collect all unique years
+const allYears = Array.from(
+  new Set([
+    ...allArticles.map((a) => a.data.date.getFullYear().toString()),
+    ...allProjects.map((p) => p.data.date.getFullYear().toString()),
+  ])
+).sort((a, b) => parseInt(b) - parseInt(a));
+
+function cleanSlug(id: string) {
+  return id.replace(/\.mdx?$/, "");
+}
+
+function formatDate(date: Date): string {
+  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+}
+
+// Serialize data for client-side JS
+const searchData = {
+  articles: allArticles.map((a) => ({
+    id: cleanSlug(a.id),
+    title: a.data.title,
+    description: a.data.description,
+    date: a.data.date.toISOString(),
+    tags: a.data.tags,
+    type: "article" as const,
+    url: `/articles/${cleanSlug(a.id)}/`,
+  })),
+  projects: allProjects.map((p) => ({
+    id: cleanSlug(p.id),
+    title: p.data.title,
+    description: p.data.description,
+    date: p.data.date.toISOString(),
+    tags: p.data.tags,
+    type: "project" as const,
+    url: `/projects/${cleanSlug(p.id)}/`,
+  })),
+};
+
+const totalCount = allArticles.length + allProjects.length;
+---
+
+<BaseLayout title="子衿的个人博客网站" description="搜索文章和项目内容。">
+  <section class="search-hero" data-animate="hero">
+    <div class="editorial-container">
+      <h1 class="editorial-display" data-animate="hero-item">搜索</h1>
+      <p class="editorial-lead" data-animate="hero-item">
+        在 {totalCount} 条内容中查找你感兴趣的文章和项目。
+      </p>
+    </div>
+  </section>
+
+  <section class="search-content">
+    <div class="editorial-container">
+      {/* Search Input */}
+      <div class="search-box" data-animate="fade-up">
+        <div class="search-input-wrap">
+          <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+          <input
+            type="text"
+            id="search-input"
+            class="search-input"
+            placeholder="输入关键词搜索…"
+            autocomplete="off"
+          />
+          <button id="search-clear" class="search-clear hidden" aria-label="清除搜索">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div class="search-filters" data-animate="fade-up">
+        <button id="filter-toggle" class="filter-toggle" aria-expanded="false" aria-controls="filter-content">
+          <svg class="filter-toggle-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>
+          </svg>
+          <span>筛选</span>
+          <svg class="filter-chevron" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m6 9 6 6 6-6"/>
+          </svg>
+        </button>
+        <div id="filter-content" class="filter-content" aria-hidden="true">
+          {/* Type Filter */}
+          <div class="filter-group">
+            <span class="filter-label">类型</span>
+            <div class="filter-options" id="type-filters">
+              <button class="filter-chip active" data-type="all">全部</button>
+              <button class="filter-chip" data-type="article">文章</button>
+              <button class="filter-chip" data-type="project">项目</button>
+            </div>
+          </div>
+
+          {/* Year Filter */}
+          <div class="filter-group">
+            <span class="filter-label">年份</span>
+            <div class="filter-options" id="year-filters">
+              <button class="filter-chip active" data-year="all">全部</button>
+              {allYears.map((year) => (
+                <button class="filter-chip" data-year={year}>{year}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Results */}
+      <div class="search-results">
+        <div class="results-header" data-animate="fade-up">
+          <span id="results-count" class="results-count">显示全部 {totalCount} 条结果</span>
+        </div>
+        <div id="results-list" class="results-list" data-animate="stagger">
+          {/* Results rendered by JS */}
+        </div>
+        <div id="results-empty" class="results-empty hidden">
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="empty-icon">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="m21 21-4.3-4.3"/>
+            <path d="M8 8l6 6"/>
+            <path d="M14 8l-6 6"/>
+          </svg>
+          <p class="empty-title">未找到匹配结果</p>
+          <p class="empty-desc">尝试更换关键词或调整筛选条件</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script define:vars={{ searchData }}>
+    const allItems = [...searchData.articles, ...searchData.projects];
+
+    const searchInput = document.getElementById("search-input");
+    const searchClear = document.getElementById("search-clear");
+    const resultsList = document.getElementById("results-list");
+    const resultsCount = document.getElementById("results-count");
+    const resultsEmpty = document.getElementById("results-empty");
+
+    let currentQuery = "";
+    let currentType = "all";
+    let currentYear = "all";
+
+    // Initialize from URL params
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlQuery = urlParams.get("q");
+    if (urlQuery) {
+      currentQuery = urlQuery;
+      searchInput.value = urlQuery;
+      searchClear.classList.remove("hidden");
+    }
+
+    function formatDate(dateStr) {
+      const d = new Date(dateStr);
+      return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+    }
+
+    function renderResults(items) {
+      if (items.length === 0) {
+        resultsList.innerHTML = "";
+        resultsEmpty.classList.remove("hidden");
+        resultsCount.textContent = "找到 0 条结果";
+        return;
+      }
+
+      resultsEmpty.classList.add("hidden");
+      resultsCount.textContent = `找到 ${items.length} 条结果`;
+
+      resultsList.innerHTML = items
+        .map(
+          (item) => `
+            <a href="${item.url}" class="result-item">
+              <div class="result-meta">
+                <span class="result-type ${item.type}">${item.type === "article" ? "文章" : "项目"}</span>
+                <span class="result-date">${formatDate(item.date)}</span>
+              </div>
+              <h3 class="result-title">${escapeHtml(item.title)}</h3>
+              <p class="result-desc">${escapeHtml(item.description)}</p>
+              <div class="result-tags">
+                ${item.tags.map((tag) => `<span class="result-tag">${escapeHtml(tag)}</span>`).join("")}
+              </div>
+            </a>
+          `
+        )
+        .join("");
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement("div");
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function filterItems() {
+      let filtered = allItems;
+
+      // Text search
+      if (currentQuery.trim()) {
+        const q = currentQuery.toLowerCase();
+        filtered = filtered.filter(
+          (item) =>
+            item.title.toLowerCase().includes(q) ||
+            item.description.toLowerCase().includes(q) ||
+            item.tags.some((tag) => tag.toLowerCase().includes(q))
+        );
+      }
+
+      // Type filter
+      if (currentType !== "all") {
+        filtered = filtered.filter((item) => item.type === currentType);
+      }
+
+      // Year filter
+      if (currentYear !== "all") {
+        filtered = filtered.filter(
+          (item) => new Date(item.date).getFullYear().toString() === currentYear
+        );
+      }
+
+      renderResults(filtered);
+    }
+
+    // Search input
+    searchInput.addEventListener("input", (e) => {
+      currentQuery = e.target.value;
+      if (currentQuery) {
+        searchClear.classList.remove("hidden");
+      } else {
+        searchClear.classList.add("hidden");
+      }
+      filterItems();
+    });
+
+    searchClear.addEventListener("click", () => {
+      searchInput.value = "";
+      currentQuery = "";
+      searchClear.classList.add("hidden");
+      searchInput.focus();
+      filterItems();
+    });
+
+    // Filter chips
+    function setupFilterGroup(containerId, varName, dataAttr) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+
+      container.addEventListener("click", (e) => {
+        const chip = e.target.closest(".filter-chip");
+        if (!chip) return;
+
+        container.querySelectorAll(".filter-chip").forEach((c) => c.classList.remove("active"));
+        chip.classList.add("active");
+
+        if (varName === "type") currentType = chip.dataset[dataAttr];
+        if (varName === "year") currentYear = chip.dataset[dataAttr];
+
+        filterItems();
+      });
+    }
+
+    setupFilterGroup("type-filters", "type", "type");
+    setupFilterGroup("year-filters", "year", "year");
+
+    // Filter toggle
+    const filterToggle = document.getElementById("filter-toggle");
+    const filterContent = document.getElementById("filter-content");
+
+    if (filterToggle && filterContent) {
+      filterToggle.addEventListener("click", () => {
+        const isExpanded = filterToggle.getAttribute("aria-expanded") === "true";
+        filterToggle.setAttribute("aria-expanded", String(!isExpanded));
+        filterContent.setAttribute("aria-hidden", String(isExpanded));
+        filterContent.classList.toggle("is-open", !isExpanded);
+      });
+    }
+
+    // Initial render
+    filterItems();
+  </script>
+
+  <style>
+    .editorial-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Hero */
+    .search-hero {
+      padding: 80px 0 48px;
+    }
+
+    .editorial-display {
+      font-family: var(--font-display);
+      font-size: 64px;
+      font-weight: 700;
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+      color: #181c23;
+      margin-bottom: 24px;
+    }
+
+    .editorial-lead {
+      font-family: var(--font-body);
+      font-size: 19px;
+      font-weight: 400;
+      line-height: 1.5;
+      letter-spacing: -0.011em;
+      color: #414753;
+      max-width: 640px;
+    }
+
+    /* Search Box */
+    .search-box {
+      margin-bottom: 40px;
+    }
+
+    .search-input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 16px;
+      color: #717785;
+      pointer-events: none;
+    }
+
+    .search-input {
+      width: 100%;
+      height: 52px;
+      padding: 0 48px;
+      border-radius: 16px;
+      border: 1px solid rgba(193, 198, 214, 0.5);
+      background: rgba(255, 255, 255, 0.6);
+      backdrop-filter: blur(16px);
+      font-family: var(--font-body);
+      font-size: 17px;
+      color: #181c23;
+      outline: none;
+      transition: border-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+    }
+
+    .search-input::placeholder {
+      color: #717785;
+    }
+
+    .search-input:focus {
+      border-color: #0059b5;
+      box-shadow: 0 0 0 4px rgba(0, 89, 181, 0.1);
+    }
+
+    .search-clear {
+      position: absolute;
+      right: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(193, 198, 214, 0.3);
+      color: #717785;
+      cursor: pointer;
+      transition: background-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), color 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.15s cubic-bezier(0.23, 1, 0.32, 1);
+      transform: scale(1);
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+      .search-clear:hover {
+        background-color: rgba(193, 198, 214, 0.5);
+        color: #181c23;
+      }
+    }
+
+    .search-clear:active {
+      transform: scale(0.92);
+    }
+
+    .search-clear.hidden {
+      display: none;
+    }
+
+    /* Filters */
+    .search-filters {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      margin-bottom: 48px;
+      padding: 0;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.4);
+      backdrop-filter: blur(32px);
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03);
+      overflow: hidden;
+    }
+
+    .filter-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      padding: 16px 24px;
+      border: none;
+      background: transparent;
+      font-family: var(--font-body);
+      font-size: 15px;
+      font-weight: 500;
+      color: #181c23;
+      cursor: pointer;
+      transition: background-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.15s cubic-bezier(0.23, 1, 0.32, 1);
+      transform: scale(1);
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+      .filter-toggle:hover {
+        background-color: rgba(0, 0, 0, 0.02);
+      }
+    }
+
+    .filter-toggle:active {
+      transform: scale(0.99);
+    }
+
+    .filter-toggle-icon {
+      color: #717785;
+      flex-shrink: 0;
+    }
+
+    .filter-chevron {
+      margin-left: auto;
+      color: #717785;
+      transition: transform 0.25s cubic-bezier(0.23, 1, 0.32, 1);
+    }
+
+    .filter-toggle[aria-expanded="true"] .filter-chevron {
+      transform: rotate(180deg);
+    }
+
+    .filter-content {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      max-height: 0;
+      overflow: hidden;
+      padding: 0 24px;
+      transition: max-height 0.3s cubic-bezier(0.23, 1, 0.32, 1), padding 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+    }
+
+    .filter-content.is-open {
+      max-height: 500px;
+      padding: 0 24px 24px;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .filter-label {
+      font-family: var(--font-body);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #717785;
+    }
+
+    .filter-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .filter-chip {
+      padding: 6px 14px;
+      border-radius: 9999px;
+      border: 1px solid rgba(193, 198, 214, 0.4);
+      background: rgba(255, 255, 255, 0.5);
+      font-family: var(--font-body);
+      font-size: 14px;
+      font-weight: 400;
+      color: #414753;
+      cursor: pointer;
+      transition: background-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), border-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), color 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.15s cubic-bezier(0.23, 1, 0.32, 1);
+      transform: scale(1);
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+      .filter-chip:hover {
+        background: rgba(255, 255, 255, 0.8);
+        border-color: rgba(113, 119, 133, 0.4);
+      }
+    }
+
+    .filter-chip:active {
+      transform: scale(0.97);
+    }
+
+    .filter-chip.active {
+      background: #0059b5;
+      color: #ffffff;
+      border-color: #0059b5;
+    }
+
+    /* Results */
+    .search-results {
+      padding-bottom: 96px;
+    }
+
+    .results-header {
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid rgba(193, 198, 214, 0.4);
+    }
+
+    .results-count {
+      font-family: var(--font-body);
+      font-size: 14px;
+      font-weight: 400;
+      color: #717785;
+    }
+
+    .results-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      background: rgba(193, 198, 214, 0.2);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .result-item {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 24px;
+      background: rgba(255, 255, 255, 0.4);
+      backdrop-filter: blur(32px);
+      text-decoration: none;
+      transition: background-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.15s cubic-bezier(0.23, 1, 0.32, 1);
+      transform: translateX(0);
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+      .result-item:hover {
+        background-color: rgba(255, 255, 255, 0.7);
+      }
+    }
+
+    .result-item:active {
+      transform: translateX(2px);
+    }
+
+    .result-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .result-type {
+      font-family: var(--font-body);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      padding: 2px 10px;
+      border-radius: 9999px;
+    }
+
+    .result-type.article {
+      background: rgba(0, 89, 181, 0.1);
+      color: #0059b5;
+    }
+
+    .result-type.project {
+      background: rgba(155, 63, 0, 0.1);
+      color: #9b3f00;
+    }
+
+    .result-date {
+      font-family: var(--font-body);
+      font-size: 13px;
+      color: #717785;
+    }
+
+    .result-title {
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 600;
+      line-height: 1.3;
+      letter-spacing: -0.01em;
+      color: #181c23;
+      margin: 0;
+      transition: color 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+      .result-item:hover .result-title {
+        color: #0059b5;
+      }
+    }
+
+    .result-desc {
+      font-family: var(--font-body);
+      font-size: 15px;
+      font-weight: 400;
+      line-height: 1.47;
+      color: #414753;
+      margin: 0;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .result-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .result-tag {
+      font-family: var(--font-body);
+      font-size: 12px;
+      font-weight: 400;
+      color: #717785;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: rgba(236, 237, 247, 0.6);
+    }
+
+    /* Empty state */
+    .results-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 80px 24px;
+      text-align: center;
+    }
+
+    .results-empty.hidden {
+      display: none;
+    }
+
+    .empty-icon {
+      color: #c1c6d6;
+      margin-bottom: 16px;
+    }
+
+    .empty-title {
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 600;
+      color: #181c23;
+      margin: 0 0 8px;
+    }
+
+    .empty-desc {
+      font-family: var(--font-body);
+      font-size: 15px;
+      color: #717785;
+      margin: 0;
+    }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .editorial-display {
+        font-size: 48px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .search-hero {
+        padding: 48px 0 32px;
+      }
+
+      .editorial-display {
+        font-size: 36px;
+      }
+
+      .editorial-lead {
+        font-size: 17px;
+      }
+
+      .editorial-container {
+        padding: 0 16px;
+      }
+
+      .search-input {
+        height: 48px;
+        font-size: 16px;
+      }
+
+      .search-filters {
+        padding: 16px;
+      }
+
+      .result-item {
+        padding: 16px;
+      }
+
+      .result-title {
+        font-size: 17px;
+      }
+    }
+  </style>
+</BaseLayout>

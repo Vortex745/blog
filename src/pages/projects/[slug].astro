@@ -1,0 +1,162 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { getCollection, render } from "astro:content";
+
+const { slug } = Astro.params;
+
+const allProjects = await getCollection("projects");
+const project = allProjects.find(
+  (p) => p.id.replace(/\.mdx?$/, "") === slug
+);
+
+if (!project) {
+  return Astro.redirect("/404");
+}
+
+const { Content, headings } = await render(project);
+const tags = project.data.tags ?? [];
+
+const relatedProjects = allProjects
+  .filter(
+    (item) =>
+      item.id !== project.id &&
+      item.data.tags.some((tag: string) => tags.includes(tag))
+  )
+  .slice(0, 2);
+const featureHeadings = headings
+  .filter((heading: { depth: number }) => heading.depth === 2)
+  .slice(0, 4);
+---
+
+<BaseLayout
+  title="子衿的个人博客网站"
+  description={project.data.description}
+>
+  <section class="section-light min-h-[100dvh] px-5 py-16 md:py-24">
+    <div class="mx-auto max-w-[1120px]">
+      <a
+        href="/projects"
+        class="link-text mb-8 inline-block text-[var(--color-link-blue)] no-underline hover:underline"
+        >← 返回项目列表</a
+      >
+
+      <div class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div>
+          <header class="mb-12 max-w-3xl" data-animate="hero">
+            <div class="mb-5 flex flex-wrap gap-2" data-animate="hero-item">
+              {tags.map((tag: string) => (
+                <span class="apple-badge">{tag}</span>
+              ))}
+            </div>
+            <h1 class="display-hero text-[var(--color-near-black)]" data-animate="hero-item">
+              {project.data.title}
+            </h1>
+            <p class="body-text mt-5 text-[var(--color-text-secondary)]" data-animate="hero-item">
+              {project.data.description}
+            </p>
+            <div class="caption-text mt-5 flex flex-wrap gap-x-4 gap-y-2 text-[var(--color-text-secondary)]" data-animate="hero-item">
+              <time>{project.data.date.toLocaleDateString("zh-CN")}</time>
+              <span>{tags.length} 个标签</span>
+            </div>
+          </header>
+
+          <div class="mb-10 overflow-hidden rounded-[30px] border border-black/[0.08] bg-[var(--card)]" data-animate="fade-up">
+            <div class="flex gap-2 border-b border-black/[0.06] px-[18px] py-[14px]">
+              <span class="h-2.5 w-2.5 rounded-full bg-black/20" />
+              <span class="h-2.5 w-2.5 rounded-full bg-black/20" />
+              <span class="h-2.5 w-2.5 rounded-full bg-black/20" />
+            </div>
+            <div class="min-h-[300px] p-8">
+              <p class="eyebrow text-[var(--color-link-blue)]">
+                {project.data.featured ? "Featured" : "Build"}
+              </p>
+              <h2 class="section-heading mt-3 text-[var(--color-near-black)]">
+                {project.data.title}
+              </h2>
+              <p class="body-text mt-4 max-w-xl text-[var(--color-text-secondary)]">
+                {project.data.description}
+              </p>
+            </div>
+          </div>
+
+          <article class="prose prose-apple max-w-none rounded-[28px] bg-[var(--card)] p-6 md:p-10" data-animate="fade-up">
+            <Content />
+          </article>
+        </div>
+
+        <aside class="space-y-5" data-animate="fade-up">
+          <div class="apple-card">
+            <h2 class="card-title text-[var(--color-near-black)]">项目操作</h2>
+            <div class="mt-6 flex flex-col gap-3">
+              {project.data.demoUrl && (
+                <a
+                  href={project.data.demoUrl}
+                  class="btn-primary"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  查看 Demo
+                </a>
+              )}
+              {project.data.githubUrl && (
+                <a
+                  href={project.data.githubUrl}
+                  class="pill-link justify-center"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  源代码 ↗
+                </a>
+              )}
+            </div>
+          </div>
+
+          <div class="apple-card">
+            <h2 class="card-title text-[var(--color-near-black)]">技术栈</h2>
+            <div class="mt-5 flex flex-wrap gap-2">
+              {tags.map((tag: string) => (
+                <span class="apple-badge">{tag}</span>
+              ))}
+            </div>
+          </div>
+
+          <div class="apple-card">
+            <h2 class="card-title text-[var(--color-near-black)]">功能特性</h2>
+            <ul class="mt-5 space-y-3">
+              {(
+                featureHeadings.length > 0
+                  ? featureHeadings
+                  : tags.slice(0, 3).map((tag: string) => ({
+                      text: `${tag} 实践`,
+                    }))
+              ).map((item: { text: string }) => (
+                <li class="caption-text text-[var(--color-text-secondary)]">• {item.text}</li>
+              ))}
+            </ul>
+          </div>
+        </aside>
+      </div>
+
+      {
+        relatedProjects.length > 0 && (
+          <section class="mt-14" data-animate="fade-up">
+            <h2 class="section-heading mb-6 text-[var(--color-near-black)]">相关项目</h2>
+            <div class="grid gap-5 md:grid-cols-2" data-animate="stagger">
+              {relatedProjects.map((item) => (
+                <a
+                  href={`/projects/${item.id.replace(/\.mdx?$/, "")}`}
+                  class="apple-card no-underline"
+                >
+                  <h3 class="card-title text-[var(--color-near-black)]">{item.data.title}</h3>
+                  <p class="caption-text mt-3 text-[var(--color-text-secondary)]">
+                    {item.data.description}
+                  </p>
+                </a>
+              ))}
+            </div>
+          </section>
+        )
+      }
+    </div>
+  </section>
+</BaseLayout>

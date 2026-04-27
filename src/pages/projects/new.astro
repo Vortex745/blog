@@ -1,0 +1,112 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+
+const today = new Date().toISOString().slice(0, 10);
+---
+
+<BaseLayout title="子衿的个人博客网站" description="生成新项目 Markdown 模板">
+  <section class="section-dark min-h-[100dvh] px-5 py-16 md:py-24">
+    <div class="mx-auto grid max-w-[1120px] gap-8 lg:grid-cols-[0.9fr_1.1fr]">
+      <div>
+        <a href="/projects" class="pill-link pill-link-dark mb-8 inline-flex">← 返回项目</a>
+        <p class="eyebrow mb-3 text-[var(--color-bright-blue)]">New Project</p>
+        <h1 class="display-hero text-white">添加项目</h1>
+        <p class="body-text mt-4 text-white/60">
+          填写后复制右侧内容，新建到 <code>src/content/projects/你的-slug.md</code>。GitHub 和 Demo 可以留空。
+        </p>
+      </div>
+
+      <div class="dark-card">
+        <form id="project-form" class="content-form content-form-dark space-y-5">
+          <label class="content-field">
+            <span>标题</span>
+            <input name="title" type="text" value="新的项目" required />
+          </label>
+          <label class="content-field">
+            <span>Slug</span>
+            <input name="slug" type="text" value="new-project" required />
+          </label>
+          <label class="content-field">
+            <span>摘要</span>
+            <textarea name="description" rows="3" required>写下这个项目解决的问题。</textarea>
+          </label>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <label class="content-field">
+              <span>日期</span>
+              <input name="date" type="date" value={today} required />
+            </label>
+            <label class="content-field">
+              <span>标签（逗号分隔）</span>
+              <input name="tags" type="text" value="Astro, TypeScript" />
+            </label>
+          </div>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <label class="content-field">
+              <span>GitHub 地址</span>
+              <input name="githubUrl" type="url" placeholder="https://github.com/..." />
+            </label>
+            <label class="content-field">
+              <span>Demo 地址</span>
+              <input name="demoUrl" type="url" placeholder="https://..." />
+            </label>
+          </div>
+          <label class="content-field">
+            <span>正文</span>
+            <textarea name="body" rows="8">## 项目简介
+
+描述项目目标、技术栈和关键功能。</textarea>
+          </label>
+        </form>
+
+        <div class="mt-8 rounded-[20px] bg-white/[0.06] p-4">
+          <div class="mb-3 flex items-center justify-between gap-3">
+            <p class="eyebrow text-white/55">Markdown</p>
+            <button id="copy-output" class="filter-chip-dark" type="button">复制</button>
+          </div>
+          <pre class="content-output content-output-dark"><code id="project-output"></code></pre>
+          <p id="copy-status" class="micro-text mt-3 text-white/55" aria-live="polite"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    const form = document.getElementById("project-form");
+    const output = document.getElementById("project-output");
+    const copyButton = document.getElementById("copy-output");
+    const copyStatus = document.getElementById("copy-status");
+
+    function quote(value) {
+      return `"${value.replaceAll("\\", "\\\\").replaceAll("\"", "\\\"")}"`;
+    }
+
+    function parseTags(value) {
+      return value.split(",").map((tag) => tag.trim()).filter(Boolean);
+    }
+
+    function optionalUrlLine(key, value) {
+      return value ? `${key}: ${quote(value)}\n` : "";
+    }
+
+    function renderProject() {
+      if (!(form instanceof HTMLFormElement) || !output) return;
+      const data = new FormData(form);
+      const title = String(data.get("title") || "");
+      const description = String(data.get("description") || "");
+      const date = String(data.get("date") || "");
+      const tags = parseTags(String(data.get("tags") || ""));
+      const githubUrl = String(data.get("githubUrl") || "").trim();
+      const demoUrl = String(data.get("demoUrl") || "").trim();
+      const body = String(data.get("body") || "");
+      output.textContent = `---\ntitle: ${quote(title)}\ndescription: ${quote(description)}\ndate: ${date}\ntags: [${tags.map(quote).join(", ")}]\n${optionalUrlLine("githubUrl", githubUrl)}${optionalUrlLine("demoUrl", demoUrl)}featured: false\n---\n\n${body}\n`;
+    }
+
+    form?.addEventListener("input", renderProject);
+    copyButton?.addEventListener("click", async () => {
+      if (!output?.textContent) return;
+      await navigator.clipboard.writeText(output.textContent);
+      if (copyStatus) copyStatus.textContent = "已复制。请保存到 src/content/projects/ 对应文件。";
+    });
+    renderProject();
+  </script>
+</BaseLayout>

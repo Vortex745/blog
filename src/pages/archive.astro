@@ -1,0 +1,401 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { getCollection } from "astro:content";
+
+const allArticles = (await getCollection("articles"))
+  .filter((a) => !a.data.draft)
+  .sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
+
+const allProjects = (await getCollection("projects"))
+  .sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
+
+// Group by year
+function groupByYear(items: typeof allArticles) {
+  const groups: Record<string, typeof allArticles> = {};
+  items.forEach((item) => {
+    const year = item.data.date.getFullYear().toString();
+    if (!groups[year]) groups[year] = [];
+    groups[year].push(item);
+  });
+  return Object.entries(groups).sort((a, b) => parseInt(b[0]) - parseInt(a[0]));
+}
+
+const articleGroups = groupByYear(allArticles);
+const projectGroups = groupByYear(allProjects);
+
+function formatDate(date: Date): string {
+  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+}
+
+const totalCount = allArticles.length + allProjects.length;
+---
+
+<BaseLayout title="子衿的个人博客网站" description="所有内容的归档记录，按时间顺序排列。">
+  <section class="archive-hero" data-animate="hero">
+    <div class="editorial-container">
+      <h1 class="editorial-display" data-animate="hero-item">归档</h1>
+      <p class="editorial-lead" data-animate="hero-item">
+        所有内容的完整记录。截至目前，共收录 {totalCount} 条内容，包括 {allArticles.length} 篇文章和 {allProjects.length} 个项目。
+      </p>
+    </div>
+  </section>
+
+  <section class="archive-content">
+    <div class="editorial-container">
+      {/* Stats Cards */}
+      <div class="stats-grid" data-animate="stagger">
+        <div class="stat-card">
+          <span class="stat-number" data-animate="counter">{allArticles.length}</span>
+          <span class="stat-label">文章</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-number" data-animate="counter">{allProjects.length}</span>
+          <span class="stat-label">项目</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-number" data-animate="counter">{articleGroups.length}</span>
+          <span class="stat-label">年份跨度</span>
+        </div>
+      </div>
+
+      {/* Articles Archive */}
+      <div class="archive-section" data-animate="fade-up">
+        <h2 class="archive-section-title">文章</h2>
+        {
+          articleGroups.length === 0 ? (
+            <p class="empty-text">暂无文章</p>
+          ) : (
+            <div class="archive-list" data-animate="stagger">
+              {articleGroups.map(([year, articles]) => (
+                <div class="archive-year-group">
+                  <div class="year-marker">
+                    <span class="year-number">{year}</span>
+                    <span class="year-count">{articles.length} 篇</span>
+                  </div>
+                  <div class="year-items">
+                    {articles.map((article) => (
+                      <a href={`/articles/${article.id.replace(/\.mdx?$/, "")}`} class="archive-item">
+                        <span class="archive-date">{formatDate(article.data.date)}</span>
+                        <span class="archive-title">{article.data.title}</span>
+                        <span class="archive-arrow">→</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        }
+      </div>
+
+      {/* Projects Archive */}
+      <div class="archive-section" data-animate="fade-up">
+        <h2 class="archive-section-title">项目</h2>
+        {
+          projectGroups.length === 0 ? (
+            <p class="empty-text">暂无项目</p>
+          ) : (
+            <div class="archive-list" data-animate="stagger">
+              {projectGroups.map(([year, projects]) => (
+                <div class="archive-year-group">
+                  <div class="year-marker">
+                    <span class="year-number">{year}</span>
+                    <span class="year-count">{projects.length} 个</span>
+                  </div>
+                  <div class="year-items">
+                    {projects.map((project) => (
+                      <a href={`/projects/${project.id.replace(/\.mdx?$/, "")}`} class="archive-item">
+                        <span class="archive-date">{formatDate(project.data.date)}</span>
+                        <span class="archive-title">{project.data.title}</span>
+                        <span class="archive-arrow">→</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        }
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .editorial-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* Hero Section */
+  .archive-hero {
+    padding: 80px 0 64px;
+  }
+
+  .editorial-display {
+    font-family: var(--font-display);
+    font-size: 64px;
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    color: #181c23;
+    margin-bottom: 24px;
+  }
+
+  .editorial-lead {
+    font-family: var(--font-body);
+    font-size: 19px;
+    font-weight: 400;
+    line-height: 1.5;
+    letter-spacing: -0.011em;
+    color: #414753;
+    max-width: 640px;
+  }
+
+  /* Stats Grid */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 64px;
+  }
+
+  .stat-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 24px;
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(32px);
+    -webkit-backdrop-filter: blur(32px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03);
+    text-align: center;
+  }
+
+  .stat-number {
+    font-family: var(--font-display);
+    font-size: 40px;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    color: #181c23;
+    margin-bottom: 8px;
+  }
+
+  .stat-label {
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 400;
+    color: #717785;
+  }
+
+  /* Archive Section */
+  .archive-content {
+    padding-bottom: 96px;
+  }
+
+  .archive-section {
+    margin-bottom: 64px;
+  }
+
+  .archive-section-title {
+    font-family: var(--font-display);
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    color: #181c23;
+    margin-bottom: 32px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(193, 198, 214, 0.4);
+  }
+
+  .archive-list {
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+  }
+
+  .archive-year-group {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .year-marker {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+
+  .year-number {
+    font-family: var(--font-display);
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    color: #181c23;
+  }
+
+  .year-count {
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 400;
+    color: #717785;
+  }
+
+  .year-items {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: rgba(193, 198, 214, 0.2);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .archive-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 24px;
+    background: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(32px);
+    -webkit-backdrop-filter: blur(32px);
+    text-decoration: none;
+    transition: background-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.15s cubic-bezier(0.23, 1, 0.32, 1);
+    transform: translateX(0);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .archive-item:hover {
+      background-color: rgba(255, 255, 255, 0.7);
+    }
+  }
+
+  .archive-item:active {
+    transform: translateX(2px);
+  }
+
+  .archive-date {
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 400;
+    color: #717785;
+    flex-shrink: 0;
+    width: 120px;
+  }
+
+  .archive-title {
+    font-family: var(--font-body);
+    font-size: 17px;
+    font-weight: 400;
+    line-height: 1.47;
+    letter-spacing: -0.011em;
+    color: #181c23;
+    flex: 1;
+    transition: color 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .archive-item:hover .archive-title {
+      color: #0059b5;
+    }
+  }
+
+  .archive-arrow {
+    font-family: var(--font-body);
+    font-size: 17px;
+    color: #717785;
+    opacity: 0;
+    transform: translateX(-4px);
+    transition: opacity 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .archive-item:hover .archive-arrow {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .empty-text {
+    font-family: var(--font-body);
+    font-size: 17px;
+    color: #717785;
+    padding: 40px 0;
+  }
+
+  /* Responsive */
+  @media (max-width: 1024px) {
+    .editorial-display {
+      font-size: 48px;
+    }
+
+    .stats-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  @media (max-width: 640px) {
+    .archive-hero {
+      padding: 48px 0 40px;
+    }
+
+    .editorial-display {
+      font-size: 36px;
+    }
+
+    .editorial-lead {
+      font-size: 17px;
+    }
+
+    .editorial-container {
+      padding: 0 16px;
+    }
+
+    .stats-grid {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .stat-card {
+      padding: 20px 12px;
+    }
+
+    .stat-number {
+      font-size: 28px;
+    }
+
+    .stat-label {
+      font-size: 12px;
+    }
+
+    .archive-section-title {
+      font-size: 24px;
+    }
+
+    .archive-item {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+      padding: 12px 16px;
+    }
+
+    .archive-date {
+      width: auto;
+      font-size: 12px;
+    }
+
+    .archive-title {
+      font-size: 15px;
+    }
+
+    .archive-arrow {
+      display: none;
+    }
+  }
+</style>

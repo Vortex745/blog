@@ -1,0 +1,2126 @@
+---
+import AdminLayout from "../../layouts/AdminLayout.astro";
+---
+
+<AdminLayout title="文章管理" current="articles">
+  <div class="admin-page-header">
+    <h1 class="admin-page-title">文章管理</h1>
+    <p class="admin-page-desc">管理文章列表，支持 Markdown 编辑、封面上传和正文图片粘贴。</p>
+  </div>
+
+  <!-- LLM API Settings -->
+  <section class="form-section llm-settings-section">
+    <div class="section-header" id="llm-toggle" role="button" tabindex="0" aria-expanded="false">
+      <div class="llm-toggle-left">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z"/><circle cx="12" cy="15" r="1"/></svg>
+        <h2 class="section-title">LLM API 设置</h2>
+        <span class="section-badge" id="llm-status-badge">未配置</span>
+      </div>
+      <svg class="llm-chevron" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="llm-settings-body" id="llm-settings-body">
+      <div class="llm-fields">
+        <div class="field-group">
+          <label for="llm-base-url" class="field-label">Base URL</label>
+          <input id="llm-base-url" type="url" class="field-input" placeholder="https://api.openai.com/v1" />
+          <span class="field-hint">OpenAI 兼容协议地址，如 https://api.openai.com/v1 或自定义代理地址</span>
+        </div>
+        <div class="field-group">
+          <label for="llm-api-key" class="field-label">API Key</label>
+          <div class="api-key-wrap">
+            <input id="llm-api-key" type="password" class="field-input" placeholder="sk-..." />
+            <button type="button" id="btn-toggle-key" class="btn-icon btn-toggle-key" title="显示/隐藏密钥">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <span class="field-hint">API 密钥仅保存在浏览器本地，不会上传到服务器</span>
+        </div>
+        <div class="field-group">
+          <label for="llm-model" class="field-label">模型名称</label>
+          <div class="model-input-wrap">
+            <input id="llm-model" type="text" class="field-input" placeholder="gpt-4o-mini" list="llm-model-list" />
+            <datalist id="llm-model-list">
+              <option value="gpt-4o-mini">
+              <option value="gpt-4o">
+              <option value="gpt-4-turbo">
+              <option value="gpt-3.5-turbo">
+              <option value="claude-3-5-sonnet-20241022">
+              <option value="deepseek-chat">
+              <option value="glm-4-flash">
+            </datalist>
+            <button type="button" id="btn-fetch-models" class="btn-secondary btn-small" title="从 API 获取可用模型列表">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-9 9m9-9a9 9 0 0 0-9-9m9 9H3m9 9a9 9 0 0 1-9-9m9 9c1.66 0 3-4.03 3-9s-1.34-9-3-9m0 18c-1.66 0-3-4.03-3-9s1.34-9 3-9m-9 9a9 9 0 0 1 9-9"/></svg>
+              获取模型
+            </button>
+          </div>
+          <span class="field-hint">输入模型名称或点击"获取模型"从 API 自动识别可用模型</span>
+        </div>
+        <div class="llm-actions">
+          <button type="button" id="btn-save-llm" class="btn-primary btn-small">保存设置</button>
+          <button type="button" id="btn-test-llm" class="btn-secondary btn-small">测试连接</button>
+          <span id="llm-test-status" class="save-status"></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <button type="button" id="btn-add" class="btn-primary">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      添加文章
+    </button>
+    <span id="status-msg" class="save-status"></span>
+  </div>
+
+  <!-- Article List -->
+  <section class="form-section">
+    <div class="section-header">
+      <h2 class="section-title">文章列表</h2>
+      <span id="article-count" class="section-badge">0 篇文章</span>
+    </div>
+    <div id="article-list" class="article-list">
+      <div class="empty-state">暂无文章，点击上方按钮添加。</div>
+    </div>
+  </section>
+
+  <!-- Add/Edit Modal -->
+  <div id="article-modal" class="modal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-panel modal-panel-large">
+      <div class="modal-header">
+        <h3 id="modal-title" class="modal-title">添加文章</h3>
+        <button type="button" id="btn-close" class="btn-icon btn-close">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+      <form id="article-form" class="admin-form">
+        <input type="hidden" id="article-id" name="id" value="" />
+        
+        <!-- Title -->
+        <div class="field-group">
+          <label for="a-title" class="field-label">文章标题 <span class="required">*</span></label>
+          <input id="a-title" name="title" type="text" class="field-input" placeholder="输入文章标题，5-100字符" required minlength="5" maxlength="100" />
+          <span class="field-hint" id="title-hint">0 / 100 字符</span>
+        </div>
+
+        <!-- Cover Image Upload -->
+        <div class="field-group">
+          <label class="field-label">封面图片</label>
+          <div class="cover-upload-wrap">
+            <input type="file" id="cover-image-input" accept="image/jpeg,image/png,image/gif,image/webp,image/bmp,image/tiff" class="cover-upload-input" />
+            <div id="cover-preview-area" class="cover-preview-area">
+              <div class="cover-placeholder" id="cover-placeholder">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                <span>点击选择封面图片</span>
+                <small>支持 JPG、PNG 格式，最大 5MB</small>
+              </div>
+              <img id="cover-preview" class="cover-preview" alt="封面预览" />
+              <button type="button" id="btn-remove-cover" class="btn-remove-cover" title="移除封面">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>
+            </div>
+            <!-- Upload Progress -->
+            <div id="cover-progress" class="cover-progress hidden">
+              <div class="progress-bar">
+                <div class="progress-fill" id="cover-progress-fill"></div>
+              </div>
+              <span class="progress-text" id="cover-progress-text">0%</span>
+            </div>
+            <!-- Upload Status -->
+            <div id="cover-status" class="cover-status"></div>
+          </div>
+          <input type="hidden" id="cover-image-data" name="coverImage" value="" />
+        </div>
+
+        <!-- Tags -->
+        <div class="field-group">
+          <label class="field-label">标签 <span class="required">*</span> <span class="field-hint-inline">最多 5 个</span></label>
+          <div class="tag-input-wrap">
+            <div id="tag-list" class="tag-list"></div>
+            <input id="tag-input" type="text" class="tag-input" placeholder="输入标签名后按回车添加" />
+          </div>
+          <input type="hidden" id="a-tags" name="tags" value="" />
+        </div>
+
+        <!-- Markdown Editor -->
+        <div class="field-group">
+          <div class="editor-toolbar">
+            <label class="field-label">文章内容 <span class="required">*</span></label>
+            <div class="editor-actions">
+              <button type="button" class="toolbar-btn" data-action="bold" title="粗体">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/></svg>
+              </button>
+              <button type="button" class="toolbar-btn" data-action="italic" title="斜体">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/></svg>
+              </button>
+              <button type="button" class="toolbar-btn" data-action="heading" title="标题">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 12h12"/><path d="M6 20V4"/><path d="M18 20V4"/></svg>
+              </button>
+              <button type="button" class="toolbar-btn" data-action="code" title="代码块">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+              </button>
+              <button type="button" class="toolbar-btn" data-action="link" title="链接">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              </button>
+              <button type="button" class="toolbar-btn" data-action="quote" title="引用">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21"/></svg>
+              </button>
+              <button type="button" class="toolbar-btn" data-action="table" title="表格">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><line x1="3" x2="21" y1="9" y2="9"/><line x1="3" x2="21" y1="15" y2="15"/><line x1="12" x2="12" y1="3" y2="21"/></svg>
+              </button>
+              <button type="button" class="toolbar-btn" data-action="ul" title="无序列表">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></svg>
+              </button>
+              <button type="button" class="toolbar-btn" data-action="ol" title="有序列表">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="10" x2="21" y1="6" y2="6"/><line x1="10" x2="21" y1="12" y2="12"/><line x1="10" x2="21" y1="18" y2="18"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg>
+              </button>
+              <span class="toolbar-divider"></span>
+              <button type="button" class="toolbar-btn toolbar-btn-polish" id="btn-polish" title="AI 润色">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="editor-wrap">
+            <textarea id="a-content" name="content" class="field-input field-textarea editor-textarea" rows="16" placeholder="在此输入 Markdown 格式的文章内容...&#10;&#10;支持直接粘贴图片，图片会自动上传并插入到正文中。" required></textarea>
+          </div>
+        </div>
+
+        <!-- Content Image Insert Module -->
+        <div class="field-group">
+          <label class="field-label">插入正文图片</label>
+          <div class="content-image-module">
+            <!-- Tabs -->
+            <div class="content-image-tabs">
+              <button type="button" class="content-image-tab active" data-tab="paste">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+                粘贴上传
+              </button>
+              <button type="button" class="content-image-tab" data-tab="url">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                图床链接
+              </button>
+            </div>
+
+            <!-- Paste Upload Panel -->
+            <div id="tab-panel-paste" class="content-image-panel">
+              <div class="paste-area" id="paste-area" tabindex="0" role="button" aria-label="粘贴图片上传区域">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                <span>复制图片后在正文编辑器或此区域按 Ctrl+V</span>
+                <small>剪贴板图片会通过正文图片接口上传并自动插入 Markdown</small>
+              </div>
+              <!-- Paste Progress -->
+              <div id="paste-progress" class="cover-progress hidden">
+                <div class="progress-bar">
+                  <div class="progress-fill" id="paste-progress-fill"></div>
+                </div>
+                <span class="progress-text" id="paste-progress-text">0%</span>
+              </div>
+              <!-- Paste Status -->
+              <div id="paste-status" class="cover-status"></div>
+            </div>
+
+            <!-- URL Panel -->
+            <div id="tab-panel-url" class="content-image-panel hidden">
+              <div class="url-input-group">
+                <input type="url" id="image-url-input" class="field-input" placeholder="输入图片 URL，如 https://example.com/image.jpg" />
+                <button type="button" id="btn-insert-url" class="btn-primary">插入</button>
+              </div>
+              <div id="url-preview" class="url-preview hidden">
+                <img id="url-preview-img" src="" alt="预览" />
+                <div class="url-preview-info">
+                  <span id="url-preview-status" class="url-status">验证中...</span>
+                  <button type="button" id="btn-confirm-url" class="btn-primary btn-small" disabled>确认插入</button>
+                </div>
+              </div>
+              <div id="url-status" class="cover-status"></div>
+            </div>
+          </div>
+          <!-- Inserted Content Images List -->
+          <div id="content-images-list" class="content-images-list"></div>
+        </div>
+
+        <!-- Polish Options (inline) -->
+        <div class="field-group polish-options hidden" id="polish-options">
+          <div class="polish-options-bar">
+            <label class="field-label" style="margin-bottom:0">AI 润色</label>
+            <div class="polish-presets">
+              <button type="button" class="polish-preset active" data-preset="polite">润色修饰</button>
+              <button type="button" class="polish-preset" data-preset="concise">精简紧凑</button>
+              <button type="button" class="polish-preset" data-preset="expand">扩写丰富</button>
+              <button type="button" class="polish-preset" data-preset="translate">翻译为英文</button>
+            </div>
+            <div class="polish-actions">
+              <button type="button" id="btn-polish-run" class="btn-primary btn-small">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                执行润色
+              </button>
+              <button type="button" id="btn-polish-cancel" class="btn-secondary btn-small">取消</button>
+            </div>
+          </div>
+          <div class="polish-custom-prompt">
+            <input id="polish-custom" type="text" class="field-input" placeholder="自定义润色指令，如：用更学术的语气改写（可选）" />
+          </div>
+          <div id="polish-status" class="cover-status"></div>
+          <!-- Diff Preview -->
+          <div class="polish-diff hidden" id="polish-diff">
+            <div class="diff-header">
+              <span class="diff-label">润色结果预览</span>
+              <div class="diff-actions">
+                <button type="button" id="btn-apply-polish" class="btn-primary btn-small">应用</button>
+                <button type="button" id="btn-discard-polish" class="btn-secondary btn-small">放弃</button>
+              </div>
+            </div>
+            <div class="diff-body" id="polish-diff-body"></div>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn-primary">保存文章</button>
+          <button type="button" id="btn-cancel" class="btn-secondary">取消</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</AdminLayout>
+
+<script>
+  // ===== Storage Keys =====
+  const ARTICLES_KEY = "admin-articles-data";
+
+  // ===== Elements =====
+  const modal = document.getElementById("article-modal");
+  const modalTitle = document.getElementById("modal-title");
+  const form = document.getElementById("article-form");
+  const listEl = document.getElementById("article-list");
+  const countEl = document.getElementById("article-count");
+  const statusMsg = document.getElementById("status-msg");
+
+  // Tag elements
+  const tagInput = document.getElementById("tag-input");
+  const tagList = document.getElementById("tag-list");
+  const tagsHidden = document.getElementById("a-tags");
+  let currentTags = [];
+
+  // Content editor
+  const contentTextarea = document.getElementById("a-content");
+
+  // ===== Data =====
+  function loadArticles() {
+    try {
+      const raw = localStorage.getItem(ARTICLES_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return [];
+  }
+
+  function saveArticles(list) {
+    localStorage.setItem(ARTICLES_KEY, JSON.stringify(list));
+  }
+
+  let articles = loadArticles();
+
+  // ===== Helpers =====
+  function escapeHtml(str) {
+    return (str || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+  }
+
+  function showStatus(text, type) {
+    if (!statusMsg) return;
+    statusMsg.textContent = text;
+    statusMsg.className = "save-status is-" + type;
+    setTimeout(() => {
+      statusMsg.textContent = "";
+      statusMsg.className = "save-status";
+    }, 3000);
+  }
+
+  function formatDate(dateStr) {
+    const d = new Date(dateStr);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  }
+
+  // ===== Cover Image Upload Module =====
+  const coverImageInput = document.getElementById("cover-image-input");
+  const coverPreviewArea = document.getElementById("cover-preview-area");
+  const coverPreview = document.getElementById("cover-preview");
+  const coverPlaceholder = document.getElementById("cover-placeholder");
+  const btnRemoveCover = document.getElementById("btn-remove-cover");
+  const coverImageData = document.getElementById("cover-image-data");
+  const coverProgress = document.getElementById("cover-progress");
+  const coverProgressFill = document.getElementById("cover-progress-fill");
+  const coverProgressText = document.getElementById("cover-progress-text");
+  const coverStatus = document.getElementById("cover-status");
+
+  const COVER_MAX_SIZE = 32 * 1024 * 1024; // 32MB
+  const COVER_ACCEPT_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/bmp", "image/tiff"];
+
+  function resetCoverUpload() {
+    if (coverPreview) coverPreview.src = "";
+    if (coverPreview) coverPreview.style.display = "none";
+    if (btnRemoveCover) btnRemoveCover.style.display = "none";
+    if (coverPlaceholder) coverPlaceholder.style.display = "flex";
+    if (coverImageData) coverImageData.value = "";
+    if (coverProgress) coverProgress.classList.add("hidden");
+    if (coverStatus) coverStatus.textContent = "";
+    if (coverStatus) coverStatus.className = "cover-status";
+  }
+
+  function showCoverPreview(dataUrl) {
+    if (!coverPreview || !btnRemoveCover) return;
+    coverPreview.src = dataUrl;
+    coverPreview.style.display = "block";
+    btnRemoveCover.style.display = "flex";
+    if (coverPlaceholder) coverPlaceholder.style.display = "none";
+  }
+
+  function setCoverProgress(percent) {
+    if (coverProgressFill) coverProgressFill.style.width = percent + "%";
+    if (coverProgressText) coverProgressText.textContent = percent + "%";
+  }
+
+  function showCoverStatus(text, type) {
+    if (!coverStatus) return;
+    coverStatus.textContent = text;
+    coverStatus.className = "cover-status is-" + type;
+  }
+
+  function validateCoverFile(file) {
+    if (!COVER_ACCEPT_TYPES.includes(file.type)) {
+      showCoverStatus("仅支持 JPG、PNG、GIF、WebP 格式", "error");
+      return false;
+    }
+    if (file.size > COVER_MAX_SIZE) {
+      showCoverStatus(`文件过大 (${(file.size/1024/1024).toFixed(1)}MB)，最大支持 32MB`, "error");
+      return false;
+    }
+    return true;
+  }
+
+  function uploadImageWithProgress(endpoint, file, onProgress) {
+    return new Promise((resolve, reject) => {
+      const formData = new FormData();
+      formData.append("image", file);
+
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", endpoint);
+      xhr.responseType = "json";
+      xhr.upload.addEventListener("progress", (event) => {
+        if (!event.lengthComputable) return;
+        onProgress(Math.round((event.loaded / event.total) * 100));
+      });
+      xhr.addEventListener("load", () => {
+        const response = xhr.response || {};
+        if (xhr.status >= 200 && xhr.status < 300 && response.ok) {
+          resolve(response.image);
+          return;
+        }
+        reject(new Error(response.message || "上传失败"));
+      });
+      xhr.addEventListener("error", () => reject(new Error("网络错误，上传失败")));
+      xhr.addEventListener("abort", () => reject(new Error("上传已取消")));
+      xhr.send(formData);
+    });
+  }
+
+  async function processCoverImage(file) {
+    if (!validateCoverFile(file)) return null;
+
+    if (coverProgress) coverProgress.classList.remove("hidden");
+    setCoverProgress(0);
+    showCoverStatus("正在上传封面图片...", "info");
+
+    try {
+      const image = await uploadImageWithProgress("/api/upload/cover", file, setCoverProgress);
+      setCoverProgress(100);
+      showCoverPreview(image.url);
+      if (coverImageData) coverImageData.value = image.url;
+      showCoverStatus("封面图片上传成功", "success");
+      setTimeout(() => {
+        if (coverProgress) coverProgress.classList.add("hidden");
+      }, 500);
+      return image.url;
+    } catch (err) {
+      showCoverStatus(err instanceof Error ? err.message : "封面图片上传失败", "error");
+      if (coverProgress) coverProgress.classList.add("hidden");
+      return null;
+    }
+  }
+
+  coverImageInput?.addEventListener("change", async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await processCoverImage(file);
+    coverImageInput.value = "";
+  });
+
+  btnRemoveCover?.addEventListener("click", () => {
+    resetCoverUpload();
+  });
+
+  // ===== Content Image Module (Paste + URL) =====
+  const pasteArea = document.getElementById("paste-area");
+  const pasteProgress = document.getElementById("paste-progress");
+  const pasteProgressFill = document.getElementById("paste-progress-fill");
+  const pasteProgressText = document.getElementById("paste-progress-text");
+  const pasteStatus = document.getElementById("paste-status");
+  const contentImagesList = document.getElementById("content-images-list");
+
+  // Tab switching
+  const contentImageTabs = document.querySelectorAll(".content-image-tab");
+  const contentImagePanels = document.querySelectorAll(".content-image-panel");
+
+  contentImageTabs.forEach(tab => {
+    tab.addEventListener("click", () => {
+      const targetPanel = tab.dataset.tab;
+      contentImageTabs.forEach(t => t.classList.remove("active"));
+      tab.classList.add("active");
+      contentImagePanels.forEach(p => {
+        if (p.id === "tab-panel-" + targetPanel) {
+          p.classList.remove("hidden");
+        } else {
+          p.classList.add("hidden");
+        }
+      });
+    });
+  });
+
+  function setPasteProgress(percent) {
+    if (pasteProgressFill) pasteProgressFill.style.width = percent + "%";
+    if (pasteProgressText) pasteProgressText.textContent = percent + "%";
+  }
+
+  function showPasteStatus(text, type) {
+    if (!pasteStatus) return;
+    pasteStatus.textContent = text;
+    pasteStatus.className = "cover-status is-" + type;
+  }
+
+  function insertMarkdownImage(url, altText) {
+    if (!contentTextarea || !url) return;
+    const markdown = `\n![${altText || "图片"}](${url})\n`;
+    const start = contentTextarea.selectionStart;
+    const text = contentTextarea.value;
+    contentTextarea.value = text.substring(0, start) + markdown + text.substring(start);
+    contentTextarea.selectionStart = contentTextarea.selectionEnd = start + markdown.length;
+    contentTextarea.focus();
+  }
+
+  function addContentImageItem(url, label, altText) {
+    const imgId = "content-img-" + Date.now() + "-" + Math.random().toString(36).slice(2, 9);
+    const imgItem = document.createElement("div");
+    imgItem.className = "content-image-item";
+    imgItem.dataset.id = imgId;
+    imgItem.innerHTML = `
+      <img src="${url}" alt="${escapeHtml(altText || label)}" class="content-image-thumb" />
+      <span class="content-image-name">${escapeHtml(label || url)}</span>
+      <button type="button" class="btn-remove-content-img" data-id="${imgId}">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    `;
+    contentImagesList?.appendChild(imgItem);
+  }
+
+  function validateContentFile(file) {
+    if (!COVER_ACCEPT_TYPES.includes(file.type)) {
+      showPasteStatus("正文图片仅支持 JPG、PNG、GIF、WebP 格式", "error");
+      return false;
+    }
+    if (file.size > COVER_MAX_SIZE) {
+      showPasteStatus(`图片过大 (${(file.size / 1024 / 1024).toFixed(1)}MB)，最大支持 32MB`, "error");
+      return false;
+    }
+    return true;
+  }
+
+  async function uploadContentImage(file, label) {
+    if (!validateContentFile(file)) return;
+    if (pasteProgress) pasteProgress.classList.remove("hidden");
+    setPasteProgress(0);
+    showPasteStatus("正在上传正文图片...", "info");
+
+    try {
+      const image = await uploadImageWithProgress("/api/upload/content", file, setPasteProgress);
+      setPasteProgress(100);
+      insertMarkdownImage(image.url, label || file.name || "正文图片");
+      addContentImageItem(image.url, file.name || label || "正文图片", label || file.name || "正文图片");
+      showPasteStatus("正文图片上传并插入成功", "success");
+      setTimeout(() => {
+        if (pasteProgress) pasteProgress.classList.add("hidden");
+      }, 500);
+    } catch (err) {
+      showPasteStatus(err instanceof Error ? err.message : "正文图片上传失败", "error");
+      if (pasteProgress) pasteProgress.classList.add("hidden");
+    }
+  }
+
+  async function handleClipboardPaste(event) {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+
+    const imageFiles = Array.from(items)
+      .filter(item => item.type.startsWith("image/"))
+      .map(item => item.getAsFile())
+      .filter(Boolean);
+
+    if (imageFiles.length === 0) return;
+    event.preventDefault();
+
+    for (const file of imageFiles) {
+      await uploadContentImage(file, "粘贴图片");
+    }
+  }
+
+  contentTextarea?.addEventListener("paste", handleClipboardPaste);
+  pasteArea?.addEventListener("paste", handleClipboardPaste);
+  pasteArea?.addEventListener("click", () => {
+    pasteArea.focus();
+    showPasteStatus("请复制图片后按 Ctrl+V 粘贴上传", "info");
+  });
+
+  contentImagesList?.addEventListener("click", (e) => {
+    const btn = e.target.closest(".btn-remove-content-img");
+    if (!btn) return;
+    const item = btn.closest(".content-image-item");
+    if (item) item.remove();
+  });
+
+  // ===== URL Image Insert =====
+  const imageUrlInput = document.getElementById("image-url-input");
+  const btnInsertUrl = document.getElementById("btn-insert-url");
+  const urlPreview = document.getElementById("url-preview");
+  const urlPreviewImg = document.getElementById("url-preview-img");
+  const urlPreviewStatus = document.getElementById("url-preview-status");
+  const btnConfirmUrl = document.getElementById("btn-confirm-url");
+  const urlStatus = document.getElementById("url-status");
+
+  let currentUrlImage = "";
+  let currentUrlImageValid = false;
+
+  function showUrlStatus(text, type) {
+    if (!urlStatus) return;
+    urlStatus.textContent = text;
+    urlStatus.className = "cover-status is-" + type;
+  }
+
+  async function validateImageUrl(url) {
+    const response = await fetch(`/api/validate-image-url?url=${encodeURIComponent(url)}`);
+    const result = await response.json();
+    if (!response.ok || !result.ok) {
+      return { valid: false, error: result.message || "图片链接验证失败" };
+    }
+    return { valid: true, type: result.image?.type || "图片" };
+  }
+
+  btnInsertUrl?.addEventListener("click", async () => {
+    const url = imageUrlInput?.value.trim();
+    if (!url) {
+      showUrlStatus("请输入图片 URL", "error");
+      return;
+    }
+
+    if (!url.match(/^https?:\/\/.+/i)) {
+      showUrlStatus("URL 必须以 http:// 或 https:// 开头", "error");
+      return;
+    }
+
+    currentUrlImage = "";
+    currentUrlImageValid = false;
+    if (btnConfirmUrl) btnConfirmUrl.disabled = true;
+    if (urlPreview) urlPreview.classList.remove("hidden");
+    if (urlPreviewImg) urlPreviewImg.src = url;
+    if (urlPreviewStatus) urlPreviewStatus.textContent = "验证中...";
+    if (urlPreviewStatus) urlPreviewStatus.className = "url-status";
+    showUrlStatus("正在验证图片链接...", "info");
+
+    const result = await validateImageUrl(url);
+    if (result.valid) {
+      currentUrlImage = url;
+      currentUrlImageValid = true;
+      if (btnConfirmUrl) btnConfirmUrl.disabled = false;
+      if (urlPreviewStatus) {
+        urlPreviewStatus.textContent = `验证通过 (${result.type})`;
+        urlPreviewStatus.className = "url-status is-success";
+      }
+      showUrlStatus("图片链接验证通过，可以插入", "success");
+    } else {
+      currentUrlImage = "";
+      currentUrlImageValid = false;
+      if (btnConfirmUrl) btnConfirmUrl.disabled = true;
+      if (urlPreviewStatus) {
+        urlPreviewStatus.textContent = "验证失败: " + result.error;
+        urlPreviewStatus.className = "url-status is-error";
+      }
+      showUrlStatus("图片链接验证失败", "error");
+    }
+  });
+
+  btnConfirmUrl?.addEventListener("click", () => {
+    if (!currentUrlImage || !currentUrlImageValid || !contentTextarea) return;
+    insertMarkdownImage(currentUrlImage, "图床图片");
+    addContentImageItem(currentUrlImage, "图床链接", "图床图片");
+
+    // Reset URL panel
+    if (imageUrlInput) imageUrlInput.value = "";
+    if (urlPreview) urlPreview.classList.add("hidden");
+    if (urlPreviewImg) urlPreviewImg.src = "";
+    currentUrlImage = "";
+    currentUrlImageValid = false;
+    if (btnConfirmUrl) btnConfirmUrl.disabled = true;
+    showUrlStatus("图片已插入正文", "success");
+  });
+
+  // ===== Tag System =====
+  function renderTags() {
+    if (!tagList) return;
+    tagList.innerHTML = currentTags.map((tag, idx) => `
+      <span class="tag-chip">
+        ${escapeHtml(tag)}
+        <button type="button" class="tag-remove" data-idx="${idx}">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </span>
+    `).join("");
+    if (tagsHidden) tagsHidden.value = currentTags.join(",");
+    if (tagInput) tagInput.disabled = currentTags.length >= 5;
+    if (tagInput) tagInput.placeholder = currentTags.length >= 5 ? "已达 5 个上限" : "输入标签名后按回车添加";
+  }
+
+  tagInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const val = tagInput.value.trim();
+      if (!val) return;
+      if (currentTags.length >= 5) {
+        showStatus("最多 5 个标签", "error");
+        return;
+      }
+      if (currentTags.includes(val)) {
+        showStatus("标签已存在", "error");
+        return;
+      }
+      currentTags.push(val);
+      tagInput.value = "";
+      renderTags();
+    }
+    if (e.key === "Backspace" && !tagInput.value && currentTags.length > 0) {
+      currentTags.pop();
+      renderTags();
+    }
+  });
+
+  tagList?.addEventListener("click", (e) => {
+    const btn = e.target.closest(".tag-remove");
+    if (!btn) return;
+    const idx = parseInt(btn.dataset.idx, 10);
+    currentTags.splice(idx, 1);
+    renderTags();
+  });
+
+  // ===== Title Character Count =====
+  const titleInput = document.getElementById("a-title");
+  const titleHint = document.getElementById("title-hint");
+  titleInput?.addEventListener("input", () => {
+    const len = titleInput.value.length;
+    if (titleHint) titleHint.textContent = `${len} / 100 字符`;
+    if (len < 5) {
+      titleHint?.classList.add("is-error");
+    } else {
+      titleHint?.classList.remove("is-error");
+    }
+  });
+
+  // ===== LLM API Settings =====
+  const LLM_KEY = "admin-llm-settings";
+  const llmToggle = document.getElementById("llm-toggle");
+  const llmBody = document.getElementById("llm-settings-body");
+  const llmBaseUrl = document.getElementById("llm-base-url");
+  const llmApiKey = document.getElementById("llm-api-key");
+  const llmModel = document.getElementById("llm-model");
+  const llmModelList = document.getElementById("llm-model-list");
+  const btnToggleKey = document.getElementById("btn-toggle-key");
+  const btnSaveLlm = document.getElementById("btn-save-llm");
+  const btnTestLlm = document.getElementById("btn-test-llm");
+  const llmTestStatus = document.getElementById("llm-test-status");
+  const btnFetchModels = document.getElementById("btn-fetch-models");
+  const llmBadge = document.getElementById("llm-status-badge");
+
+  function loadLlmSettings() {
+    try {
+      const raw = localStorage.getItem(LLM_KEY);
+      if (raw) {
+        const s = JSON.parse(raw);
+        if (llmBaseUrl) llmBaseUrl.value = s.baseUrl || "";
+        if (llmApiKey) llmApiKey.value = s.apiKey || "";
+        if (llmModel) llmModel.value = s.model || "";
+        updateLlmBadge(s);
+      }
+    } catch {}
+  }
+
+  function saveLlmSettings() {
+    const s = {
+      baseUrl: llmBaseUrl?.value?.trim() || "",
+      apiKey: llmApiKey?.value?.trim() || "",
+      model: llmModel?.value?.trim() || "",
+    };
+    localStorage.setItem(LLM_KEY, JSON.stringify(s));
+    updateLlmBadge(s);
+  }
+
+  function updateLlmBadge(s) {
+    if (!llmBadge) return;
+    if (s.baseUrl && s.apiKey && s.model) {
+      llmBadge.textContent = "已配置";
+      llmBadge.className = "section-badge is-ok";
+    } else {
+      llmBadge.textContent = "未配置";
+      llmBadge.className = "section-badge";
+    }
+  }
+
+  function getLlmSettings() {
+    try {
+      const raw = localStorage.getItem(LLM_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return null;
+  }
+
+  llmToggle?.addEventListener("click", () => {
+    const expanded = llmBody.classList.toggle("is-open");
+    llmToggle.setAttribute("aria-expanded", expanded);
+    llmToggle.querySelector(".llm-chevron")?.classList.toggle("is-open", expanded);
+  });
+  llmToggle?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      llmToggle.click();
+    }
+  });
+
+  btnToggleKey?.addEventListener("click", () => {
+    if (!llmApiKey) return;
+    const isPassword = llmApiKey.type === "password";
+    llmApiKey.type = isPassword ? "text" : "password";
+  });
+
+  btnSaveLlm?.addEventListener("click", () => {
+    saveLlmSettings();
+    if (llmTestStatus) {
+      llmTestStatus.textContent = "设置已保存";
+      llmTestStatus.className = "save-status is-success";
+      setTimeout(() => { llmTestStatus.textContent = ""; llmTestStatus.className = "save-status"; }, 2000);
+    }
+  });
+
+  btnTestLlm?.addEventListener("click", async () => {
+    const s = getLlmSettings();
+    if (!s || !s.baseUrl || !s.apiKey || !s.model) {
+      if (llmTestStatus) {
+        llmTestStatus.textContent = "请先填写并保存设置";
+        llmTestStatus.className = "save-status is-error";
+      }
+      return;
+    }
+    if (llmTestStatus) {
+      llmTestStatus.textContent = "正在测试连接...";
+      llmTestStatus.className = "save-status is-info";
+    }
+    try {
+      const url = s.baseUrl.replace(/\/+$/, "") + "/chat/completions";
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + s.apiKey,
+        },
+        body: JSON.stringify({
+          model: s.model,
+          messages: [{ role: "user", content: "Hello, reply with OK only." }],
+          max_tokens: 5,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error?.message || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      const reply = data.choices?.[0]?.message?.content || "";
+      if (llmTestStatus) {
+        llmTestStatus.textContent = `连接成功: ${reply.trim().substring(0, 50)}`;
+        llmTestStatus.className = "save-status is-success";
+      }
+    } catch (err) {
+      if (llmTestStatus) {
+        llmTestStatus.textContent = "连接失败: " + (err instanceof Error ? err.message : String(err));
+        llmTestStatus.className = "save-status is-error";
+      }
+    }
+  });
+
+  btnFetchModels?.addEventListener("click", async () => {
+    const baseUrl = llmBaseUrl?.value?.trim();
+    const apiKey = llmApiKey?.value?.trim();
+    if (!baseUrl || !apiKey) {
+      showStatus("请先填写 Base URL 和 API Key", "error");
+      return;
+    }
+    if (btnFetchModels) btnFetchModels.disabled = true;
+    try {
+      const url = baseUrl.replace(/\/+$/, "") + "/models";
+      const res = await fetch(url, {
+        headers: { "Authorization": "Bearer " + apiKey },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const models = data.data || [];
+      // Clear existing datalist
+      if (llmModelList) llmModelList.innerHTML = "";
+      models.forEach(m => {
+        const opt = document.createElement("option");
+        opt.value = m.id;
+        if (llmModelList) llmModelList.appendChild(opt);
+      });
+      if (models.length > 0 && llmModel && !llmModel.value) {
+        llmModel.value = models[0].id;
+      }
+      showStatus(`获取到 ${models.length} 个模型`, "success");
+    } catch (err) {
+      showStatus("获取模型失败: " + (err instanceof Error ? err.message : String(err)), "error");
+    } finally {
+      if (btnFetchModels) btnFetchModels.disabled = false;
+    }
+  });
+
+  loadLlmSettings();
+
+  // ===== AI Polish =====
+  const polishOptions = document.getElementById("polish-options");
+  const btnPolish = document.getElementById("btn-polish");
+  const btnPolishRun = document.getElementById("btn-polish-run");
+  const btnPolishCancelEl = document.getElementById("btn-polish-cancel");
+  const polishCustom = document.getElementById("polish-custom");
+  const polishStatus = document.getElementById("polish-status");
+  const polishDiff = document.getElementById("polish-diff");
+  const polishDiffBody = document.getElementById("polish-diff-body");
+  const btnApplyPolish = document.getElementById("btn-apply-polish");
+  const btnDiscardPolish = document.getElementById("btn-discard-polish");
+
+  let polishedContent = "";
+  let currentPreset = "polite";
+
+  const PRESET_PROMPTS = {
+    polite: "请润色以下 Markdown 文本，使其更加流畅、优雅，修正语法和用词，但保留原始含义和 Markdown 格式不变。只输出润色后的内容，不要解释。",
+    concise: "请精简以下 Markdown 文本，删除冗余词句，使其更加紧凑有力，但保留核心含义和 Markdown 格式不变。只输出精简后的内容，不要解释。",
+    expand: "请扩写以下 Markdown 文本，在保留原意的基础上增加更多细节和论述，使内容更加丰富充实，Markdown 格式不变。只输出扩写后的内容，不要解释。",
+    translate: "请将以下 Markdown 文本翻译为英文，保持 Markdown 格式不变。只输出翻译后的内容，不要解释。",
+  };
+
+  document.querySelectorAll(".polish-preset").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".polish-preset").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      currentPreset = btn.dataset.preset;
+    });
+  });
+
+  btnPolish?.addEventListener("click", () => {
+    if (!contentTextarea?.value?.trim()) {
+      showStatus("请先输入文章内容", "error");
+      return;
+    }
+    const s = getLlmSettings();
+    if (!s || !s.baseUrl || !s.apiKey || !s.model) {
+      showStatus("请先在 LLM API 设置中配置 API 信息", "error");
+      return;
+    }
+    if (polishOptions) polishOptions.classList.remove("hidden");
+    if (polishDiff) polishDiff.classList.add("hidden");
+    polishedContent = "";
+  });
+
+  btnPolishCancelEl?.addEventListener("click", () => {
+    if (polishOptions) polishOptions.classList.add("hidden");
+    if (polishDiff) polishDiff.classList.add("hidden");
+    polishedContent = "";
+  });
+
+  function showPolishStatus(text, type) {
+    if (!polishStatus) return;
+    polishStatus.textContent = text;
+    polishStatus.className = "cover-status is-" + type;
+  }
+
+  btnPolishRun?.addEventListener("click", async () => {
+    const content = contentTextarea?.value?.trim();
+    if (!content) {
+      showPolishStatus("没有可润色的内容", "error");
+      return;
+    }
+    const s = getLlmSettings();
+    if (!s || !s.baseUrl || !s.apiKey || !s.model) {
+      showPolishStatus("LLM API 未配置", "error");
+      return;
+    }
+
+    const customPrompt = polishCustom?.value?.trim();
+    const systemPrompt = customPrompt || PRESET_PROMPTS[currentPreset] || PRESET_PROMPTS.polite;
+
+    if (btnPolishRun) btnPolishRun.disabled = true;
+    showPolishStatus("正在润色中，请稍候...", "info");
+
+    try {
+      const url = s.baseUrl.replace(/\/+$/, "") + "/chat/completions";
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + s.apiKey,
+        },
+        body: JSON.stringify({
+          model: s.model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: content },
+          ],
+          temperature: 0.7,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error?.message || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      polishedContent = data.choices?.[0]?.message?.content || "";
+      if (!polishedContent) throw new Error("API 返回内容为空");
+
+      showPolishStatus("润色完成，请预览对比", "success");
+      // Show diff
+      renderDiff(content, polishedContent);
+      if (polishDiff) polishDiff.classList.remove("hidden");
+    } catch (err) {
+      showPolishStatus("润色失败: " + (err instanceof Error ? err.message : String(err)), "error");
+    } finally {
+      if (btnPolishRun) btnPolishRun.disabled = false;
+    }
+  });
+
+  function renderDiff(original, polished) {
+    if (!polishDiffBody) return;
+    const oLines = original.split("\n");
+    const pLines = polished.split("\n");
+    // Simple line-by-line diff: show changed lines with +/- prefix
+    const maxLen = Math.max(oLines.length, pLines.length);
+    let html = '<div class="diff-content">';
+    // Show full polished version with highlights
+    html += '<div class="diff-section"><div class="diff-section-label">润色后</div><pre class="diff-pre diff-new">' + escapeHtml(polished) + '</pre></div>';
+    html += '<div class="diff-section"><div class="diff-section-label">原始内容</div><pre class="diff-pre diff-old">' + escapeHtml(original) + '</pre></div>';
+    html += '</div>';
+    polishDiffBody.innerHTML = html;
+  }
+
+  btnApplyPolish?.addEventListener("click", () => {
+    if (polishedContent && contentTextarea) {
+      contentTextarea.value = polishedContent;
+      showStatus("已应用润色结果", "success");
+    }
+    if (polishOptions) polishOptions.classList.add("hidden");
+    if (polishDiff) polishDiff.classList.add("hidden");
+    polishedContent = "";
+  });
+
+  btnDiscardPolish?.addEventListener("click", () => {
+    if (polishDiff) polishDiff.classList.add("hidden");
+    polishedContent = "";
+    showPolishStatus("已放弃润色结果", "info");
+  });
+
+  // ===== Markdown Toolbar =====
+  function insertText(before, after = "") {
+    if (!contentTextarea) return;
+    const start = contentTextarea.selectionStart;
+    const end = contentTextarea.selectionEnd;
+    const text = contentTextarea.value;
+    const selected = text.substring(start, end);
+    const replacement = before + selected + after;
+    contentTextarea.value = text.substring(0, start) + replacement + text.substring(end);
+    contentTextarea.selectionStart = start + before.length;
+    contentTextarea.selectionEnd = start + before.length + selected.length;
+    contentTextarea.focus();
+  }
+
+  document.querySelectorAll(".toolbar-btn[data-action]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const action = btn.dataset.action;
+      switch (action) {
+        case "bold": insertText("**", "**"); break;
+        case "italic": insertText("*", "*"); break;
+        case "heading": insertText("\n## "); break;
+        case "code": insertText("\n```\n", "\n```\n"); break;
+        case "link": insertText("[", "](url)"); break;
+        case "quote": insertText("\n> "); break;
+        case "table": insertText("\n| Column A | Column B |\n| --- | --- |\n| Content | Content |\n"); break;
+        case "ul": insertText("\n- "); break;
+        case "ol": insertText("\n1. "); break;
+      }
+    });
+  });
+
+  // ===== Modal Controls =====
+  function openModal(isEdit) {
+    modalTitle.textContent = isEdit ? "编辑文章" : "添加文章";
+    modal.classList.add("is-open");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeModal() {
+    modal.classList.remove("is-open");
+    document.body.style.overflow = "";
+    form.reset();
+    document.getElementById("article-id").value = "";
+    currentTags = [];
+    renderTags();
+    resetCoverUpload();
+    if (contentImagesList) contentImagesList.innerHTML = "";
+    if (titleHint) titleHint.textContent = "0 / 100 字符";
+    if (titleHint) titleHint.classList.remove("is-error");
+    // Reset URL panel
+    if (imageUrlInput) imageUrlInput.value = "";
+    if (urlPreview) urlPreview.classList.add("hidden");
+    currentUrlImage = "";
+    currentUrlImageValid = false;
+    if (btnConfirmUrl) btnConfirmUrl.disabled = true;
+    // Reset paste status
+    if (pasteStatus) pasteStatus.textContent = "";
+    if (pasteProgress) pasteProgress.classList.add("hidden");
+  }
+
+  document.getElementById("btn-add")?.addEventListener("click", () => openModal(false));
+  document.getElementById("btn-close")?.addEventListener("click", closeModal);
+  document.getElementById("btn-cancel")?.addEventListener("click", closeModal);
+  document.querySelector("#article-modal .modal-backdrop")?.addEventListener("click", closeModal);
+
+  // ===== Article List =====
+  function renderList() {
+    if (!listEl) return;
+    articles = loadArticles();
+    if (countEl) countEl.textContent = `${articles.length} 篇文章`;
+    if (articles.length === 0) {
+      listEl.innerHTML = '<div class="empty-state">暂无文章，点击上方按钮添加。</div>';
+      return;
+    }
+
+    listEl.innerHTML = articles.map((a, idx) => `
+      <div class="article-card" data-index="${idx}">
+        <div class="article-card-main">
+          <div class="article-card-meta">
+            <span class="article-card-date">${formatDate(a.date)}</span>
+            <div class="article-card-tags">
+              ${(a.tags || []).map(t => `<span class="article-tag">${escapeHtml(t)}</span>`).join("")}
+            </div>
+          </div>
+          <div class="article-card-title">${escapeHtml(a.title)}</div>
+          <div class="article-card-desc">${escapeHtml(a.content?.substring(0, 120) || "").replace(/\n/g, " ")}...</div>
+        </div>
+        <div class="article-card-actions">
+          <button type="button" class="btn-icon btn-edit" data-action="edit" title="编辑">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+          </button>
+          <button type="button" class="btn-icon btn-delete" data-action="delete" title="删除">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+          </button>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  listEl?.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-action]");
+    if (!btn) return;
+    const card = btn.closest(".article-card");
+    const idx = parseInt(card?.dataset.index || "-1", 10);
+    if (idx < 0 || idx >= articles.length) return;
+    if (btn.dataset.action === "edit") {
+      const a = articles[idx];
+      document.getElementById("article-id").value = String(idx);
+      document.getElementById("a-title").value = a.title || "";
+      currentTags = Array.isArray(a.tags) ? [...a.tags] : [];
+      renderTags();
+      if (contentTextarea) contentTextarea.value = a.content || "";
+      if (a.coverImage) {
+        showCoverPreview(a.coverImage);
+        if (coverImageData) coverImageData.value = a.coverImage;
+      }
+      if (titleHint) titleHint.textContent = `${(a.title || "").length} / 100 字符`;
+      openModal(true);
+    } else if (btn.dataset.action === "delete") {
+      if (confirm("确定要删除这篇文章吗？")) {
+        articles.splice(idx, 1);
+        saveArticles(articles);
+        renderList();
+        showStatus("文章已删除", "success");
+      }
+    }
+  });
+
+  // ===== Form Submit =====
+  form?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const title = document.getElementById("a-title")?.value?.trim() || "";
+    const content = contentTextarea?.value?.trim() || "";
+    const coverImage = coverImageData?.value || "";
+
+    if (title.length < 5) {
+      showStatus("标题至少需要 5 个字符", "error");
+      return;
+    }
+    if (!content) {
+      showStatus("请输入文章内容", "error");
+      return;
+    }
+    if (currentTags.length === 0) {
+      showStatus("请至少添加一个标签", "error");
+      return;
+    }
+
+    const article = {
+      id: Date.now().toString(36),
+      title,
+      content,
+      coverImage,
+      tags: [...currentTags],
+      date: new Date().toISOString(),
+    };
+
+    const editId = document.getElementById("article-id")?.value;
+    if (editId !== undefined && editId !== "") {
+      const editIdx = parseInt(editId, 10);
+      if (editIdx >= 0 && editIdx < articles.length) {
+        articles[editIdx] = { ...articles[editIdx], ...article, id: articles[editIdx].id };
+        showStatus("文章已更新", "success");
+      }
+    } else {
+      articles.unshift(article);
+      showStatus("文章已添加", "success");
+    }
+
+    saveArticles(articles);
+    renderList();
+    closeModal();
+  });
+
+  // ===== Init =====
+  renderList();
+</script>
+
+<style>
+  /* Admin Page Header */
+  .admin-page-header {
+    margin-bottom: 24px;
+  }
+  .admin-page-title {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #181c23;
+    margin: 0 0 6px;
+  }
+  .admin-page-desc {
+    font-size: 0.875rem;
+    color: #717785;
+    margin: 0;
+  }
+
+  /* Toolbar */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 18px;
+    background: #fff;
+    color: #414753;
+    border: 1px solid rgba(193,198,214,0.6);
+    border-radius: 8px;
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    min-height: 44px;
+    transition: background-color 0.15s cubic-bezier(0.23, 1, 0.32, 1), border-color 0.15s cubic-bezier(0.23, 1, 0.32, 1), color 0.15s cubic-bezier(0.23, 1, 0.32, 1), transform 0.12s cubic-bezier(0.23, 1, 0.32, 1);
+    transform: scale(1);
+  }
+  .btn-secondary:hover {
+    background: #f4f6fa;
+    border-color: rgba(193,198,214,0.9);
+  }
+  .btn-secondary:active {
+    transform: scale(0.97);
+  }
+  .save-status {
+    font-size: 13px;
+    font-weight: 500;
+    min-height: 20px;
+    transition: opacity 0.2s cubic-bezier(0.23, 1, 0.32, 1), color 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .save-status.is-success { color: #059669; }
+  .save-status.is-error { color: #dc2626; }
+  .save-status.is-info { color: #0059b5; }
+
+  /* Section */
+  .form-section {
+    background: #fff;
+    border: 1px solid rgba(193,198,214,0.4);
+    border-radius: 16px;
+    padding: 20px;
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .section-title {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #181c23;
+    margin: 0;
+  }
+  .section-badge {
+    font-size: 13px;
+    color: #717785;
+    background: #f4f6fa;
+    padding: 4px 10px;
+    border-radius: 20px;
+  }
+
+  /* Article List */
+  .article-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .empty-state {
+    text-align: center;
+    padding: 48px 20px;
+    color: #a0a8b8;
+    font-size: 14px;
+  }
+  .article-card {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px;
+    border: 1px solid rgba(193,198,214,0.35);
+    border-radius: 12px;
+    background: #fafbfc;
+    transition: background-color 0.15s cubic-bezier(0.23, 1, 0.32, 1), border-color 0.15s cubic-bezier(0.23, 1, 0.32, 1), transform 0.12s cubic-bezier(0.23, 1, 0.32, 1);
+    transform: scale(1);
+  }
+  .article-card:hover {
+    background: #f4f6fa;
+    border-color: rgba(193,198,214,0.6);
+  }
+  .article-card:active {
+    transform: scale(0.99);
+  }
+  .article-card-main {
+    flex: 1;
+    min-width: 0;
+  }
+  .article-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+  }
+  .article-card-date {
+    font-size: 12px;
+    color: #a0a8b8;
+  }
+  .article-card-tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .article-tag {
+    font-size: 11px;
+    color: #0059b5;
+    background: rgba(0,89,181,0.08);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  .article-card-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #181c23;
+    margin-bottom: 4px;
+    word-break: break-word;
+  }
+  .article-card-desc {
+    font-size: 13px;
+    color: #717785;
+    line-height: 1.5;
+    word-break: break-word;
+  }
+  .article-card-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  /* Modal */
+  .modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal.is-open {
+    display: flex;
+  }
+  .modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(6px);
+  }
+  .modal-panel {
+    position: relative;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.18);
+    width: 92vw;
+    max-width: 720px;
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .modal-panel-large {
+    max-width: 880px;
+  }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 22px;
+    border-bottom: 1px solid rgba(193,198,214,0.35);
+  }
+  .modal-title {
+    font-family: var(--font-display);
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #181c23;
+    margin: 0;
+  }
+  .btn-close {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    border: none;
+    background: #f4f6fa;
+    color: #717785;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease;
+  }
+  .btn-close:hover {
+    background: #e8ebf0;
+    color: #181c23;
+  }
+
+  /* Form */
+  .admin-form {
+    padding: 20px 22px;
+    overflow-y: auto;
+    flex: 1;
+  }
+  .field-group {
+    margin-bottom: 18px;
+  }
+  .field-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #414753;
+    margin-bottom: 6px;
+  }
+  .required {
+    color: #dc2626;
+  }
+  .field-hint-inline {
+    font-weight: 400;
+    color: #a0a8b8;
+    font-size: 12px;
+  }
+  .field-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid rgba(193,198,214,0.6);
+    border-radius: 10px;
+    background: #fff;
+    font-family: var(--font-body);
+    font-size: 14px;
+    color: #181c23;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    box-sizing: border-box;
+  }
+  .field-input:focus {
+    border-color: #0059b5;
+    box-shadow: 0 0 0 3px rgba(0,89,181,0.1);
+  }
+  .field-textarea {
+    resize: vertical;
+    min-height: 120px;
+    line-height: 1.6;
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+  .field-hint {
+    display: block;
+    font-size: 12px;
+    color: #a0a8b8;
+    margin-top: 4px;
+  }
+  .field-hint.is-error {
+    color: #dc2626;
+  }
+
+  /* Editor Toolbar */
+  .editor-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .editor-actions {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  .toolbar-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: none;
+    background: #f4f6fa;
+    color: #414753;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease;
+  }
+  .toolbar-btn:hover {
+    background: #e8ebf0;
+  }
+
+  /* Cover Upload */
+  .cover-upload-wrap {
+    position: relative;
+  }
+  .cover-upload-input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 2;
+  }
+  .cover-preview-area {
+    position: relative;
+    border: 2px dashed rgba(193,198,214,0.6);
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    background: #fafbfc;
+    transition: border-color 0.15s ease, background 0.15s ease;
+    min-height: 140px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .cover-preview-area:hover {
+    border-color: #0059b5;
+    background: #f4f8ff;
+  }
+  .cover-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    color: #717785;
+    pointer-events: none;
+  }
+  .cover-placeholder span {
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .cover-placeholder small {
+    font-size: 12px;
+    color: #a0a8b8;
+  }
+  .cover-preview {
+    display: none;
+    max-width: 100%;
+    max-height: 200px;
+    border-radius: 8px;
+    object-fit: cover;
+  }
+  .btn-remove-cover {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: none;
+    background: rgba(0,0,0,0.5);
+    color: #fff;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 3;
+  }
+  .btn-remove-cover:hover {
+    background: rgba(0,0,0,0.7);
+  }
+
+  /* Progress */
+  .cover-progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+  }
+  .cover-progress.hidden {
+    display: none;
+  }
+  .progress-bar {
+    flex: 1;
+    height: 6px;
+    background: #e8ebf0;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: #0059b5;
+    border-radius: 3px;
+    transition: width 0.2s ease;
+    width: 0%;
+  }
+  .progress-text {
+    font-size: 12px;
+    color: #717785;
+    min-width: 36px;
+    text-align: right;
+  }
+  .cover-status {
+    font-size: 12px;
+    margin-top: 6px;
+    min-height: 18px;
+  }
+  .cover-status.is-success { color: #059669; }
+  .cover-status.is-error { color: #dc2626; }
+  .cover-status.is-info { color: #0059b5; }
+
+  /* Tags */
+  .tag-input-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border: 1px solid rgba(193,198,214,0.6);
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: #fff;
+  }
+  .tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background: rgba(0,89,181,0.08);
+    color: #0059b5;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .tag-remove {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    border: none;
+    background: transparent;
+    color: #0059b5;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  .tag-remove:hover {
+    background: rgba(0,89,181,0.15);
+  }
+  .tag-input {
+    border: none;
+    outline: none;
+    padding: 4px 0;
+    font-size: 14px;
+    background: transparent;
+    width: 100%;
+  }
+
+  /* Content Image Module */
+  .content-image-module {
+    border: 1px solid rgba(193,198,214,0.4);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .content-image-tabs {
+    display: flex;
+    border-bottom: 1px solid rgba(193,198,214,0.35);
+    background: #fafbfc;
+  }
+  .content-image-tab {
+    flex: 1;
+    padding: 10px 14px;
+    border: none;
+    background: transparent;
+    color: #717785;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.15s ease;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+  }
+  .content-image-tab.active {
+    color: #0059b5;
+    background: #fff;
+    border-bottom-color: #0059b5;
+  }
+  .content-image-tab:hover:not(.active) {
+    color: #414753;
+    background: #f4f6fa;
+  }
+  .content-image-panel {
+    padding: 16px;
+    background: #fff;
+  }
+  .content-image-panel.hidden {
+    display: none;
+  }
+  .paste-area {
+    border: 2px dashed rgba(193,198,214,0.6);
+    border-radius: 10px;
+    padding: 24px;
+    text-align: center;
+    color: #717785;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .paste-area:hover {
+    border-color: #0059b5;
+    background: #f4f8ff;
+  }
+  .paste-area span {
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .paste-area small {
+    font-size: 11px;
+    color: #a0a8b8;
+  }
+
+  /* URL Input */
+  .url-input-group {
+    display: flex;
+    gap: 8px;
+  }
+  .url-input-group .field-input {
+    flex: 1;
+  }
+  .url-preview {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 12px;
+    padding: 12px;
+    background: #fafbfc;
+    border-radius: 10px;
+  }
+  .url-preview.hidden {
+    display: none;
+  }
+  .url-preview img {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid rgba(193,198,214,0.4);
+  }
+  .url-preview-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .url-status {
+    font-size: 13px;
+    color: #717785;
+  }
+  .url-status.is-success { color: #059669; }
+  .url-status.is-error { color: #dc2626; }
+  .btn-small {
+    padding: 6px 12px;
+    font-size: 13px;
+    min-height: 32px;
+    width: fit-content;
+  }
+
+  /* Content Images List */
+  .content-images-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .content-image-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: #f4f6fa;
+    border-radius: 8px;
+    font-size: 12px;
+    max-width: 100%;
+  }
+  .content-image-thumb {
+    width: 32px;
+    height: 32px;
+    object-fit: cover;
+    border-radius: 4px;
+  }
+  .content-image-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #414753;
+  }
+  .btn-remove-content-img {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    border: none;
+    background: transparent;
+    color: #a0a8b8;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    flex-shrink: 0;
+  }
+  .btn-remove-content-img:hover {
+    background: rgba(220,38,38,0.1);
+    color: #dc2626;
+  }
+
+  /* Form Actions */
+  .form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(193,198,214,0.35);
+  }
+
+  /* Button Icon */
+  .btn-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: #717785;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+  }
+  .btn-icon:hover {
+    background: #f4f6fa;
+    color: #181c23;
+  }
+  .btn-edit:hover {
+    color: #0059b5;
+    background: rgba(0,89,181,0.08);
+  }
+  .btn-delete:hover {
+    color: #dc2626;
+    background: rgba(220,38,38,0.08);
+  }
+
+  /* LLM Settings Section */
+  .llm-settings-section {
+    margin-bottom: 20px;
+  }
+  #llm-toggle {
+    cursor: pointer;
+    user-select: none;
+  }
+  #llm-toggle:hover {
+    background: #fafbfc;
+  }
+  .llm-toggle-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .llm-toggle-left svg {
+    color: #717785;
+    flex-shrink: 0;
+  }
+  .llm-chevron {
+    color: #a0a8b8;
+    transition: transform 0.2s ease;
+  }
+  .llm-chevron.is-open {
+    transform: rotate(180deg);
+  }
+  .section-badge.is-ok {
+    background: rgba(5, 150, 105, 0.1);
+    color: #059669;
+  }
+  .llm-settings-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+    padding: 0 20px;
+  }
+  .llm-settings-body.is-open {
+    max-height: 500px;
+    padding: 16px 20px 20px;
+    border-top: 1px solid rgba(193,198,214,0.35);
+  }
+  .llm-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .api-key-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .api-key-wrap .field-input {
+    padding-right: 42px;
+  }
+  .btn-toggle-key {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    border: none;
+    color: #a0a8b8;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .btn-toggle-key:hover {
+    color: #414753;
+  }
+  .model-input-wrap {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .model-input-wrap .field-input {
+    flex: 1;
+  }
+  .llm-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+  }
+
+  /* Toolbar Divider */
+  .toolbar-divider {
+    width: 1px;
+    height: 20px;
+    background: rgba(193,198,214,0.6);
+    margin: 0 4px;
+  }
+  .toolbar-btn-polish {
+    color: #7c3aed;
+    background: rgba(124, 58, 237, 0.08);
+  }
+  .toolbar-btn-polish:hover {
+    background: rgba(124, 58, 237, 0.15);
+    color: #6d28d9;
+  }
+
+  /* Polish Options */
+  .polish-options {
+    margin-bottom: 18px;
+    padding: 16px;
+    background: #fafbfc;
+    border: 1px solid rgba(124, 58, 237, 0.2);
+    border-radius: 12px;
+  }
+  .polish-options.hidden {
+    display: none;
+  }
+  .polish-options-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .polish-presets {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .polish-preset {
+    padding: 5px 12px;
+    border: 1px solid rgba(193,198,214,0.6);
+    border-radius: 6px;
+    background: #fff;
+    color: #414753;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .polish-preset:hover {
+    border-color: #7c3aed;
+    color: #7c3aed;
+  }
+  .polish-preset.active {
+    background: #7c3aed;
+    color: #fff;
+    border-color: #7c3aed;
+  }
+  .polish-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-left: auto;
+  }
+  .polish-custom-prompt {
+    margin-bottom: 8px;
+  }
+  .polish-diff.hidden {
+    display: none;
+  }
+  .diff-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(193,198,214,0.35);
+  }
+  .diff-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #414753;
+  }
+  .diff-actions {
+    display: flex;
+    gap: 6px;
+  }
+  .diff-body {
+    max-height: 320px;
+    overflow: auto;
+  }
+  .diff-content {
+    display: flex;
+    gap: 12px;
+  }
+  .diff-section {
+    flex: 1;
+    min-width: 0;
+  }
+  .diff-section-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #717785;
+    margin-bottom: 6px;
+  }
+  .diff-pre {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    padding: 12px;
+    border-radius: 8px;
+    margin: 0;
+  }
+  .diff-new {
+    background: rgba(5, 150, 105, 0.06);
+    border: 1px solid rgba(5, 150, 105, 0.2);
+    color: #065f46;
+  }
+  .diff-old {
+    background: rgba(220, 38, 38, 0.04);
+    border: 1px solid rgba(220, 38, 38, 0.15);
+    color: #991b1b;
+  }
+  @media (max-width: 640px) {
+    .diff-content {
+      flex-direction: column;
+    }
+    .polish-options-bar {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .polish-actions {
+      margin-left: 0;
+    }
+  }
+</style>

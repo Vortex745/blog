@@ -1,0 +1,837 @@
+---
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import { getCollection } from "astro:content";
+
+const projects = await getCollection("projects");
+---
+
+<AdminLayout title="项目管理" current="projects">
+  <div class="admin-page-header">
+    <h1 class="admin-page-title">项目管理</h1>
+    <p class="admin-page-desc">管理项目列表，支持添加、编辑和删除项目。</p>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <button type="button" id="btn-add" class="btn-primary">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      添加项目
+    </button>
+    <span id="status-msg" class="save-status"></span>
+  </div>
+
+  <!-- Project List -->
+  <section class="form-section">
+    <div class="section-header">
+      <h2 class="section-title">项目列表</h2>
+      <span class="section-badge">{projects.length} 个项目</span>
+    </div>
+    <div id="project-list" class="project-list">
+      {projects.map((p, idx) => (
+        <div class="project-card" data-id={p.id} data-index={idx}>
+          <div class="project-card-main">
+            <div class="project-card-title">{p.data.title}</div>
+            <div class="project-card-desc">{p.data.description}</div>
+            <div class="project-card-tags">
+              {p.data.tags.map(t => (
+                <span class="project-tag">{t}</span>
+              ))}
+            </div>
+          </div>
+          <div class="project-card-actions">
+            <button type="button" class="btn-icon btn-edit" data-action="edit" title="编辑">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+            </button>
+            <button type="button" class="btn-icon btn-delete" data-action="delete" title="删除">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <!-- Add/Edit Modal -->
+  <div id="project-modal" class="modal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3 id="modal-title" class="modal-title">添加项目</h3>
+        <button type="button" id="btn-close" class="btn-icon btn-close">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+      <form id="project-form" class="admin-form">
+        <input type="hidden" id="project-id" name="id" value="" />
+        <div class="field-row">
+          <div class="field-group field-group-large">
+            <label for="p-title" class="field-label">项目名称 <span class="required">*</span></label>
+            <input id="p-title" name="title" type="text" class="field-input" placeholder="输入项目名称" required />
+          </div>
+          <div class="field-group field-group-small">
+            <label for="p-category" class="field-label">分类 <span class="required">*</span></label>
+            <select id="p-category" name="category" class="field-input" required>
+              <option value="">请选择</option>
+              <option value="Web">Web</option>
+              <option value="App">App</option>
+              <option value="工具">工具</option>
+              <option value="开源">开源</option>
+              <option value="其他">其他</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field-group field-group-large">
+            <label for="p-tech" class="field-label">技术栈 <span class="required">*</span></label>
+            <input id="p-tech" name="tech" type="text" class="field-input" placeholder="用逗号分隔，如 Astro, React, TypeScript" required />
+            <span class="field-hint">多个技术用英文逗号分隔</span>
+          </div>
+          <div class="field-group field-group-small">
+            <label for="p-url" class="field-label">项目地址</label>
+            <input id="p-url" name="url" type="url" class="field-input" placeholder="https://example.com" />
+          </div>
+        </div>
+        <div class="field-group">
+          <label for="p-desc" class="field-label">项目介绍 <span class="required">*</span></label>
+          <textarea id="p-desc" name="description" class="field-input field-textarea" rows="4" placeholder="输入项目详细介绍" required></textarea>
+        </div>
+        <!-- Image Upload -->
+        <div class="field-group">
+          <label class="field-label">项目封面</label>
+          <div class="image-upload-wrap">
+            <input type="file" id="p-image" name="imageFile" accept="image/jpeg,image/png,image/gif,image/webp,image/bmp,image/tiff" class="image-upload-input" />
+            <div id="image-preview-area" class="image-preview-area">
+              <div class="image-upload-placeholder">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                <span>点击上传或拖拽图片到此处</span>
+                <small>支持 JPG、PNG、GIF、WebP</small>
+              </div>
+              <img id="image-preview" class="image-preview" alt="预览" />
+              <button type="button" id="btn-remove-image" class="btn-remove-image" title="移除图片">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>
+            </div>
+          </div>
+          <input type="hidden" id="p-image-data" name="imageData" value="" />
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn-primary">保存</button>
+          <button type="button" id="btn-cancel" class="btn-secondary">取消</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</AdminLayout>
+
+<script>
+  // LocalStorage key
+  const STORAGE_KEY = "admin-projects-data";
+
+  // Elements
+  const modal = document.getElementById("project-modal");
+  const modalTitle = document.getElementById("modal-title");
+  const form = document.getElementById("project-form");
+  const listEl = document.getElementById("project-list");
+  const statusMsg = document.getElementById("status-msg");
+
+  // Image upload elements
+  const imageInput = document.getElementById("p-image");
+  const imagePreviewArea = document.getElementById("image-preview-area");
+  const imagePreview = document.getElementById("image-preview");
+  const imageDataInput = document.getElementById("p-image-data");
+  const btnRemoveImage = document.getElementById("btn-remove-image");
+
+  // Load from localStorage or default
+  function loadProjects() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return [];
+  }
+
+  function saveProjects(list) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  }
+
+  let projects = loadProjects();
+
+  // Render list
+  function renderList() {
+    if (!listEl) return;
+    if (projects.length === 0) {
+      listEl.innerHTML = '<div class="empty-state">暂无项目，点击上方按钮添加。</div>';
+      return;
+    }
+    listEl.innerHTML = projects.map((p, idx) => `
+      <div class="project-card" data-index="${idx}">
+        <div class="project-card-main">
+          <div class="project-card-title">${escapeHtml(p.title)}</div>
+          <div class="project-card-desc">${escapeHtml(p.description)}</div>
+          <div class="project-card-tags">
+            ${(p.tech || "").split(/[,，]/).filter(Boolean).map(t => `<span class="project-tag">${escapeHtml(t.trim())}</span>`).join("")}
+            ${p.category ? `<span class="project-tag project-tag-cat">${escapeHtml(p.category)}</span>` : ""}
+          </div>
+          ${p.imageData ? `<div class="project-card-thumb"><img src="${p.imageData}" alt="" /></div>` : ""}
+        </div>
+        <div class="project-card-actions">
+          <button type="button" class="btn-icon btn-edit" data-action="edit" title="编辑">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+          </button>
+          <button type="button" class="btn-icon btn-delete" data-action="delete" title="删除">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+          </button>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  function escapeHtml(str) {
+    return (str || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+  }
+
+  // Modal controls
+  function openModal(isEdit) {
+    modalTitle.textContent = isEdit ? "编辑项目" : "添加项目";
+    modal.classList.add("is-open");
+    document.body.style.overflow = "hidden";
+  }
+  function closeModal() {
+    modal.classList.remove("is-open");
+    document.body.style.overflow = "";
+    form.reset();
+    document.getElementById("project-id").value = "";
+    resetImagePreview();
+  }
+
+  // Image upload handlers
+  function resetImagePreview() {
+    if (imagePreview) imagePreview.src = "";
+    if (imagePreview) imagePreview.style.display = "none";
+    if (btnRemoveImage) btnRemoveImage.style.display = "none";
+    if (imageDataInput) imageDataInput.value = "";
+    const placeholder = imagePreviewArea?.querySelector(".image-upload-placeholder");
+    if (placeholder) placeholder.style.display = "flex";
+  }
+
+  function showImagePreview(dataUrl) {
+    if (!imagePreview || !btnRemoveImage) return;
+    imagePreview.src = dataUrl;
+    imagePreview.style.display = "block";
+    btnRemoveImage.style.display = "flex";
+    const placeholder = imagePreviewArea?.querySelector(".image-upload-placeholder");
+    if (placeholder) placeholder.style.display = "none";
+  }
+
+  imageInput?.addEventListener("change", async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await processProjectImage(file);
+    imageInput.value = "";
+  });
+
+  // Drag & drop
+  imagePreviewArea?.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    imagePreviewArea.classList.add("is-dragover");
+  });
+  imagePreviewArea?.addEventListener("dragleave", () => {
+    imagePreviewArea.classList.remove("is-dragover");
+  });
+  imagePreviewArea?.addEventListener("drop", async (e) => {
+    e.preventDefault();
+    imagePreviewArea.classList.remove("is-dragover");
+    const file = e.dataTransfer?.files?.[0];
+    if (!file) return;
+    await processProjectImage(file);
+  });
+
+  async function processProjectImage(file) {
+    if (!file.type.startsWith("image/")) {
+      showStatus("请上传图片文件", "error");
+      return;
+    }
+    showStatus("正在上传封面到图床...", "info");
+    try {
+      const image = await uploadImageToImgbb(file);
+      showImagePreview(image.url);
+      if (imageDataInput) imageDataInput.value = image.url;
+      showStatus("封面上传成功", "success");
+    } catch (err) {
+      showStatus(err instanceof Error ? err.message : "封面上传失败", "error");
+    }
+  }
+
+  function uploadImageToImgbb(file) {
+    return new Promise((resolve, reject) => {
+      const formData = new FormData();
+      formData.append("image", file);
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", "/api/upload/cover");
+      xhr.responseType = "json";
+      xhr.upload.addEventListener("progress", (event) => {
+        if (!event.lengthComputable) return;
+        const pct = Math.round((event.loaded / event.total) * 100);
+        showStatus(`正在上传封面... ${pct}%`, "info");
+      });
+      xhr.addEventListener("load", () => {
+        const response = xhr.response || {};
+        if (xhr.status >= 200 && xhr.status < 300 && response.ok) {
+          resolve(response.image);
+          return;
+        }
+        reject(new Error(response.message || "上传失败"));
+      });
+      xhr.addEventListener("error", () => reject(new Error("网络错误，上传失败")));
+      xhr.addEventListener("abort", () => reject(new Error("上传已取消")));
+      xhr.send(formData);
+    });
+  }
+
+  btnRemoveImage?.addEventListener("click", () => {
+    resetImagePreview();
+    if (imageInput) imageInput.value = "";
+  });
+
+  document.getElementById("btn-add")?.addEventListener("click", () => openModal(false));
+  document.getElementById("btn-close")?.addEventListener("click", closeModal);
+  document.getElementById("btn-cancel")?.addEventListener("click", closeModal);
+  document.querySelector(".modal-backdrop")?.addEventListener("click", closeModal);
+
+  // Edit / Delete handlers (delegation)
+  listEl?.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-action]");
+    if (!btn) return;
+    const card = btn.closest(".project-card");
+    const idx = parseInt(card?.dataset.index || "-1", 10);
+    if (idx < 0 || idx >= projects.length) return;
+
+    if (btn.dataset.action === "delete") {
+      if (confirm(`确定要删除项目 "${projects[idx].title}" 吗？`)) {
+        projects.splice(idx, 1);
+        saveProjects(projects);
+        renderList();
+        showStatus("已删除", "success");
+      }
+      return;
+    }
+
+    if (btn.dataset.action === "edit") {
+      const p = projects[idx];
+      document.getElementById("project-id").value = String(idx);
+      document.getElementById("p-title").value = p.title || "";
+      document.getElementById("p-category").value = p.category || "";
+      document.getElementById("p-tech").value = p.tech || "";
+      document.getElementById("p-url").value = p.url || "";
+      document.getElementById("p-desc").value = p.description || "";
+      if (p.imageData) {
+        showImagePreview(p.imageData);
+        if (imageDataInput) imageDataInput.value = p.imageData;
+      } else {
+        resetImagePreview();
+      }
+      openModal(true);
+    }
+  });
+
+  // Form submit
+  form?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const fd = new FormData(form);
+    const idxRaw = (fd.get("id") || "").toString().trim();
+    const payload = {
+      title: (fd.get("title") || "").toString().trim(),
+      category: (fd.get("category") || "").toString().trim(),
+      tech: (fd.get("tech") || "").toString().trim(),
+      url: (fd.get("url") || "").toString().trim(),
+      description: (fd.get("description") || "").toString().trim(),
+      imageData: (fd.get("imageData") || "").toString(),
+    };
+
+    if (!payload.title || !payload.category || !payload.tech || !payload.description) {
+      showStatus("请填写所有必填项", "error");
+      return;
+    }
+
+    if (idxRaw !== "") {
+      const idx = parseInt(idxRaw, 10);
+      projects[idx] = payload;
+      showStatus("已保存修改", "success");
+    } else {
+      projects.push(payload);
+      showStatus("已添加项目", "success");
+    }
+
+    saveProjects(projects);
+    renderList();
+    closeModal();
+  });
+
+  function showStatus(text, type) {
+    if (!statusMsg) return;
+    statusMsg.textContent = text;
+    statusMsg.className = "save-status is-" + type;
+    setTimeout(() => {
+      statusMsg.textContent = "";
+      statusMsg.className = "save-status";
+    }, 3000);
+  }
+
+  // Init
+  renderList();
+</script>
+
+<style>
+  .admin-page-header {
+    margin-bottom: 24px;
+  }
+  .admin-page-title {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 700;
+    color: #181c23;
+    margin-bottom: 6px;
+  }
+  .admin-page-desc {
+    font-size: 15px;
+    color: #717785;
+  }
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 12px;
+    border: none;
+    background: #0059b5;
+    color: #ffffff;
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.15s cubic-bezier(0.23, 1, 0.32, 1);
+    transform: scale(1);
+  }
+  .btn-primary:hover {
+    background: #004a94;
+  }
+  .btn-primary:active {
+    transform: scale(0.97);
+  }
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    padding: 10px 18px;
+    border-radius: 12px;
+    border: 1px solid rgba(193,198,214,0.5);
+    background: rgba(255,255,255,0.6);
+    color: #414753;
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), border-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), color 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.15s cubic-bezier(0.23, 1, 0.32, 1);
+    transform: scale(1);
+  }
+  .btn-secondary:hover {
+    background: rgba(255,255,255,0.9);
+    border-color: rgba(113,119,133,0.4);
+    color: #181c23;
+  }
+  .btn-secondary:active {
+    transform: scale(0.97);
+  }
+  .save-status {
+    font-size: 14px;
+    color: #717785;
+    transition: opacity 0.3s cubic-bezier(0.23, 1, 0.32, 1), color 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .save-status.is-success {
+    color: #0d8a4f;
+  }
+  .save-status.is-error {
+    color: #b91c1c;
+  }
+
+  /* Section */
+  .form-section {
+    background: rgba(255,255,255,0.6);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(255,255,255,0.6);
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.03);
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .section-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #181c23;
+  }
+  .section-badge {
+    padding: 3px 10px;
+    border-radius: 8px;
+    background: rgba(0,89,181,0.08);
+    color: #0059b5;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  /* Project list */
+  .project-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .empty-state {
+    padding: 40px;
+    text-align: center;
+    color: #717785;
+    font-size: 15px;
+    background: rgba(244,246,250,0.6);
+    border-radius: 16px;
+  }
+  .project-card {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 20px;
+    background: rgba(255,255,255,0.7);
+    border: 1px solid rgba(193,198,214,0.3);
+    border-radius: 16px;
+    transition: box-shadow 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.15s cubic-bezier(0.23, 1, 0.32, 1), background-color 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+    transform: scale(1) translateY(0);
+  }
+  .project-card:hover {
+    box-shadow: 0 8px 24px rgba(0,0,0,0.04);
+    background: rgba(255,255,255,0.9);
+    transform: translateY(-2px);
+  }
+  .project-card:active {
+    transform: scale(0.98) translateY(0);
+  }
+  .project-card-main {
+    flex: 1;
+    min-width: 0;
+  }
+  .project-card-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #181c23;
+    margin-bottom: 6px;
+  }
+  .project-card-desc {
+    font-size: 14px;
+    color: #414753;
+    line-height: 1.5;
+    margin-bottom: 10px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .project-card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .project-tag {
+    padding: 3px 10px;
+    border-radius: 9999px;
+    background: rgba(0,89,181,0.08);
+    color: #0059b5;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .project-tag-cat {
+    background: rgba(13,138,79,0.08);
+    color: #0d8a4f;
+  }
+  .project-card-thumb {
+    margin-top: 12px;
+    border-radius: 12px;
+    overflow: hidden;
+    max-width: 320px;
+    max-height: 180px;
+    background: rgba(244,246,250,0.6);
+  }
+  .project-card-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .project-card-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .btn-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    border: none;
+    background: transparent;
+    color: #717785;
+    cursor: pointer;
+    transition: background-color 0.15s cubic-bezier(0.23, 1, 0.32, 1), color 0.15s cubic-bezier(0.23, 1, 0.32, 1), transform 0.12s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .btn-icon:hover {
+    background: rgba(0,0,0,0.04);
+    color: #181c23;
+  }
+  .btn-icon:active {
+    transform: scale(0.92);
+  }
+  .btn-delete:hover {
+    background: rgba(185,28,28,0.08);
+    color: #b91c1c;
+  }
+
+  /* Modal */
+  .modal {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+    transition: opacity 0.2s cubic-bezier(0.23, 1, 0.32, 1), visibility 0s linear 0.2s;
+  }
+  .modal.is-open {
+    opacity: 1;
+    pointer-events: auto;
+    visibility: visible;
+    transition: opacity 0.2s cubic-bezier(0.23, 1, 0.32, 1), visibility 0s linear 0s;
+  }
+  .modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.25);
+    backdrop-filter: blur(4px);
+  }
+  .modal-panel {
+    position: relative;
+    width: 100%;
+    max-width: 640px;
+    max-height: 90vh;
+    overflow-y: auto;
+    margin: 20px;
+    padding: 28px;
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: blur(40px);
+    border: 1px solid rgba(255,255,255,0.6);
+    border-radius: 24px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.12);
+    transform: translateY(12px) scale(0.96);
+    transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .modal.is-open .modal-panel {
+    transform: translateY(0) scale(1);
+  }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .modal-title {
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 700;
+    color: #181c23;
+  }
+  .btn-close {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    transition: background-color 0.15s cubic-bezier(0.23, 1, 0.32, 1), transform 0.12s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .btn-close:active {
+    transform: scale(0.92);
+  }
+
+  /* Form */
+  .admin-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .field-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+  .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .field-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #181c23;
+  }
+  .required {
+    color: #b91c1c;
+  }
+  .field-input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(193,198,214,0.5);
+    background: rgba(255,255,255,0.7);
+    font-family: var(--font-body);
+    font-size: 14px;
+    color: #181c23;
+    outline: none;
+    transition: border-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.12s cubic-bezier(0.23, 1, 0.32, 1);
+    box-sizing: border-box;
+    transform: scale(1);
+  }
+  .field-input:active {
+    transform: scale(0.995);
+  }
+  .field-input:focus {
+    border-color: #0059b5;
+    box-shadow: 0 0 0 3px rgba(0,89,181,0.1);
+  }
+  select.field-input {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23717785' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+  }
+  .field-textarea {
+    resize: vertical;
+    min-height: 80px;
+    line-height: 1.6;
+  }
+  .field-hint {
+    font-size: 12px;
+    color: #717785;
+  }
+  .form-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-top: 4px;
+  }
+
+  /* Image Upload */
+  .image-upload-wrap {
+    position: relative;
+  }
+  .image-upload-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 2;
+  }
+  .image-preview-area {
+    position: relative;
+    border-radius: 16px;
+    border: 2px dashed rgba(193,198,214,0.6);
+    background: rgba(255,255,255,0.5);
+    min-height: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    transition: border-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), background-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .image-preview-area.is-dragover {
+    border-color: #0059b5;
+    background: rgba(0,89,181,0.04);
+    transform: scale(1.01);
+  }
+  .image-upload-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    color: #717785;
+    pointer-events: none;
+  }
+  .image-upload-placeholder span {
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .image-upload-placeholder small {
+    font-size: 12px;
+    color: #a0a5b1;
+  }
+  .image-preview {
+    display: none;
+    width: 100%;
+    max-height: 240px;
+    object-fit: cover;
+    border-radius: 12px;
+  }
+  .btn-remove-image {
+    display: none;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    border: none;
+    background: rgba(255,255,255,0.9);
+    color: #717785;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: background-color 0.15s cubic-bezier(0.23, 1, 0.32, 1), color 0.15s cubic-bezier(0.23, 1, 0.32, 1), transform 0.12s cubic-bezier(0.23, 1, 0.32, 1);
+    z-index: 3;
+  }
+  .btn-remove-image:hover {
+    background: #fff;
+    color: #b91c1c;
+  }
+  .btn-remove-image:active {
+    transform: scale(0.92);
+  }
+
+  @media (max-width: 640px) {
+    .field-row {
+      grid-template-columns: 1fr;
+    }
+    .modal-panel {
+      margin: 12px;
+      padding: 20px;
+      border-radius: 20px;
+    }
+    .project-card {
+      flex-direction: column;
+    }
+    .project-card-actions {
+      width: 100%;
+      justify-content: flex-end;
+    }
+  }
+</style>

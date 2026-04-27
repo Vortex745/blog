@@ -1,0 +1,877 @@
+---
+import AdminLayout from "../../layouts/AdminLayout.astro";
+---
+
+<AdminLayout title="图库管理" current="gallery">
+  <div class="admin-page-header">
+    <h1 class="admin-page-title">图库管理</h1>
+    <p class="admin-page-desc">管理图片资源，支持本地上传和图床链接导入。</p>
+  </div>
+
+  <!-- Upload Section -->
+  <section class="form-section upload-section">
+    <div class="section-header">
+      <h2 class="section-title">上传图片</h2>
+    </div>
+
+    <!-- Upload Tabs -->
+    <div class="upload-tabs">
+      <button type="button" class="upload-tab active" data-tab="local">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+        本地上传
+      </button>
+      <button type="button" class="upload-tab" data-tab="url">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        图床链接
+      </button>
+    </div>
+
+    <!-- Local Upload Panel -->
+    <div id="panel-local" class="upload-panel">
+      <div class="drop-zone" id="drop-zone">
+        <input type="file" id="local-file-input" accept="image/jpeg,image/png,image/gif,image/webp,image/bmp,image/tiff" multiple class="file-input" />
+        <div class="drop-zone-content">
+          <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+          <span class="drop-title">点击或拖拽图片到此处上传</span>
+          <span class="drop-hint">支持 JPG、PNG、GIF、WebP 格式，单张最大 32MB，可同时上传多张</span>
+        </div>
+      </div>
+      <!-- Upload Progress List -->
+      <div id="upload-progress-list" class="upload-progress-list"></div>
+      <!-- Upload Status -->
+      <div id="upload-status" class="upload-status"></div>
+    </div>
+
+    <!-- URL Import Panel -->
+    <div id="panel-url" class="upload-panel hidden">
+      <div class="url-import-form">
+        <div class="url-input-row">
+          <input type="url" id="gallery-url-input" class="field-input" placeholder="输入图片 URL，如 https://example.com/image.jpg" />
+          <button type="button" id="btn-add-url" class="btn-primary">添加</button>
+        </div>
+        <div id="url-import-preview" class="url-import-preview hidden">
+          <img id="url-import-img" src="" alt="预览" />
+          <div class="url-import-info">
+            <span id="url-import-status" class="url-import-status">验证中...</span>
+            <button type="button" id="btn-confirm-import" class="btn-primary btn-small" disabled>确认导入</button>
+          </div>
+        </div>
+        <div id="url-import-status-msg" class="upload-status"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Gallery Grid -->
+  <section class="form-section gallery-section">
+    <div class="section-header">
+      <h2 class="section-title">图片列表</h2>
+      <span id="image-count" class="section-badge">0 张图片</span>
+    </div>
+    <div id="gallery-grid" class="gallery-grid">
+      <div class="empty-state">暂无图片，使用上方上传功能添加。</div>
+    </div>
+  </section>
+
+  <!-- Image Preview Modal -->
+  <div id="preview-modal" class="modal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-panel modal-panel-image">
+      <button type="button" id="btn-close-preview" class="btn-icon btn-close-modal">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+      <img id="preview-img" src="" alt="预览" />
+      <div class="preview-info">
+        <span id="preview-name" class="preview-name"></span>
+        <span id="preview-size" class="preview-size"></span>
+      </div>
+    </div>
+  </div>
+</AdminLayout>
+
+<script>
+  // ===== Storage Key =====
+  const GALLERY_KEY = "admin-gallery-data";
+
+  // ===== Elements =====
+  const galleryGrid = document.getElementById("gallery-grid");
+  const imageCount = document.getElementById("image-count");
+  const uploadStatus = document.getElementById("upload-status");
+  const uploadProgressList = document.getElementById("upload-progress-list");
+  const dropZone = document.getElementById("drop-zone");
+  const localFileInput = document.getElementById("local-file-input");
+  const urlInput = document.getElementById("gallery-url-input");
+  const btnAddUrl = document.getElementById("btn-add-url");
+  const urlImportPreview = document.getElementById("url-import-preview");
+  const urlImportImg = document.getElementById("url-import-img");
+  const urlImportStatus = document.getElementById("url-import-status");
+  const btnConfirmImport = document.getElementById("btn-confirm-import");
+  const urlImportStatusMsg = document.getElementById("url-import-status-msg");
+
+  // Preview modal
+  const previewModal = document.getElementById("preview-modal");
+  const previewImg = document.getElementById("preview-img");
+  const previewName = document.getElementById("preview-name");
+  const previewSize = document.getElementById("preview-size");
+
+  // ===== Data =====
+  function loadGallery() {
+    try {
+      const raw = localStorage.getItem(GALLERY_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return [];
+  }
+
+  function saveGallery(list) {
+    localStorage.setItem(GALLERY_KEY, JSON.stringify(list));
+  }
+
+  let gallery = loadGallery();
+
+  // ===== Helpers =====
+  function escapeHtml(str) {
+    return (str || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+  }
+
+  function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / 1024 / 1024).toFixed(1) + " MB";
+  }
+
+  function showUploadStatus(text, type) {
+    if (!uploadStatus) return;
+    uploadStatus.textContent = text;
+    uploadStatus.className = "upload-status is-" + type;
+    setTimeout(() => {
+      uploadStatus.textContent = "";
+      uploadStatus.className = "upload-status";
+    }, 4000);
+  }
+
+  function showUrlImportStatus(text, type) {
+    if (!urlImportStatusMsg) return;
+    urlImportStatusMsg.textContent = text;
+    urlImportStatusMsg.className = "upload-status is-" + type;
+    setTimeout(() => {
+      urlImportStatusMsg.textContent = "";
+      urlImportStatusMsg.className = "upload-status";
+    }, 4000);
+  }
+
+  // ===== Upload Progress =====
+  function createProgressItem(id, filename) {
+    const item = document.createElement("div");
+    item.className = "progress-item";
+    item.dataset.id = id;
+    item.innerHTML = `
+      <span class="progress-item-name">${escapeHtml(filename)}</span>
+      <div class="progress-item-bar">
+        <div class="progress-item-fill" style="width: 0%"></div>
+      </div>
+      <span class="progress-item-text">0%</span>
+    `;
+    uploadProgressList?.appendChild(item);
+    return item;
+  }
+
+  function updateProgressItem(id, percent) {
+    const item = uploadProgressList?.querySelector(`[data-id="${id}"]`);
+    if (!item) return;
+    const fill = item.querySelector(".progress-item-fill");
+    const text = item.querySelector(".progress-item-text");
+    if (fill) fill.style.width = percent + "%";
+    if (text) text.textContent = percent + "%";
+  }
+
+  function removeProgressItem(id) {
+    const item = uploadProgressList?.querySelector(`[data-id="${id}"]`);
+    if (item) item.remove();
+  }
+
+  // ===== Upload Logic =====
+  function uploadImageWithProgress(endpoint, file, onProgress) {
+    return new Promise((resolve, reject) => {
+      const formData = new FormData();
+      formData.append("image", file);
+
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", endpoint);
+      xhr.responseType = "json";
+      xhr.upload.addEventListener("progress", (event) => {
+        if (!event.lengthComputable) return;
+        onProgress(Math.round((event.loaded / event.total) * 100));
+      });
+      xhr.addEventListener("load", () => {
+        const response = xhr.response || {};
+        if (xhr.status >= 200 && xhr.status < 300 && response.ok) {
+          resolve(response.image);
+          return;
+        }
+        reject(new Error(response.message || "上传失败"));
+      });
+      xhr.addEventListener("error", () => reject(new Error("网络错误，上传失败")));
+      xhr.addEventListener("abort", () => reject(new Error("上传已取消")));
+      xhr.send(formData);
+    });
+  }
+
+  async function uploadGalleryImage(file) {
+    const id = "upload-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6);
+    createProgressItem(id, file.name);
+
+    try {
+      const image = await uploadImageWithProgress("/api/upload/content", file, (p) => updateProgressItem(id, p));
+      updateProgressItem(id, 100);
+      setTimeout(() => removeProgressItem(id), 800);
+
+      const item = {
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+        url: image.url,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        source: "imgbb",
+        date: new Date().toISOString(),
+      };
+      gallery.unshift(item);
+      saveGallery(gallery);
+      renderGallery();
+      showUploadStatus(`「${file.name}」上传成功`, "success");
+      return item;
+    } catch (err) {
+      removeProgressItem(id);
+      showUploadStatus(err instanceof Error ? err.message : "上传失败", "error");
+      return null;
+    }
+  }
+
+  // ===== Local Upload Events =====
+  dropZone?.addEventListener("click", () => localFileInput?.click());
+
+  dropZone?.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    dropZone.classList.add("is-dragover");
+  });
+
+  dropZone?.addEventListener("dragleave", () => {
+    dropZone.classList.remove("is-dragover");
+  });
+
+  dropZone?.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dropZone.classList.remove("is-dragover");
+    const files = Array.from(e.dataTransfer?.files || []).filter(f => f.type.startsWith("image/"));
+    files.forEach(f => uploadGalleryImage(f));
+  });
+
+  localFileInput?.addEventListener("change", (e) => {
+    const files = Array.from(e.target.files || []);
+    files.forEach(f => uploadGalleryImage(f));
+    localFileInput.value = "";
+  });
+
+  // ===== URL Import =====
+  let currentImportUrl = "";
+  let currentImportValid = false;
+
+  async function validateImageUrl(url) {
+    const response = await fetch(`/api/validate-image-url?url=${encodeURIComponent(url)}`);
+    const result = await response.json();
+    if (!response.ok || !result.ok) {
+      return { valid: false, error: result.message || "图片链接验证失败" };
+    }
+    return { valid: true, type: result.image?.type || "图片" };
+  }
+
+  btnAddUrl?.addEventListener("click", async () => {
+    const url = urlInput?.value.trim();
+    if (!url) {
+      showUrlImportStatus("请输入图片 URL", "error");
+      return;
+    }
+    if (!url.match(/^https?:\/\/.+/i)) {
+      showUrlImportStatus("URL 必须以 http:// 或 https:// 开头", "error");
+      return;
+    }
+
+    currentImportUrl = "";
+    currentImportValid = false;
+    if (btnConfirmImport) btnConfirmImport.disabled = true;
+    if (urlImportPreview) urlImportPreview.classList.remove("hidden");
+    if (urlImportImg) urlImportImg.src = url;
+    if (urlImportStatus) {
+      urlImportStatus.textContent = "验证中...";
+      urlImportStatus.className = "url-import-status";
+    }
+    showUrlImportStatus("正在验证图片链接...", "info");
+
+    const result = await validateImageUrl(url);
+    if (result.valid) {
+      currentImportUrl = url;
+      currentImportValid = true;
+      if (btnConfirmImport) btnConfirmImport.disabled = false;
+      if (urlImportStatus) {
+        urlImportStatus.textContent = `验证通过 (${result.type})`;
+        urlImportStatus.className = "url-import-status is-success";
+      }
+      showUrlImportStatus("图片链接验证通过，可以导入", "success");
+    } else {
+      if (urlImportStatus) {
+        urlImportStatus.textContent = "验证失败: " + result.error;
+        urlImportStatus.className = "url-import-status is-error";
+      }
+      showUrlImportStatus("图片链接验证失败", "error");
+    }
+  });
+
+  btnConfirmImport?.addEventListener("click", () => {
+    if (!currentImportUrl || !currentImportValid) return;
+
+    const item = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+      url: currentImportUrl,
+      name: "图床图片",
+      size: 0,
+      type: "image/unknown",
+      source: "url",
+      date: new Date().toISOString(),
+    };
+    gallery.unshift(item);
+    saveGallery(gallery);
+    renderGallery();
+
+    // Reset
+    if (urlInput) urlInput.value = "";
+    if (urlImportPreview) urlImportPreview.classList.add("hidden");
+    if (urlImportImg) urlImportImg.src = "";
+    currentImportUrl = "";
+    currentImportValid = false;
+    if (btnConfirmImport) btnConfirmImport.disabled = true;
+    showUrlImportStatus("图片导入成功", "success");
+  });
+
+  // ===== Tab Switching =====
+  const uploadTabs = document.querySelectorAll(".upload-tab");
+  const uploadPanels = document.querySelectorAll(".upload-panel");
+
+  uploadTabs.forEach(tab => {
+    tab.addEventListener("click", () => {
+      const target = tab.dataset.tab;
+      uploadTabs.forEach(t => t.classList.remove("active"));
+      tab.classList.add("active");
+      uploadPanels.forEach(p => {
+        if (p.id === "panel-" + target) {
+          p.classList.remove("hidden");
+        } else {
+          p.classList.add("hidden");
+        }
+      });
+    });
+  });
+
+  // ===== Gallery Render =====
+  function renderGallery() {
+    if (!galleryGrid) return;
+    gallery = loadGallery();
+    if (imageCount) imageCount.textContent = `${gallery.length} 张图片`;
+
+    if (gallery.length === 0) {
+      galleryGrid.innerHTML = '<div class="empty-state">暂无图片，使用上方上传功能添加。</div>';
+      return;
+    }
+
+    galleryGrid.innerHTML = gallery.map((img, idx) => `
+      <div class="gallery-item" data-index="${idx}">
+        <div class="gallery-item-thumb">
+          <img src="${escapeHtml(img.url)}" alt="${escapeHtml(img.name)}" loading="lazy" />
+          <div class="gallery-item-overlay">
+            <button type="button" class="gallery-btn-view" data-action="view" title="预览">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+            <button type="button" class="gallery-btn-delete" data-action="delete" title="删除">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="gallery-item-info">
+          <span class="gallery-item-name" title="${escapeHtml(img.name)}">${escapeHtml(img.name)}</span>
+          <span class="gallery-item-meta">${img.source === "url" ? "图床" : "本地"} · ${formatFileSize(img.size)}</span>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  // ===== Gallery Actions =====
+  galleryGrid?.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-action]");
+    if (!btn) return;
+    const item = btn.closest(".gallery-item");
+    const idx = parseInt(item?.dataset.index || "-1", 10);
+    if (idx < 0 || idx >= gallery.length) return;
+
+    const img = gallery[idx];
+
+    if (btn.dataset.action === "view") {
+      if (previewImg) previewImg.src = img.url;
+      if (previewName) previewName.textContent = img.name;
+      if (previewSize) previewSize.textContent = `${img.source === "url" ? "图床" : "本地"} · ${formatFileSize(img.size)}`;
+      previewModal?.classList.add("is-open");
+      document.body.style.overflow = "hidden";
+    } else if (btn.dataset.action === "delete") {
+      if (confirm(`确定要删除「${img.name}」吗？`)) {
+        gallery.splice(idx, 1);
+        saveGallery(gallery);
+        renderGallery();
+        showUploadStatus("图片已删除", "success");
+      }
+    }
+  });
+
+  // ===== Preview Modal =====
+  document.getElementById("btn-close-preview")?.addEventListener("click", closePreviewModal);
+  document.querySelector("#preview-modal .modal-backdrop")?.addEventListener("click", closePreviewModal);
+
+  function closePreviewModal() {
+    previewModal?.classList.remove("is-open");
+    document.body.style.overflow = "";
+    if (previewImg) previewImg.src = "";
+  }
+
+  // ===== Init =====
+  renderGallery();
+</script>
+
+<style>
+  /* Page Header */
+  .admin-page-header {
+    margin-bottom: 24px;
+  }
+  .admin-page-title {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #181c23;
+    margin: 0 0 6px;
+  }
+  .admin-page-desc {
+    font-size: 0.875rem;
+    color: #717785;
+    margin: 0;
+  }
+
+  /* Section */
+  .form-section {
+    background: #fff;
+    border: 1px solid rgba(193,198,214,0.4);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .section-title {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #181c23;
+    margin: 0;
+  }
+  .section-badge {
+    font-size: 13px;
+    color: #717785;
+    background: #f4f6fa;
+    padding: 4px 10px;
+    border-radius: 20px;
+  }
+
+  /* Upload Tabs */
+  .upload-tabs {
+    display: flex;
+    border-bottom: 1px solid rgba(193,198,214,0.35);
+    margin-bottom: 16px;
+    gap: 4px;
+  }
+  .upload-tab {
+    padding: 10px 18px;
+    border: none;
+    background: transparent;
+    color: #717785;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.15s cubic-bezier(0.23, 1, 0.32, 1), border-bottom-color 0.15s cubic-bezier(0.23, 1, 0.32, 1), transform 0.12s cubic-bezier(0.23, 1, 0.32, 1);
+    transform: scale(1);
+  }
+  .upload-tab.active {
+    color: #0059b5;
+    border-bottom-color: #0059b5;
+  }
+  .upload-tab:hover:not(.active) {
+    color: #414753;
+  }
+  .upload-tab:active {
+    transform: scale(0.97);
+  }
+
+  /* Upload Panel */
+  .upload-panel.hidden {
+    display: none;
+  }
+
+  /* Drop Zone */
+  .drop-zone {
+    position: relative;
+    border: 2px dashed rgba(193,198,214,0.6);
+    border-radius: 12px;
+    padding: 40px 24px;
+    text-align: center;
+    background: #fafbfc;
+    transition: border-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), background-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .drop-zone.is-dragover {
+    border-color: #0059b5;
+    background: #f4f8ff;
+    transform: scale(1.01);
+  }
+  .file-input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 2;
+  }
+  .drop-zone-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    color: #717785;
+    pointer-events: none;
+  }
+  .drop-title {
+    font-size: 15px;
+    font-weight: 500;
+  }
+  .drop-hint {
+    font-size: 12px;
+    color: #a0a8b8;
+  }
+
+  /* Progress List */
+  .upload-progress-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .progress-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: #f4f6fa;
+    border-radius: 8px;
+  }
+  .progress-item-name {
+    font-size: 13px;
+    color: #414753;
+    min-width: 120px;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .progress-item-bar {
+    flex: 1;
+    height: 6px;
+    background: #e8ebf0;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .progress-item-fill {
+    height: 100%;
+    background: #0059b5;
+    border-radius: 3px;
+    transition: width 0.2s ease;
+    width: 0%;
+  }
+  .progress-item-text {
+    font-size: 12px;
+    color: #717785;
+    min-width: 36px;
+    text-align: right;
+  }
+
+  /* Upload Status */
+  .upload-status {
+    font-size: 13px;
+    margin-top: 8px;
+    min-height: 20px;
+  }
+  .upload-status.is-success { color: #059669; }
+  .upload-status.is-error { color: #dc2626; }
+  .upload-status.is-info { color: #0059b5; }
+
+  /* URL Import */
+  .url-import-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .url-input-row {
+    display: flex;
+    gap: 8px;
+  }
+  .url-input-row .field-input {
+    flex: 1;
+  }
+  .field-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid rgba(193,198,214,0.6);
+    border-radius: 10px;
+    background: #fff;
+    font-family: var(--font-body);
+    font-size: 14px;
+    color: #181c23;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    box-sizing: border-box;
+  }
+  .field-input:focus {
+    border-color: #0059b5;
+    box-shadow: 0 0 0 3px rgba(0,89,181,0.1);
+  }
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 18px;
+    background-color: #0071e3;
+    color: #fff;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    min-height: 44px;
+    transition: background-color 0.15s ease;
+  }
+  .btn-primary:hover {
+    background-color: #005bbf;
+  }
+  .btn-small {
+    padding: 6px 14px;
+    font-size: 13px;
+    min-height: 36px;
+  }
+  .url-import-preview {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px;
+    background: #fafbfc;
+    border-radius: 10px;
+  }
+  .url-import-preview.hidden {
+    display: none;
+  }
+  .url-import-preview img {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid rgba(193,198,214,0.4);
+  }
+  .url-import-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .url-import-status {
+    font-size: 13px;
+    color: #717785;
+  }
+  .url-import-status.is-success { color: #059669; }
+  .url-import-status.is-error { color: #dc2626; }
+
+  /* Gallery Grid */
+  .gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+  }
+  .empty-state {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 48px 20px;
+    color: #a0a8b8;
+    font-size: 14px;
+  }
+  .gallery-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .gallery-item-thumb {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #f4f6fa;
+    border: 1px solid rgba(193,198,214,0.3);
+  }
+  .gallery-item-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+  }
+  .gallery-item-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+  .gallery-item-thumb:hover .gallery-item-overlay {
+    opacity: 1;
+  }
+  .gallery-item-thumb:hover img {
+    transform: scale(1.05);
+  }
+  .gallery-btn-view,
+  .gallery-btn-delete {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: none;
+    background: rgba(255,255,255,0.9);
+    color: #414753;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+  }
+  .gallery-btn-view:hover {
+    background: #fff;
+    color: #0059b5;
+  }
+  .gallery-btn-delete:hover {
+    background: #fff;
+    color: #dc2626;
+  }
+  .gallery-item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .gallery-item-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: #181c23;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .gallery-item-meta {
+    font-size: 11px;
+    color: #a0a8b8;
+  }
+
+  /* Preview Modal */
+  .modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal.is-open {
+    display: flex;
+  }
+  .modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(8px);
+  }
+  .modal-panel-image {
+    position: relative;
+    max-width: 90vw;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    background: transparent;
+    box-shadow: none;
+  }
+  .modal-panel-image img {
+    max-width: 100%;
+    max-height: 80vh;
+    object-fit: contain;
+    border-radius: 12px;
+    background: #000;
+  }
+  .btn-close-modal {
+    position: absolute;
+    top: -44px;
+    right: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: none;
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease;
+    z-index: 10;
+  }
+  .btn-close-modal:hover {
+    background: rgba(255,255,255,0.25);
+  }
+  .preview-info {
+    display: flex;
+    gap: 12px;
+    color: rgba(255,255,255,0.8);
+    font-size: 13px;
+  }
+  .preview-name {
+    font-weight: 500;
+  }
+  .preview-size {
+    color: rgba(255,255,255,0.6);
+  }
+
+  @media (max-width: 640px) {
+    .gallery-grid {
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 12px;
+    }
+    .url-input-row {
+      flex-direction: column;
+    }
+  }
+</style>

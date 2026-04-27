@@ -1,0 +1,616 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { getCollection } from "astro:content";
+import { profile } from "../data/profile";
+
+const articles = await getCollection("articles");
+const projects = await getCollection("projects");
+
+const sortedArticles = articles
+  .sort((a, b) => new Date(b.data.date).getTime() - new Date(a.data.date).getTime())
+  .slice(0, 4);
+
+const sortedProjects = projects
+  .sort((a, b) => new Date(b.data.date).getTime() - new Date(a.data.date).getTime())
+  .slice(0, 3);
+
+const formatDate = (date: Date) =>
+  new Date(date).toLocaleDateString("zh-CN", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+
+const quotes = [
+  { text: "设计不是外观，而是运作方式。", author: "Steve Jobs" },
+  { text: "简单是终极的复杂。", author: "Leonardo da Vinci" },
+  { text: "好的设计是显而易见的，伟大的设计是透明的。", author: "Joe Sparano" },
+];
+const quote = quotes[Math.floor(Math.random() * quotes.length)];
+---
+
+<BaseLayout title="子衿的个人博客网站">
+  {/* Hero Section */}
+  {/* Hero Section */}
+  <section class="hero-section" data-animate="hero">
+    <div class="editorial-container">
+      <div class="hero-grid">
+        <div class="hero-content">
+          <h1 class="hero-title" data-animate="hero-item">
+            让设计隐形。
+          </h1>
+          <p class="hero-desc" data-animate="hero-item">
+            {profile.bio}
+          </p>
+          <div class="hero-actions" data-animate="hero-item">
+            <a href="/projects" class="hero-btn hero-btn-primary">
+              浏览项目
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </a>
+            <a href="/articles" class="hero-btn hero-btn-secondary">
+              阅读文章
+            </a>
+          </div>
+          <a href="/about" class="profile-card" data-animate="hero-item">
+            <img src={profile.avatar} alt={profile.name} class="profile-avatar" />
+            <div class="profile-info">
+              <span class="profile-name">{profile.name}</span>
+              <span class="profile-role">{profile.role}</span>
+            </div>
+          </a>
+        </div>
+        <div class="hero-quote-card" data-animate="hero-item">
+          <svg class="quote-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21"/></svg>
+          <p class="quote-text">{quote.text}</p>
+          <p class="quote-author">{quote.author}</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {/* Latest Articles */}
+  <section class="content-section">
+    <div class="editorial-container">
+      <div class="section-header-row" data-animate="fade-up">
+        <div>
+          <h2 class="section-title">最新文章</h2>
+          <p class="section-subtitle">技术、设计与生活的思考</p>
+        </div>
+        <a href="/articles" class="section-link">
+          查看全部
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </a>
+      </div>
+
+      <div class="articles-dense-grid" data-animate="stagger">
+        {sortedArticles.map((article, idx) => (
+          <a href={`/articles/${article.id.replace(/\.mdx?$/, "")}`} class={`article-card ${idx === 0 ? "article-card-featured" : ""}`}>
+            <div class="article-card-meta">
+              <span class="article-date">{formatDate(article.data.date)}</span>
+              <div class="article-tags-row">
+                {article.data.tags.slice(0, 3).map((tag) => (
+                  <span class="article-tag">{tag}</span>
+                ))}
+              </div>
+            </div>
+            <h3 class="article-card-title">{article.data.title}</h3>
+            <p class="article-card-desc">{article.data.description}</p>
+            {idx === 0 && (
+              <span class="article-read-more">
+                阅读全文
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+              </span>
+            )}
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  {/* Projects Section */}
+  <section class="content-section section-alt">
+    <div class="editorial-container">
+      <div class="section-header-row" data-animate="fade-up">
+        <div>
+          <h2 class="section-title">精选项目</h2>
+          <p class="section-subtitle">开源作品与个人实践</p>
+        </div>
+        <a href="/projects" class="section-link">
+          查看全部
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </a>
+      </div>
+
+      <div class="projects-dense-grid" data-animate="stagger">
+        {sortedProjects.map((project) => (
+          <a href={`/projects/${project.id.replace(/\.mdx?$/, "")}`} class="project-dense-card">
+            <div class="project-dense-top">
+              <div class="project-dense-tags">
+                {project.data.tags.slice(0, 2).map((tag) => (
+                  <span class="project-dense-tag">{tag}</span>
+                ))}
+              </div>
+              <span class="project-dense-date">{formatDate(project.data.date)}</span>
+            </div>
+            <h3 class="project-dense-title">{project.data.title}</h3>
+            <p class="project-dense-desc">{project.data.description}</p>
+            <div class="project-dense-links">
+              {project.data.githubUrl && (
+                <span class="project-dense-link">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>
+                  GitHub
+                </span>
+              )}
+              {project.data.demoUrl && (
+                <span class="project-dense-link">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                  演示
+                </span>
+              )}
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+
+</BaseLayout>
+
+<style>
+  /* Container */
+  .editorial-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* Hero Section */
+  .hero-section {
+    padding: 32px 0 8px;
+  }
+
+  .hero-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+
+  @media (min-width: 768px) {
+    .hero-grid {
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 24px;
+      align-items: start;
+    }
+  }
+
+  .hero-content {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .hero-title {
+    font-family: var(--font-display);
+    font-size: 40px;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    color: #181c23;
+    margin: 0 0 8px;
+  }
+
+  @media (min-width: 640px) {
+    .hero-title {
+      font-size: 52px;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .hero-title {
+      font-size: 64px;
+    }
+  }
+
+  .hero-desc {
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.6;
+    color: #717785;
+    margin: 0 0 16px;
+    max-width: 520px;
+  }
+
+  .hero-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .hero-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.15s ease;
+    min-height: 40px;
+  }
+
+  .hero-btn-primary {
+    background: #0071e3;
+    color: #fff;
+  }
+
+  .hero-btn-primary:hover {
+    background: #005bbf;
+    transform: translateY(-1px);
+  }
+
+  .hero-btn-secondary {
+    background: #f4f6fa;
+    color: #414753;
+    border: 1px solid rgba(193,198,214,0.5);
+  }
+
+  .hero-btn-secondary:hover {
+    background: #e8ebf0;
+  }
+
+  /* Quote Card */
+  .hero-quote-card {
+    background: #fff;
+    border: 1px solid rgba(193,198,214,0.35);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  }
+
+  .quote-icon {
+    color: #0059b5;
+    margin-bottom: 12px;
+    opacity: 0.6;
+  }
+
+  .quote-text {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: #181c23;
+    margin: 0 0 12px;
+  }
+
+  .quote-author {
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: #a0a8b8;
+    margin: 0;
+  }
+
+  /* Content Sections */
+  .content-section {
+    padding: 24px 0;
+  }
+
+  .content-section.section-alt {
+    padding: 12px 0;
+  }
+
+  .section-alt {
+    background: #fafbfc;
+    border-top: 1px solid rgba(193,198,214,0.25);
+    border-bottom: 1px solid rgba(193,198,214,0.25);
+  }
+
+  .section-header-row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .section-title {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 700;
+    color: #181c23;
+    margin: 0 0 4px;
+  }
+
+  .section-subtitle {
+    font-size: 14px;
+    color: #717785;
+    margin: 0;
+  }
+
+  .section-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #0059b5;
+    text-decoration: none;
+    transition: gap 0.2s ease;
+    white-space: nowrap;
+  }
+
+  .section-link:hover {
+    gap: 8px;
+  }
+
+  /* Articles Dense Grid */
+  .articles-dense-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  @media (min-width: 768px) {
+    .articles-dense-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+    .article-card-featured {
+      grid-row: span 2;
+    }
+  }
+
+  .article-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+    background: #fff;
+    border: 1px solid rgba(193,198,214,0.3);
+    border-radius: 12px;
+    text-decoration: none;
+    transition: all 0.15s ease;
+  }
+
+  .article-card:hover {
+    border-color: rgba(193,198,214,0.6);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.05);
+    transform: translateY(-1px);
+  }
+
+  .article-card-featured {
+    justify-content: center;
+    gap: 12px;
+  }
+
+  .article-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .article-date {
+    font-size: 12px;
+    color: #a0a8b8;
+    white-space: nowrap;
+  }
+
+  .article-tags-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .article-tag {
+    font-size: 11px;
+    font-weight: 500;
+    color: #0059b5;
+    background: rgba(0,89,181,0.08);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+
+  .article-card-title {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: #181c23;
+    margin: 0;
+  }
+
+  .article-card-featured .article-card-title {
+    font-size: 20px;
+  }
+
+  .article-card-desc {
+    font-size: 13px;
+    line-height: 1.5;
+    color: #717785;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .article-read-more {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #0059b5;
+    margin-top: 4px;
+  }
+
+  /* Projects Dense Grid */
+  .projects-dense-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  @media (min-width: 768px) {
+    .projects-dense-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  .project-dense-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+    background: #fff;
+    border: 1px solid rgba(193,198,214,0.3);
+    border-radius: 12px;
+    text-decoration: none;
+    transition: all 0.15s ease;
+  }
+
+  .project-dense-card:hover {
+    border-color: rgba(193,198,214,0.6);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.05);
+    transform: translateY(-1px);
+  }
+
+  .project-dense-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .project-dense-tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .project-dense-tag {
+    font-size: 11px;
+    font-weight: 500;
+    color: #0059b5;
+    background: rgba(0,89,181,0.08);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+
+  .project-dense-date {
+    font-size: 11px;
+    color: #a0a8b8;
+    white-space: nowrap;
+  }
+
+  .project-dense-title {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: #181c23;
+    margin: 0;
+  }
+
+  .project-dense-desc {
+    font-size: 13px;
+    line-height: 1.5;
+    color: #717785;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .project-dense-links {
+    display: flex;
+    gap: 12px;
+    margin-top: 4px;
+  }
+
+  .project-dense-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: #717785;
+  }
+
+  /* Profile Card */
+  .profile-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px;
+    margin-top: 20px;
+    align-self: flex-start;
+    background: #fff;
+    border: 1px solid rgba(193, 198, 214, 0.35);
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+    text-decoration: none;
+    transition: all 0.15s ease;
+  }
+
+  .profile-card:hover {
+    border-color: rgba(193, 198, 214, 0.6);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+    transform: translateY(-1px);
+  }
+
+  .profile-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  }
+
+  .profile-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .profile-name {
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 600;
+    color: #181c23;
+  }
+
+  .profile-role {
+    font-size: 13px;
+    font-weight: 400;
+    color: #717785;
+  }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .editorial-container {
+      padding: 0 16px;
+    }
+
+    .hero-section {
+      padding: 32px 0 16px;
+    }
+
+    .hero-title {
+      font-size: 32px;
+    }
+
+    .content-section {
+      padding: 20px 0;
+    }
+
+    .content-section.section-alt {
+      padding: 12px 0;
+    }
+
+  }
+</style>

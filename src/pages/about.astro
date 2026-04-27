@@ -1,0 +1,282 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { profile } from "../data/profile";
+---
+
+<BaseLayout title="子衿的个人博客网站" description="设计高于装饰。我相信剥离不必要的元素，揭示本质。">
+  <section class="about-section">
+    <div class="editorial-container">
+      <div class="about-grid">
+        {/* Photo */}
+        <div class="about-photo" data-animate="fade-up">
+          <img
+            src={profile.avatar}
+            alt="个人头像"
+            class="photo-image"
+            id="about-avatar"
+          />
+        </div>
+
+        {/* Philosophy */}
+        <div class="philosophy-card" data-animate="fade-up">
+          <h2 class="card-title">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="card-icon">
+              <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/>
+              <path d="M9 13a4.5 4.5 0 0 0 3-4"/>
+              <path d="M6.003 5.125A3 3 0 0 0 6.401 6.5"/>
+              <path d="M3.477 10.896a4 4 0 0 1 .585-.396"/>
+              <path d="M6 18a4 4 0 0 1-1.967-.516"/>
+              <path d="M12 13h4"/>
+              <path d="M12 18h6a2 2 0 0 1 2 2v1"/>
+              <path d="M12 8h8"/>
+              <path d="M16 8V5a2 2 0 0 1 2-2"/>
+              <circle cx="16" cy="13" r=".5"/>
+              <circle cx="18" cy="3" r=".5"/>
+              <circle cx="20" cy="21" r=".5"/>
+              <circle cx="20" cy="8" r=".5"/>
+            </svg>
+            理念
+          </h2>
+          <div class="philosophy-body" id="about-philosophy">
+            {profile.philosophy.map((text) => (
+              <p>{text}</p>
+            ))}
+          </div>
+        </div>
+
+        {/* Skills */}
+        <div class="skills-section" data-animate="fade-up">
+          <h3 class="skills-label" data-animate="fade-up">核心能力</h3>
+          <div class="skills-list" data-animate="stagger" id="about-skills">
+            {profile.skills.map((skill) => (
+              <span class="skill-tag">{skill}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<script>
+  // Load custom data from localStorage if available
+  (function() {
+    try {
+      const saved = localStorage.getItem("admin-about-data");
+      if (!saved) return;
+      const data = JSON.parse(saved);
+
+      if (data.avatar) {
+        const avatarImg = document.getElementById("about-avatar");
+        if (avatarImg) avatarImg.src = data.avatar;
+      }
+
+      if (data.philosophy && Array.isArray(data.philosophy) && data.philosophy.length > 0) {
+        const philoBody = document.getElementById("about-philosophy");
+        if (philoBody) {
+          philoBody.innerHTML = data.philosophy.map((text: string) =>
+            `<p>${text.replace(/[&<>'"]/g, (c: string) => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c] || c))}</p>`
+          ).join("");
+        }
+      }
+
+      if (data.skills && Array.isArray(data.skills) && data.skills.length > 0) {
+        const skillsList = document.getElementById("about-skills");
+        if (skillsList) {
+          skillsList.innerHTML = data.skills.map((skill: string) =>
+            `<span class="skill-tag">${skill.replace(/[&<>'"]/g, (c: string) => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c] || c))}</span>`
+          ).join("");
+        }
+      }
+    } catch {}
+  })();
+
+
+</script>
+
+<style>
+  .editorial-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  .about-section {
+    padding: 64px 0 80px;
+  }
+
+  .about-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "photo"
+      "philosophy"
+      "skills";
+    gap: 24px;
+    align-items: start;
+  }
+
+  @media (min-width: 768px) {
+    .about-grid {
+      grid-template-columns: minmax(200px, 280px) 1fr;
+      grid-template-areas:
+        "photo philosophy"
+        "skills skills";
+      gap: 32px 40px;
+    }
+  }
+
+  /* Photo */
+  .about-photo {
+    grid-area: photo;
+    border-radius: 20px;
+    overflow: hidden;
+    aspect-ratio: 1 / 1;
+    max-width: 280px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+    transform: translateY(0);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .about-photo:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.12);
+    }
+  }
+
+  .photo-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* Philosophy Card */
+  .philosophy-card {
+    grid-area: philosophy;
+    padding: 28px;
+    border-radius: 16px;
+    background: #fff;
+    border: 1px solid rgba(193, 198, 214, 0.35);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  }
+
+  .card-title {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    color: #181c23;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-icon {
+    color: #0059b5;
+    flex-shrink: 0;
+  }
+
+  .philosophy-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .philosophy-body p {
+    font-family: var(--font-body);
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 1.6;
+    letter-spacing: -0.011em;
+    color: #414753;
+    margin: 0;
+  }
+
+  /* Skills Section */
+  .skills-section {
+    grid-area: skills;
+    padding-top: 8px;
+  }
+
+  .skills-label {
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #717785;
+    margin-bottom: 14px;
+  }
+
+  .skills-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .skill-tag {
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.4;
+    letter-spacing: -0.011em;
+    color: #181c23;
+    padding: 7px 16px;
+    border-radius: 9999px;
+    background: rgba(236, 237, 247, 0.6);
+    border: 1px solid rgba(193, 198, 214, 0.3);
+    transition: background-color 0.2s cubic-bezier(0.23, 1, 0.32, 1),
+                border-color 0.2s cubic-bezier(0.23, 1, 0.32, 1),
+                transform 0.15s cubic-bezier(0.23, 1, 0.32, 1);
+    transform: scale(1);
+    cursor: default;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .skill-tag:hover {
+      background: rgba(224, 226, 236, 0.8);
+      border-color: rgba(113, 119, 133, 0.3);
+      transform: scale(1.03);
+    }
+  }
+
+  .skill-tag:active {
+    transform: scale(0.97);
+  }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .about-section {
+      padding: 48px 0 64px;
+    }
+
+    .editorial-container {
+      padding: 0 16px;
+    }
+
+    .about-grid {
+      gap: 20px;
+    }
+
+    .about-photo {
+      max-width: none;
+      aspect-ratio: 1 / 1;
+    }
+
+    .philosophy-card {
+      padding: 20px;
+    }
+
+    .card-title {
+      font-size: 20px;
+    }
+
+    .philosophy-body p {
+      font-size: 15px;
+    }
+  }
+</style>

@@ -1,0 +1,81 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+
+const today = new Date().toISOString().slice(0, 10);
+---
+
+<BaseLayout title="子衿的个人博客网站" description="生成新图片配置">
+  <section class="section-light min-h-[100dvh] px-5 py-16 md:py-24">
+    <div class="mx-auto grid max-w-[1120px] gap-8 lg:grid-cols-[0.9fr_1.1fr]">
+      <div>
+        <a href="/gallery" class="pill-link mb-8 inline-flex">← 返回图片</a>
+        <p class="eyebrow mb-3 text-[var(--color-link-blue)]">New Image</p>
+        <h1 class="display-hero text-[var(--color-near-black)]">添加图片</h1>
+        <p class="body-text mt-4 text-[var(--color-text-secondary)]">
+          当前图片列表写在 <code>src/pages/gallery/index.astro</code>。填写后复制右侧对象，追加到 <code>images</code> 数组即可。
+        </p>
+      </div>
+
+      <div class="apple-card">
+        <form id="image-form" class="content-form space-y-5">
+          <label class="content-field">
+            <span>图片地址</span>
+            <input name="src" type="url" value="https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=900&auto=format&fit=crop" required />
+          </label>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <label class="content-field">
+              <span>标题 / Alt</span>
+              <input name="alt" type="text" value="新的图片" required />
+            </label>
+            <label class="content-field">
+              <span>日期</span>
+              <input name="date" type="date" value={today} />
+            </label>
+          </div>
+          <label class="content-field">
+            <span>描述</span>
+            <textarea name="description" rows="4">写下这张图片的背景或情绪。</textarea>
+          </label>
+        </form>
+
+        <div class="mt-8 rounded-[20px] bg-black/[0.04] p-4 dark:bg-white/[0.06]">
+          <div class="mb-3 flex items-center justify-between gap-3">
+            <p class="eyebrow text-[var(--color-text-secondary)]">Image Object</p>
+            <button id="copy-output" class="filter-chip" type="button">复制</button>
+          </div>
+          <pre class="content-output"><code id="image-output"></code></pre>
+          <p id="copy-status" class="micro-text mt-3 text-[var(--color-text-secondary)]" aria-live="polite"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    const form = document.getElementById("image-form");
+    const output = document.getElementById("image-output");
+    const copyButton = document.getElementById("copy-output");
+    const copyStatus = document.getElementById("copy-status");
+
+    function quote(value) {
+      return `"${value.replaceAll("\\", "\\\\").replaceAll("\"", "\\\"")}"`;
+    }
+
+    function renderImage() {
+      if (!(form instanceof HTMLFormElement) || !output) return;
+      const data = new FormData(form);
+      const src = String(data.get("src") || "");
+      const alt = String(data.get("alt") || "");
+      const date = String(data.get("date") || "");
+      const description = String(data.get("description") || "");
+      output.textContent = `{ src: ${quote(src)}, alt: ${quote(alt)}, date: ${quote(date)}, description: ${quote(description)} },`;
+    }
+
+    form?.addEventListener("input", renderImage);
+    copyButton?.addEventListener("click", async () => {
+      if (!output?.textContent) return;
+      await navigator.clipboard.writeText(output.textContent);
+      if (copyStatus) copyStatus.textContent = "已复制。请追加到 src/pages/gallery/index.astro 的 images 数组。";
+    });
+    renderImage();
+  </script>
+</BaseLayout>
