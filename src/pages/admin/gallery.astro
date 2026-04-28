@@ -28,6 +28,11 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
 
     <!-- Local Upload Panel -->
     <div id="panel-local" class="upload-panel">
+      <div class="gallery-title-field">
+        <label for="gallery-title-input" class="field-label">图片标题</label>
+        <input type="text" id="gallery-title-input" class="field-input" placeholder="留空时使用文件名" />
+        <p class="field-help">多张图片同时上传时，会自动为同一标题追加序号。</p>
+      </div>
       <div class="drop-zone" id="drop-zone">
         <input type="file" id="local-file-input" accept="image/jpeg,image/png,image/gif,image/webp,image/bmp,image/tiff" multiple class="file-input" />
         <div class="drop-zone-content">
@@ -45,6 +50,11 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     <!-- URL Import Panel -->
     <div id="panel-url" class="upload-panel hidden">
       <div class="url-import-form">
+        <div class="gallery-title-field">
+          <label for="gallery-url-title-input" class="field-label">图片标题</label>
+          <input type="text" id="gallery-url-title-input" class="field-input" placeholder="为这张图片添加标题" />
+        </div>
+        <label for="gallery-url-input" class="field-label">图片链接</label>
         <div class="url-input-row">
           <input type="url" id="gallery-url-input" class="field-input" placeholder="输入图片 URL，如 https://example.com/image.jpg" />
           <button type="button" id="btn-add-url" class="btn-primary">添加</button>
@@ -99,7 +109,9 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
   const uploadProgressList = document.getElementById("upload-progress-list");
   const dropZone = document.getElementById("drop-zone");
   const localFileInput = document.getElementById("local-file-input");
+  const localTitleInput = document.getElementById("gallery-title-input");
   const urlInput = document.getElementById("gallery-url-input");
+  const urlTitleInput = document.getElementById("gallery-url-title-input");
   const btnAddUrl = document.getElementById("btn-add-url");
   const urlImportPreview = document.getElementById("url-import-preview");
   const urlImportImg = document.getElementById("url-import-img");
@@ -144,6 +156,30 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     if (bytes < 1024) return bytes + " B";
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
     return (bytes / 1024 / 1024).toFixed(1) + " MB";
+  }
+
+  function stripFileExtension(value) {
+    return String(value || "").replace(/\.[a-z0-9]{2,5}$/i, "");
+  }
+
+  function normalizeTitle(value, fallback) {
+    return String(value || "").trim() || String(fallback || "未命名图片").trim();
+  }
+
+  function getLocalUploadTitle(file, index, total) {
+    const customTitle = String(localTitleInput?.value || "").trim();
+    if (!customTitle) return stripFileExtension(file.name);
+    return total > 1 ? `${customTitle} ${index + 1}` : customTitle;
+  }
+
+  function getUrlFallbackTitle(url) {
+    try {
+      const pathname = new URL(url).pathname;
+      const filename = decodeURIComponent(pathname.split("/").filter(Boolean).pop() || "");
+      return stripFileExtension(filename) || "链接图片";
+    } catch {
+      return "链接图片";
+    }
   }
 
   function showUploadStatus(text, type) {
@@ -223,7 +259,7 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     });
   }
 
-  async function uploadGalleryImage(file) {
+  async function uploadGalleryImage(file, title) {
     const id = "upload-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6);
     createProgressItem(id, file.name);
 
@@ -235,16 +271,19 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
       const item = {
         id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
         url: image.url,
-        name: file.name,
+        title,
+        name: title,
+        filename: file.name,
         size: file.size,
         type: file.type,
         source: "imgbb",
         date: new Date().toISOString(),
+        downloadCount: 0,
       };
       gallery.unshift(item);
       saveGallery(gallery);
       renderGallery();
-      showUploadStatus(`「${file.name}」上传成功`, "success");
+      showUploadStatus(`「${title}」上传成功`, "success");
       return item;
     } catch (err) {
       removeProgressItem(id);
@@ -269,12 +308,12 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     e.preventDefault();
     dropZone.classList.remove("is-dragover");
     const files = Array.from(e.dataTransfer?.files || []).filter(f => f.type.startsWith("image/"));
-    files.forEach(f => uploadGalleryImage(f));
+    files.forEach((f, index) => uploadGalleryImage(f, getLocalUploadTitle(f, index, files.length)));
   });
 
   localFileInput?.addEventListener("change", (e) => {
     const files = Array.from(e.target.files || []);
-    files.forEach(f => uploadGalleryImage(f));
+    files.forEach((f, index) => uploadGalleryImage(f, getLocalUploadTitle(f, index, files.length)));
     localFileInput.value = "";
   });
 
@@ -334,15 +373,19 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
 
   btnConfirmImport?.addEventListener("click", () => {
     if (!currentImportUrl || !currentImportValid) return;
+    const title = normalizeTitle(urlTitleInput?.value, getUrlFallbackTitle(currentImportUrl));
 
     const item = {
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
       url: currentImportUrl,
-      name: "图床图片",
+      title,
+      name: title,
+      filename: getUrlFallbackTitle(currentImportUrl),
       size: 0,
       type: "image/unknown",
       source: "url",
       date: new Date().toISOString(),
+      downloadCount: 0,
     };
     gallery.unshift(item);
     saveGallery(gallery);
@@ -350,6 +393,7 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
 
     // Reset
     if (urlInput) urlInput.value = "";
+    if (urlTitleInput) urlTitleInput.value = "";
     if (urlImportPreview) urlImportPreview.classList.add("hidden");
     if (urlImportImg) urlImportImg.src = "";
     currentImportUrl = "";
@@ -388,10 +432,13 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
       return;
     }
 
-    galleryGrid.innerHTML = gallery.map((img, idx) => `
+    galleryGrid.innerHTML = gallery.map((img, idx) => {
+      const title = normalizeTitle(img.title, stripFileExtension(img.name));
+      const fileLabel = img.filename || img.name || title;
+      return `
       <div class="gallery-item" data-index="${idx}">
         <div class="gallery-item-thumb">
-          <img src="${escapeHtml(img.url)}" alt="${escapeHtml(img.name)}" loading="lazy" />
+          <img src="${escapeHtml(img.url)}" alt="${escapeHtml(title)}" loading="lazy" />
           <div class="gallery-item-overlay">
             <button type="button" class="gallery-btn-view" data-action="view" title="预览">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -402,11 +449,12 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
           </div>
         </div>
         <div class="gallery-item-info">
-          <span class="gallery-item-name" title="${escapeHtml(img.name)}">${escapeHtml(img.name)}</span>
-          <span class="gallery-item-meta">${img.source === "url" ? "图床" : "本地"} · ${formatFileSize(img.size)}</span>
+          <span class="gallery-item-name" title="${escapeHtml(title)}">${escapeHtml(title)}</span>
+          <span class="gallery-item-meta">${escapeHtml(fileLabel)} · ${formatFileSize(img.size)}</span>
         </div>
       </div>
-    `).join("");
+    `;
+    }).join("");
   }
 
   // ===== Gallery Actions =====
@@ -421,8 +469,8 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
 
     if (btn.dataset.action === "view") {
       if (previewImg) previewImg.src = img.url;
-      if (previewName) previewName.textContent = img.name;
-      if (previewSize) previewSize.textContent = `${img.source === "url" ? "图床" : "本地"} · ${formatFileSize(img.size)}`;
+      if (previewName) previewName.textContent = normalizeTitle(img.title, stripFileExtension(img.name));
+      if (previewSize) previewSize.textContent = formatFileSize(img.size);
       previewModal?.classList.add("is-open");
       document.body.style.overflow = "hidden";
     } else if (btn.dataset.action === "delete") {
@@ -449,7 +497,7 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
   renderGallery();
 </script>
 
-<style>
+<style is:global>
   /* Page Header */
   .admin-page-header {
     margin-bottom: 24px;
@@ -533,6 +581,25 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
   /* Upload Panel */
   .upload-panel.hidden {
     display: none;
+  }
+
+  .gallery-title-field {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+
+  .field-label {
+    color: #414753;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .field-help {
+    color: #8a93a3;
+    font-size: 12px;
+    line-height: 1.5;
+    margin: 0;
   }
 
   /* Drop Zone */

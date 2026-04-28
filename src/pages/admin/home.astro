@@ -160,6 +160,9 @@ import homeData from "../../data/home.json";
       quoteAuthor: quoteAuthor?.value || "",
     };
     localStorage.setItem("admin-home-data", JSON.stringify(data));
+    window.dispatchEvent(new CustomEvent("admin-content:changed", {
+      detail: { key: "home" },
+    }));
     if (saveStatus) {
       saveStatus.textContent = "已保存到本地存储";
       saveStatus.className = "save-status is-success";
@@ -173,6 +176,9 @@ import homeData from "../../data/home.json";
   document.getElementById("btn-reset")?.addEventListener("click", () => {
     if (confirm("确定要重置为默认内容吗？")) {
       localStorage.removeItem("admin-home-data");
+      window.dispatchEvent(new CustomEvent("admin-content:changed", {
+        detail: { key: "home" },
+      }));
       location.reload();
     }
   });
