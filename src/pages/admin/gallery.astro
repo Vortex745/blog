@@ -122,8 +122,15 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     return [];
   }
 
+  function notifyContentChanged() {
+    window.dispatchEvent(new CustomEvent("admin-content:changed", {
+      detail: { key: GALLERY_KEY, module: "gallery" },
+    }));
+  }
+
   function saveGallery(list) {
     localStorage.setItem(GALLERY_KEY, JSON.stringify(list));
+    notifyContentChanged();
   }
 
   let gallery = loadGallery();

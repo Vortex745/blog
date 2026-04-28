@@ -1,6 +1,9 @@
 ---
 import AdminLayout from "../../layouts/AdminLayout.astro";
 import { profile } from "../../data/profile";
+
+const DEFAULT_AVATAR = "/about-avatar-placeholder.png";
+const initialAvatar = profile.avatar || DEFAULT_AVATAR;
 ---
 
 <AdminLayout title="关于管理" current="about">
@@ -22,9 +25,11 @@ import { profile } from "../../data/profile";
         <input type="file" id="avatar-input" accept="image/jpeg,image/png,image/gif,image/webp,image/bmp,image/tiff" class="cover-upload-input" />
         <div id="avatar-preview-area" class="avatar-preview-area">
           <div class="avatar-placeholder" id="avatar-placeholder">
-            <img id="avatar-preview-img" src={profile.avatar} alt="头像预览" class="avatar-preview-img" />
-            <span>点击更换头像</span>
-            <small>支持 JPG、PNG 格式，最大 5MB</small>
+            <img id="avatar-preview-img" src={initialAvatar} alt="头像预览" class="avatar-preview-img" />
+            <span class="avatar-upload-copy">
+              <span>点击更换头像</span>
+              <small>支持 JPG、PNG 格式，最大 5MB</small>
+            </span>
           </div>
           <button type="button" id="btn-remove-avatar" class="btn-remove-avatar" title="恢复默认头像">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 12"/><path d="M3 3v9h9"/></svg>
@@ -35,7 +40,7 @@ import { profile } from "../../data/profile";
           <span class="progress-text" id="avatar-progress-text">0%</span>
         </div>
         <div id="avatar-status" class="cover-status"></div>
-        <input type="hidden" id="avatar-data" name="avatar" value={profile.avatar} />
+        <input type="hidden" id="avatar-data" name="avatar" value={initialAvatar} />
       </div>
     </section>
 
@@ -175,7 +180,7 @@ import { profile } from "../../data/profile";
 
 <script>
   const ABOUT_KEY = "admin-about-data";
-  const DEFAULT_AVATAR = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&h=750&fit=crop&q=80";
+  const DEFAULT_AVATAR = "/about-avatar-placeholder.png";
 
   // ===== Elements =====
   const form = document.getElementById("about-form");
@@ -191,6 +196,13 @@ import { profile } from "../../data/profile";
   const avatarProgressFill = document.getElementById("avatar-progress-fill");
   const avatarProgressText = document.getElementById("avatar-progress-text");
   const avatarStatus = document.getElementById("avatar-status");
+
+  avatarPreviewImg?.addEventListener("error", () => {
+    if (!avatarPreviewImg.src.endsWith(DEFAULT_AVATAR)) {
+      avatarPreviewImg.src = DEFAULT_AVATAR;
+      if (avatarData) avatarData.value = DEFAULT_AVATAR;
+    }
+  });
 
   // Fields
   const nameInput = document.getElementById("about-name");
@@ -927,9 +939,29 @@ import { profile } from "../../data/profile";
     font-size: 14px;
     z-index: 1;
   }
+  .avatar-upload-copy {
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    display: grid;
+    gap: 2px;
+    padding: 8px 10px;
+    border: 1px solid rgba(193,198,214,0.42);
+    border-radius: 10px;
+    background: rgba(255,255,255,0.72);
+    color: #596274;
+    text-align: center;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 8px 20px rgba(24,28,35,0.08);
+  }
+  .avatar-upload-copy > span {
+    font-size: 13px;
+    font-weight: 600;
+  }
   .avatar-placeholder small {
     font-size: 12px;
-    color: #a0a8b8;
+    color: #8a93a3;
   }
   .avatar-preview-img {
     width: 100%;

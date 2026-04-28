@@ -9,6 +9,7 @@ const sortedArticles = articles.sort(
 );
 
 const allTags = [...new Set(sortedArticles.flatMap((a) => a.data.tags))];
+const COVER_PLACEHOLDER = "/frontend-cover-placeholder.png";
 
 const formatDate = (date: Date) =>
   new Date(date).toLocaleDateString("zh-CN", {
@@ -54,6 +55,13 @@ const formatDate = (date: Date) =>
               data-index={idx}
             >
               <div class="article-row-num">{String(idx + 1).padStart(2, "0")}</div>
+              <div class="front-cover front-cover--row">
+                <img
+                  src={article.data.coverImage || COVER_PLACEHOLDER}
+                  alt={article.data.coverImage ? `${article.data.title} 封面` : ""}
+                  loading="lazy"
+                />
+              </div>
               <div class="article-row-main">
                 <div class="article-row-top">
                   <h3 class="article-row-title">{article.data.title}</h3>

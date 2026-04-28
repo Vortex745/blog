@@ -162,8 +162,10 @@ const currentPath = Astro.url.pathname;
     <!-- GSAP Animation System -->
     <script>
       import { initAnimations, initDockPill } from "../scripts/animations";
+      import { initAdminContentSync } from "../scripts/admin-content-sync";
 
       function boot() {
+        initAdminContentSync();
         initAnimations();
         initDockPill();
       }

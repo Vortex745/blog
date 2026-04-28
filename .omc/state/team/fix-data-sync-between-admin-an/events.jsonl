@@ -1,0 +1,4 @@
+{"event_id":"2c73fa2b-184c-453f-a20c-68d8eace8ee3","team":"fix-data-sync-between-admin-an","created_at":"2026-04-28T09:28:33.038Z","type":"team_leader_nudge","worker":"leader-fixed","reason":"startup_manual_intervention_required:worker-1:worker_pane_not_ready"}
+{"event_id":"5d3da7fd-a45d-4fa1-84f1-b9062be306c2","team":"fix-data-sync-between-admin-an","created_at":"2026-04-28T09:29:33.698Z","type":"team_leader_nudge","worker":"leader-fixed","reason":"startup_manual_intervention_required:worker-2:worker_pane_not_ready"}
+{"event_id":"5f089d91-e7dd-40e0-9ea5-4262f3bd020e","team":"fix-data-sync-between-admin-an","created_at":"2026-04-28T09:29:33.708Z","type":"team_leader_nudge","worker":"leader-fixed","reason":"start_team_v2: workers=2 tasks=2 panes=2"}
+{"event_id":"fa6fa603-398f-48cb-90eb-b1739755c766","team":"fix-data-sync-between-admin-an","created_at":"2026-04-28T09:31:25.157Z","type":"shutdown_gate_forced","worker":"leader-fixed","reason":"force_bypass"}

@@ -13,6 +13,7 @@ const sortedArticles = articles
 const sortedProjects = projects
   .sort((a, b) => new Date(b.data.date).getTime() - new Date(a.data.date).getTime())
   .slice(0, 3);
+const COVER_PLACEHOLDER = "/frontend-cover-placeholder.png";
 
 const formatDate = (date: Date) =>
   new Date(date).toLocaleDateString("zh-CN", {
@@ -86,6 +87,13 @@ const quote = quotes[Math.floor(Math.random() * quotes.length)];
         <div class="articles-dense-grid" data-animate="stagger">
           {sortedArticles.map((article, idx) => (
             <a href={`/articles/${article.id.replace(/\.mdx?$/, "")}`} class={`article-card ${idx === 0 ? "article-card-featured" : ""}`}>
+              <div class="front-cover front-cover--card">
+                <img
+                  src={article.data.coverImage || COVER_PLACEHOLDER}
+                  alt={article.data.coverImage ? `${article.data.title} 封面` : ""}
+                  loading="lazy"
+                />
+              </div>
               <div class="article-card-meta">
                 <span class="article-date">{formatDate(article.data.date)}</span>
                 <div class="article-tags-row">
@@ -116,7 +124,7 @@ const quote = quotes[Math.floor(Math.random() * quotes.length)];
   </section>
 
   {/* Projects Section */}
-  <section class="content-section section-alt">
+  <section class="content-section section-alt home-final-section" style="padding: 32px 0 clamp(104px, 10vw, 156px);">
     <div class="editorial-container">
       <div class="section-header-row" data-animate="fade-up">
         <div>
@@ -133,6 +141,13 @@ const quote = quotes[Math.floor(Math.random() * quotes.length)];
         <div class="projects-dense-grid" data-animate="stagger">
           {sortedProjects.map((project) => (
             <a href={`/projects/${project.id.replace(/\.mdx?$/, "")}`} class="project-dense-card">
+              <div class="front-cover front-cover--card">
+                <img
+                  src={project.data.coverImage || COVER_PLACEHOLDER}
+                  alt={project.data.coverImage ? `${project.data.title} 封面` : ""}
+                  loading="lazy"
+                />
+              </div>
               <div class="project-dense-top">
                 <div class="project-dense-tags">
                   {project.data.tags.slice(0, 2).map((tag) => (
@@ -314,6 +329,10 @@ const quote = quotes[Math.floor(Math.random() * quotes.length)];
 
   .content-section.section-alt {
     padding: 12px 0;
+  }
+
+  .content-section.home-final-section {
+    padding: 32px 0 clamp(104px, 10vw, 156px);
   }
 
   .section-alt {
@@ -655,6 +674,10 @@ const quote = quotes[Math.floor(Math.random() * quotes.length)];
 
     .content-section.section-alt {
       padding: 12px 0;
+    }
+
+    .content-section.home-final-section {
+      padding: 24px 0 96px;
     }
 
   }

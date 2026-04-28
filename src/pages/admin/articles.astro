@@ -5,7 +5,7 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
 <AdminLayout title="文章管理" current="articles">
   <div class="admin-page-header">
     <h1 class="admin-page-title">文章管理</h1>
-    <p class="admin-page-desc">管理文章列表，支持 Markdown 编辑、封面上传和正文图片粘贴。</p>
+    <p class="admin-page-desc">管理文章列表，支持 Markdown 编辑、可选封面上传和正文图片粘贴。</p>
   </div>
 
   <!-- Toolbar -->
@@ -50,14 +50,14 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
 
         <!-- Cover Image Upload -->
         <div class="field-group">
-          <label class="field-label">封面图片</label>
+          <label class="field-label">封面图片 <span class="field-hint-inline">可选</span></label>
           <div class="cover-upload-wrap">
             <input type="file" id="cover-image-input" accept="image/jpeg,image/png,image/gif,image/webp,image/bmp,image/tiff" class="cover-upload-input" />
             <div id="cover-preview-area" class="cover-preview-area">
               <div class="cover-placeholder" id="cover-placeholder">
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                <img src="/admin-placeholder.png" alt="" loading="lazy" class="admin-placeholder-art" />
                 <span>点击选择封面图片</span>
-                <small>支持 JPG、PNG 格式，最大 5MB</small>
+                <small>可不上传；前台将使用默认占位图</small>
               </div>
               <img id="cover-preview" class="cover-preview" alt="封面预览" />
               <button type="button" id="btn-remove-cover" class="btn-remove-cover" title="移除封面">
@@ -79,10 +79,10 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
 
         <!-- Tags -->
         <div class="field-group">
-          <label class="field-label">标签 <span class="required">*</span> <span class="field-hint-inline">最多 5 个</span></label>
+          <label class="field-label">标签 <span class="required">*</span> <span class="field-hint-inline">最多 5 个，输入 # 后回车添加</span></label>
           <div class="tag-input-wrap">
             <div id="tag-list" class="tag-list"></div>
-            <input id="tag-input" type="text" class="tag-input" placeholder="输入标签名后按回车添加" />
+            <input id="tag-input" type="text" class="tag-input" placeholder="输入 #标签 后按回车添加" />
           </div>
           <input type="hidden" id="a-tags" name="tags" value="" />
         </div>
@@ -149,7 +149,7 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
             <!-- Paste Upload Panel -->
             <div id="tab-panel-paste" class="content-image-panel">
               <div class="paste-area" id="paste-area" tabindex="0" role="button" aria-label="粘贴图片上传区域">
-                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                <img src="/admin-placeholder.png" alt="" loading="lazy" class="admin-placeholder-art admin-placeholder-art-small" />
                 <span>复制图片后在正文编辑器或此区域按 Ctrl+V</span>
                 <small>剪贴板图片会通过正文图片接口上传并自动插入 Markdown</small>
               </div>
@@ -239,6 +239,8 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
   const listEl = document.getElementById("article-list");
   const countEl = document.getElementById("article-count");
   const statusMsg = document.getElementById("status-msg");
+  let handlingInvalid = false;
+  let toastTimer;
 
   // Tag elements
   const tagInput = document.getElementById("tag-input");
@@ -258,8 +260,15 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     return [];
   }
 
+  function notifyContentChanged() {
+    window.dispatchEvent(new CustomEvent("admin-content:changed", {
+      detail: { key: ARTICLES_KEY, module: "articles" },
+    }));
+  }
+
   function saveArticles(list) {
     localStorage.setItem(ARTICLES_KEY, JSON.stringify(list));
+    notifyContentChanged();
   }
 
   let articles = loadArticles();
@@ -277,6 +286,41 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
       statusMsg.textContent = "";
       statusMsg.className = "save-status";
     }, 3000);
+  }
+
+  function showToast(text, type = "info") {
+    let toast = document.getElementById("admin-toast");
+    if (!toast) {
+      toast = document.createElement("div");
+      toast.id = "admin-toast";
+      toast.className = "admin-toast";
+      toast.setAttribute("role", "status");
+      toast.setAttribute("aria-live", "polite");
+      document.body.appendChild(toast);
+    }
+    toast.textContent = text;
+    toast.className = `admin-toast is-${type} is-visible`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toast.classList.remove("is-visible");
+    }, 1000);
+  }
+
+  function getArticleValidationMessage(field) {
+    if (field.id === "a-title") {
+      if (field.validity?.valueMissing) return "请填写文章标题";
+      if (field.validity?.tooShort) return "文章标题至少需要 5 个字符";
+      return "请检查文章标题";
+    }
+    if (field.id === "a-content") return "请输入文章内容";
+    return field.validationMessage || "请检查表单内容";
+  }
+
+  function focusInvalidField(field) {
+    if (!field) return;
+    const wrapper = field.closest(".field-group") || field;
+    wrapper.scrollIntoView({ behavior: "smooth", block: "center" });
+    setTimeout(() => field.focus({ preventScroll: true }), 120);
   }
 
   function formatDate(dateStr) {
@@ -615,11 +659,18 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
   });
 
   // ===== Tag System =====
+  function parseHashTagInput(value) {
+    const raw = (value || "").trim();
+    if (!raw) return "";
+    if (!raw.startsWith("#")) return null;
+    return raw.replace(/^#+/, "").trim();
+  }
+
   function renderTags() {
     if (!tagList) return;
     tagList.innerHTML = currentTags.map((tag, idx) => `
       <span class="tag-chip">
-        ${escapeHtml(tag)}
+        #${escapeHtml(tag)}
         <button type="button" class="tag-remove" data-idx="${idx}">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
         </button>
@@ -627,19 +678,26 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     `).join("");
     if (tagsHidden) tagsHidden.value = currentTags.join(",");
     if (tagInput) tagInput.disabled = currentTags.length >= 5;
-    if (tagInput) tagInput.placeholder = currentTags.length >= 5 ? "已达 5 个上限" : "输入标签名后按回车添加";
+    if (tagInput) tagInput.placeholder = currentTags.length >= 5 ? "已达 5 个上限" : "输入 #标签 后按回车添加";
   }
 
   tagInput?.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      const val = tagInput.value.trim();
-      if (!val) return;
+      const val = parseHashTagInput(tagInput.value);
+      if (val === "") return;
+      if (val === null) {
+        showToast("请以 # 开始输入标签", "error");
+        showStatus("请以 # 开始输入标签", "error");
+        return;
+      }
       if (currentTags.length >= 5) {
+        showToast("最多 5 个标签", "error");
         showStatus("最多 5 个标签", "error");
         return;
       }
       if (currentTags.includes(val)) {
+        showToast("标签已存在", "error");
         showStatus("标签已存在", "error");
         return;
       }
@@ -880,6 +938,17 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
   document.getElementById("btn-cancel")?.addEventListener("click", closeModal);
   document.querySelector("#article-modal .modal-backdrop")?.addEventListener("click", closeModal);
 
+  form?.addEventListener("invalid", (e) => {
+    e.preventDefault();
+    const field = e.target;
+    if (!(field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement)) return;
+    if (handlingInvalid) return;
+    handlingInvalid = true;
+    setTimeout(() => { handlingInvalid = false; }, 0);
+    showToast(getArticleValidationMessage(field), "error");
+    focusInvalidField(field);
+  }, true);
+
   // ===== Article List =====
   function renderList() {
     if (!listEl) return;
@@ -891,23 +960,35 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     }
 
     listEl.innerHTML = articles.map((a, idx) => `
-      <div class="article-card" data-index="${idx}">
-        <div class="article-card-main">
-          <div class="article-card-meta">
-            <span class="article-card-date">${formatDate(a.date)}</span>
-            <div class="article-card-tags">
-              ${(a.tags || []).map(t => `<span class="article-tag">${escapeHtml(t)}</span>`).join("")}
-            </div>
+      <div class="admin-list-card" data-index="${idx}">
+        <div class="admin-list-card-main">
+          <div class="admin-list-card-meta">
+            <span class="admin-info-row">
+              <span class="admin-field-label">发布时间</span>
+              <time class="admin-list-card-date admin-field-value" datetime="${escapeHtml(a.date || "")}">${formatDate(a.date)}</time>
+            </span>
+            ${(a.tags || []).length ? `<div class="admin-info-row">
+              <span class="admin-field-label">标签</span>
+              <span class="admin-tag-list">
+                ${(a.tags || []).map(t => `<span class="admin-tag">${escapeHtml(t)}</span>`).join("")}
+              </span>
+            </div>` : ""}
           </div>
-          <div class="article-card-title">${escapeHtml(a.title)}</div>
-          <div class="article-card-desc">${escapeHtml(a.content?.substring(0, 120) || "").replace(/\n/g, " ")}...</div>
+          <div class="admin-list-card-title admin-info-row">
+            <span class="admin-field-label">标题</span>
+            <span class="admin-field-value">${escapeHtml(a.title)}</span>
+          </div>
+          <div class="admin-list-card-desc admin-info-row">
+            <span class="admin-field-label">摘要</span>
+            <span class="admin-field-value">${escapeHtml(a.content?.substring(0, 120) || "").replace(/\n/g, " ")}...</span>
+          </div>
         </div>
-        <div class="article-card-actions">
+        <div class="admin-list-card-actions">
           <button type="button" class="btn-icon btn-edit" data-action="edit" title="编辑">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
           </button>
           <button type="button" class="btn-icon btn-delete" data-action="delete" title="删除">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
           </button>
         </div>
       </div>
@@ -917,14 +998,16 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
   listEl?.addEventListener("click", (e) => {
     const btn = e.target.closest("[data-action]");
     if (!btn) return;
-    const card = btn.closest(".article-card");
+    const card = btn.closest(".admin-list-card");
     const idx = parseInt(card?.dataset.index || "-1", 10);
     if (idx < 0 || idx >= articles.length) return;
     if (btn.dataset.action === "edit") {
       const a = articles[idx];
       document.getElementById("article-id").value = String(idx);
       document.getElementById("a-title").value = a.title || "";
-      currentTags = Array.isArray(a.tags) ? [...a.tags] : [];
+      currentTags = Array.isArray(a.tags)
+        ? a.tags.map(tag => String(tag).trim().replace(/^#+/, "").trim()).filter(Boolean)
+        : [];
       renderTags();
       if (contentTextarea) contentTextarea.value = a.content || "";
       if (a.coverImage) {
@@ -951,15 +1034,21 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     const coverImage = coverImageData?.value || "";
 
     if (title.length < 5) {
+      showToast(title ? "文章标题至少需要 5 个字符" : "请填写文章标题", "error");
       showStatus("标题至少需要 5 个字符", "error");
+      focusInvalidField(document.getElementById("a-title"));
       return;
     }
     if (!content) {
+      showToast("请输入文章内容", "error");
       showStatus("请输入文章内容", "error");
+      focusInvalidField(contentTextarea);
       return;
     }
     if (currentTags.length === 0) {
+      showToast("请至少添加一个标签", "error");
       showStatus("请至少添加一个标签", "error");
+      focusInvalidField(tagInput);
       return;
     }
 
@@ -967,6 +1056,7 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
       id: Date.now().toString(36),
       title,
       content,
+      description: content.replace(/!\[[^\]]*]\([^)]*\)/g, "").replace(/[#>*_`-]/g, "").replace(/\s+/g, " ").trim().slice(0, 140),
       coverImage,
       tags: [...currentTags],
       date: new Date().toISOString(),
@@ -976,11 +1066,19 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     if (editId !== undefined && editId !== "") {
       const editIdx = parseInt(editId, 10);
       if (editIdx >= 0 && editIdx < articles.length) {
-        articles[editIdx] = { ...articles[editIdx], ...article, id: articles[editIdx].id };
+        articles[editIdx] = {
+          ...articles[editIdx],
+          ...article,
+          id: articles[editIdx].id,
+          date: articles[editIdx].date || article.date,
+          updatedAt: new Date().toISOString(),
+        };
+        showToast("文章已更新", "success");
         showStatus("文章已更新", "success");
       }
     } else {
       articles.unshift(article);
+      showToast("文章已添加", "success");
       showStatus("文章已添加", "success");
     }
 
@@ -1051,6 +1149,44 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
   .save-status.is-success { color: #059669; }
   .save-status.is-error { color: #dc2626; }
   .save-status.is-info { color: #0059b5; }
+  .admin-toast {
+    position: fixed;
+    top: 24px;
+    left: 50%;
+    z-index: 2000;
+    transform: translate(-50%, -8px);
+    opacity: 0;
+    pointer-events: none;
+    min-width: 180px;
+    max-width: min(420px, calc(100vw - 32px));
+    padding: 10px 16px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.96);
+    border: 1px solid rgba(193,198,214,0.55);
+    box-shadow: 0 14px 40px rgba(24,28,35,0.14);
+    color: #181c23;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.4;
+    text-align: center;
+    transition: opacity 0.15s cubic-bezier(0.23, 1, 0.32, 1), transform 0.15s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .admin-toast.is-visible {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  .admin-toast.is-success {
+    color: #059669;
+    border-color: rgba(5,150,105,0.22);
+  }
+  .admin-toast.is-error {
+    color: #dc2626;
+    border-color: rgba(220,38,38,0.22);
+  }
+  .admin-toast.is-info {
+    color: #0059b5;
+    border-color: rgba(0,89,181,0.22);
+  }
 
   /* Section */
   .form-section {
@@ -1091,70 +1227,6 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     padding: 48px 20px;
     color: #a0a8b8;
     font-size: 14px;
-  }
-  .article-card {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 16px;
-    padding: 16px;
-    border: 1px solid rgba(193,198,214,0.35);
-    border-radius: 12px;
-    background: #fafbfc;
-    transition: background-color 0.15s cubic-bezier(0.23, 1, 0.32, 1), border-color 0.15s cubic-bezier(0.23, 1, 0.32, 1), transform 0.12s cubic-bezier(0.23, 1, 0.32, 1);
-    transform: scale(1);
-  }
-  .article-card:hover {
-    background: #f4f6fa;
-    border-color: rgba(193,198,214,0.6);
-  }
-  .article-card:active {
-    transform: scale(0.99);
-  }
-  .article-card-main {
-    flex: 1;
-    min-width: 0;
-  }
-  .article-card-meta {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 6px;
-    flex-wrap: wrap;
-  }
-  .article-card-date {
-    font-size: 12px;
-    color: #a0a8b8;
-  }
-  .article-card-tags {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-  }
-  .article-tag {
-    font-size: 11px;
-    color: #0059b5;
-    background: rgba(0,89,181,0.08);
-    padding: 2px 8px;
-    border-radius: 4px;
-  }
-  .article-card-title {
-    font-size: 15px;
-    font-weight: 600;
-    color: #181c23;
-    margin-bottom: 4px;
-    word-break: break-word;
-  }
-  .article-card-desc {
-    font-size: 13px;
-    color: #717785;
-    line-height: 1.5;
-    word-break: break-word;
-  }
-  .article-card-actions {
-    display: flex;
-    gap: 6px;
-    flex-shrink: 0;
   }
 
   /* Modal */
@@ -1346,6 +1418,17 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     gap: 6px;
     color: #717785;
     pointer-events: none;
+  }
+  .admin-placeholder-art {
+    width: min(180px, 72%);
+    aspect-ratio: 16 / 10;
+    object-fit: cover;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(24,28,35,0.08);
+    margin-bottom: 2px;
+  }
+  .admin-placeholder-art-small {
+    width: min(150px, 64%);
   }
   .cover-placeholder span {
     font-size: 14px;
@@ -1673,6 +1756,7 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     color: #dc2626;
     background: rgba(220,38,38,0.08);
   }
+
 
   /* Toolbar Divider */
   .toolbar-divider {

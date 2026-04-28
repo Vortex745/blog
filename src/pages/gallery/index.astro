@@ -70,30 +70,50 @@ const albums = ["全部"];
 
 <script define:vars={{ images }}>
   const GALLERY_KEY = "admin-gallery-data";
+  const SYNC_EVENT = "admin-content:changed";
   const galleryGrid = document.getElementById("gallery-grid");
   const filterBar = document.getElementById("album-filters");
   const emptyInitial = document.getElementById("empty-initial");
   const emptyFiltered = document.getElementById("empty-filtered");
 
-  // Load from localStorage
-  let galleryImages = [];
-  try {
-    const raw = localStorage.getItem(GALLERY_KEY);
-    if (raw) galleryImages = JSON.parse(raw);
-  } catch {}
-
-  // Build categories from data
-  const categories = ["全部", ...new Set(galleryImages.map(img => (img.source === "url" || img.source === "imgbb") ? "图床" : "本地"))];
-  let currentAlbum = "全部";
-
-  // Re-render filter chips
-  if (filterBar) {
-    filterBar.innerHTML = categories.map(cat =>
-      `<button class="filter-chip ${cat === "全部" ? "active" : ""}" data-album="${cat}">${cat}</button>`
-    ).join("");
+  function loadGalleryImages() {
+    try {
+      const raw = localStorage.getItem(GALLERY_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
   }
 
-  const filters = document.querySelectorAll(".filter-chip");
+  function getCategory(img) {
+    return (img.source === "url" || img.source === "imgbb") ? "图床" : "本地";
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      "\"": "&quot;",
+      "'": "&#39;",
+    }[char]));
+  }
+
+  let galleryImages = loadGalleryImages();
+  let currentAlbum = "全部";
+  let filters = [];
+
+  function renderFilters() {
+    const categories = ["全部", ...new Set(galleryImages.map(getCategory))];
+    if (!categories.includes(currentAlbum)) currentAlbum = "全部";
+    if (!filterBar) return;
+    filterBar.innerHTML = categories.map(cat =>
+      `<button class="filter-chip ${cat === currentAlbum ? "active" : ""}" data-album="${escapeHtml(cat)}">${escapeHtml(cat)}</button>`
+    ).join("");
+    filters = Array.from(filterBar.querySelectorAll(".filter-chip"));
+  }
 
   // Re-render gallery grid
   function renderGallery() {
@@ -111,20 +131,20 @@ const albums = ["全部"];
 
     const filtered = currentAlbum === "全部"
       ? galleryImages
-      : galleryImages.filter(img => ((img.source === "url" || img.source === "imgbb") ? "图床" : "本地") === currentAlbum);
+      : galleryImages.filter(img => getCategory(img) === currentAlbum);
 
     filtered.forEach((img, idx) => {
       const item = document.createElement("div");
       item.className = "gallery-item group";
-      item.dataset.category = (img.source === "url" || img.source === "imgbb") ? "图床" : "本地";
+      item.dataset.category = getCategory(img);
       item.dataset.index = String(galleryImages.indexOf(img));
       item.innerHTML = `
         <div class="gallery-card">
-          <img src="${img.url}" alt="${img.name || '图片'}" class="gallery-image" loading="lazy" />
+          <img src="${escapeHtml(img.url)}" alt="${escapeHtml(img.name || '图片')}" class="gallery-image" loading="lazy" />
           <div class="gallery-overlay"></div>
           <div class="gallery-caption">
-            <p class="gallery-category">${(img.source === "url" || img.source === "imgbb") ? "图床" : "本地"}</p>
-            <h3 class="gallery-title">${img.name || '图片'}</h3>
+            <p class="gallery-category">${getCategory(img)}</p>
+            <h3 class="gallery-title">${escapeHtml(img.name || '图片')}</h3>
           </div>
         </div>
       `;
@@ -139,11 +159,11 @@ const albums = ["全部"];
     });
   }
 
-  filters.forEach((filter) => {
-    filter.addEventListener("click", () => {
-      currentAlbum = filter.dataset.album || "全部";
-      render();
-    });
+  filterBar?.addEventListener("click", (event) => {
+    const filter = event.target instanceof Element ? event.target.closest(".filter-chip") : null;
+    if (!filter) return;
+    currentAlbum = filter.dataset.album || "全部";
+    render();
   });
 
   // Lightbox functionality
@@ -201,7 +221,7 @@ const albums = ["全部"];
   }
 
   galleryGrid?.addEventListener("click", (e) => {
-    const item = e.target.closest(".gallery-item[data-index]");
+    const item = e.target instanceof Element ? e.target.closest(".gallery-item[data-index]") : null;
     if (!item) return;
     const idx = parseInt(item.dataset.index || "0");
     openLightbox(idx);
@@ -221,6 +241,21 @@ const albums = ["全部"];
     if (e.key === "ArrowLeft") goPrev();
   });
 
+  function reloadGalleryFromStorage() {
+    galleryImages = loadGalleryImages();
+    renderFilters();
+    render();
+  }
+
+  window.addEventListener("storage", (event) => {
+    if (event.key === GALLERY_KEY) reloadGalleryFromStorage();
+  });
+  window.addEventListener(SYNC_EVENT, (event) => {
+    const detail = event instanceof CustomEvent ? event.detail : null;
+    if (detail?.key === GALLERY_KEY) reloadGalleryFromStorage();
+  });
+
+  renderFilters();
   render();
 </script>
 

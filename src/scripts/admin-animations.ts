@@ -21,11 +21,11 @@ const EASE = {
 };
 
 const DURATION = {
-  fast: 0.14,
-  standard: 0.2,
-  entrance: 0.28,
-  modal: 0.3,
-  navPill: 0.22,
+  fast: 0.12,
+  standard: 0.18,
+  entrance: 0.24,
+  modal: 0.24,
+  navPill: 0.18,
 };
 
 const STAGGER = {
@@ -118,9 +118,9 @@ function animateNavPill(
 ): gsap.core.Timeline {
   const travel = Math.abs(toY - fromY);
   const direction = Math.sign(toY - fromY) || 1;
-  const stretch = Math.min(1.045, 1 + travel / 1200);
+  const stretch = Math.min(1.025, 1 + travel / 1800);
   const stretchDuration = Math.min(0.06, duration * 0.4);
-  const settleDuration = Math.min(0.12, duration * 0.7);
+  const settleDuration = Math.min(0.1, duration * 0.65);
 
   gsap.killTweensOf(pill);
   gsap.set(pill, {
@@ -263,11 +263,11 @@ export function animateModalClose(modal: HTMLElement, onComplete?: () => void) {
       scale: 0.98,
       y: 12,
       duration: DURATION.fast,
-      ease: "power2.in",
+      ease: EASE.out,
     });
   }
   if (backdrop) {
-    tl.to(backdrop, { opacity: 0, duration: DURATION.fast, ease: "power2.in" }, "<");
+    tl.to(backdrop, { opacity: 0, duration: DURATION.fast, ease: EASE.out }, "<");
   }
 }
 
@@ -298,7 +298,7 @@ export function animateFadeOut(el: HTMLElement, onComplete?: () => void) {
     y: -8,
     scale: 0.98,
     duration: DURATION.fast,
-    ease: "power2.in",
+    ease: EASE.out,
     onComplete,
   });
 }
@@ -326,7 +326,7 @@ export function animateListItemExit(el: HTMLElement, onComplete?: () => void) {
     margin: 0,
     padding: 0,
     duration: DURATION.standard,
-    ease: "power2.in",
+    ease: EASE.out,
     onComplete,
   });
 }

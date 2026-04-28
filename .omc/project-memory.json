@@ -1,0 +1,355 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1777367428948,
+  "projectRoot": "C:\\Users\\14253\\Desktop\\changye",
+  "techStack": {
+    "languages": [
+      {
+        "name": "JavaScript/TypeScript",
+        "version": ">=22.12.0",
+        "confidence": "high",
+        "markers": [
+          "package.json"
+        ]
+      },
+      {
+        "name": "TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "tsconfig.json"
+        ]
+      }
+    ],
+    "frameworks": [
+      {
+        "name": "astro",
+        "version": "6.1.9",
+        "category": "fullstack"
+      },
+      {
+        "name": "react",
+        "version": "19.1.0",
+        "category": "frontend"
+      },
+      {
+        "name": "react-dom",
+        "version": "19.1.0",
+        "category": "frontend"
+      },
+      {
+        "name": "@playwright/test",
+        "version": "1.59.1",
+        "category": "testing"
+      }
+    ],
+    "packageManager": "npm",
+    "runtime": "Node.js 22.12.0"
+  },
+  "build": {
+    "buildCommand": "npm run build",
+    "testCommand": "npm test",
+    "lintCommand": null,
+    "devCommand": "npm run dev",
+    "scripts": {
+      "dev": "astro dev",
+      "build": "astro build",
+      "preview": "astro preview",
+      "astro": "astro",
+      "test": "playwright test",
+      "test:full": "node scripts/run-full-tests.mjs",
+      "test:report": "node scripts/run-full-tests.mjs",
+      "test:ui": "playwright test --ui",
+      "test:headed": "playwright test --headed"
+    }
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": "ES modules",
+    "testPattern": null,
+    "fileOrganization": "type-based"
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "public",
+      "src"
+    ],
+    "gitBranches": {
+      "defaultBranch": "main",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "dist": {
+      "path": "dist",
+      "purpose": "Distribution/build output",
+      "fileCount": 0,
+      "lastAccessed": 1777367428905,
+      "keyFiles": []
+    },
+    "public": {
+      "path": "public",
+      "purpose": "Public files",
+      "fileCount": 3,
+      "lastAccessed": 1777367428906,
+      "keyFiles": [
+        "favicon.jpg",
+        "favicon.svg",
+        "logo.jpg"
+      ]
+    },
+    "src": {
+      "path": "src",
+      "purpose": "Source code",
+      "fileCount": 3,
+      "lastAccessed": 1777367428915,
+      "keyFiles": [
+        "content.config.ts",
+        "env.d.ts",
+        "middleware.ts"
+      ]
+    },
+    "src\\components": {
+      "path": "src\\components",
+      "purpose": "UI components",
+      "fileCount": 0,
+      "lastAccessed": 1777367428917,
+      "keyFiles": []
+    },
+    "src\\data": {
+      "path": "src\\data",
+      "purpose": "Data files",
+      "fileCount": 2,
+      "lastAccessed": 1777367428918,
+      "keyFiles": [
+        "home.json",
+        "profile.ts"
+      ]
+    },
+    "src\\lib": {
+      "path": "src\\lib",
+      "purpose": "Library code",
+      "fileCount": 1,
+      "lastAccessed": 1777367428918,
+      "keyFiles": [
+        "utils.ts"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "",
+      "accessCount": 14,
+      "lastAccessed": 1777368893515,
+      "type": "directory"
+    },
+    {
+      "path": "src\\content\\config.ts",
+      "accessCount": 4,
+      "lastAccessed": 1777368830460,
+      "type": "file"
+    },
+    {
+      "path": "src\\middleware.ts",
+      "accessCount": 4,
+      "lastAccessed": 1777368830553,
+      "type": "file"
+    },
+    {
+      "path": "src\\pages\\api\\upload\\_shared.ts",
+      "accessCount": 4,
+      "lastAccessed": 1777368867952,
+      "type": "file"
+    },
+    {
+      "path": "package.json",
+      "accessCount": 3,
+      "lastAccessed": 1777368673186,
+      "type": "file"
+    },
+    {
+      "path": "src\\content.config.ts",
+      "accessCount": 3,
+      "lastAccessed": 1777368673620,
+      "type": "file"
+    },
+    {
+      "path": "src\\pages\\admin\\projects.astro",
+      "accessCount": 3,
+      "lastAccessed": 1777368830134,
+      "type": "file"
+    },
+    {
+      "path": "src\\pages\\admin\\articles.astro",
+      "accessCount": 3,
+      "lastAccessed": 1777368830840,
+      "type": "file"
+    },
+    {
+      "path": "src\\pages\\api\\upload\\cover.ts",
+      "accessCount": 3,
+      "lastAccessed": 1777368867825,
+      "type": "file"
+    },
+    {
+      "path": "src\\pages\\api\\validate-image-url.ts",
+      "accessCount": 3,
+      "lastAccessed": 1777368867928,
+      "type": "file"
+    },
+    {
+      "path": "astro.config.mjs",
+      "accessCount": 3,
+      "lastAccessed": 1777368893030,
+      "type": "file"
+    },
+    {
+      "path": "src\\data\\profile.ts",
+      "accessCount": 2,
+      "lastAccessed": 1777368676577,
+      "type": "file"
+    },
+    {
+      "path": "src\\data\\home.json",
+      "accessCount": 2,
+      "lastAccessed": 1777368676871,
+      "type": "file"
+    },
+    {
+      "path": "src\\pages\\index.astro",
+      "accessCount": 2,
+      "lastAccessed": 1777368699311,
+      "type": "file"
+    },
+    {
+      "path": "src\\pages\\archive.astro",
+      "accessCount": 2,
+      "lastAccessed": 1777368699893,
+      "type": "file"
+    },
+    {
+      "path": "src\\pages\\about.astro",
+      "accessCount": 2,
+      "lastAccessed": 1777368700002,
+      "type": "file"
+    },
+    {
+      "path": "src\\pages\\articles\\[slug].astro",
+      "accessCount": 2,
+      "lastAccessed": 1777368700246,
+      "type": "file"
+    },
+    {
+      "path": "src\\pages\\search.astro",
+      "accessCount": 2,
+      "lastAccessed": 1777368700299,
+      "type": "file"
+    },
+    {
+      "path": "src\\pages\\projects\\[slug].astro",
+      "accessCount": 2,
+      "lastAccessed": 1777368700329,
+      "type": "file"
+    },
+    {
+      "path": "src\\pages\\admin\\index.astro",
+      "accessCount": 1,
+      "lastAccessed": 1777368673540,
+      "type": "file"
+    },
+    {
+      "path": "src\\pages\\admin\\home.astro",
+      "accessCount": 1,
+      "lastAccessed": 1777368673826,
+      "type": "file"
+    },
+    {
+      "path": "src\\pages\\admin\\about.astro",
+      "accessCount": 1,
+      "lastAccessed": 1777368674190,
+      "type": "file"
+    },
+    {
+      "path": "src\\pages\\admin\\gallery.astro",
+      "accessCount": 1,
+      "lastAccessed": 1777368674738,
+      "type": "file"
+    },
+    {
+      "path": "src\\pages\\admin\\login.astro",
+      "accessCount": 1,
+      "lastAccessed": 1777368676084,
+      "type": "file"
+    },
+    {
+      "path": "src\\pages\\api\\upload\\content.ts",
+      "accessCount": 1,
+      "lastAccessed": 1777368676297,
+      "type": "file"
+    },
+    {
+      "path": "src\\pages\\admin\\api.astro",
+      "accessCount": 1,
+      "lastAccessed": 1777368676356,
+      "type": "file"
+    },
+    {
+      "path": "src\\pages\\articles\\new.astro",
+      "accessCount": 1,
+      "lastAccessed": 1777368691840,
+      "type": "file"
+    },
+    {
+      "path": "src\\pages\\projects\\new.astro",
+      "accessCount": 1,
+      "lastAccessed": 1777368692267,
+      "type": "file"
+    },
+    {
+      "path": "src\\pages\\gallery\\new.astro",
+      "accessCount": 1,
+      "lastAccessed": 1777368692302,
+      "type": "file"
+    },
+    {
+      "path": "src\\pages\\rss.xml.js",
+      "accessCount": 1,
+      "lastAccessed": 1777368692402,
+      "type": "file"
+    },
+    {
+      "path": "src\\pages\\404.astro",
+      "accessCount": 1,
+      "lastAccessed": 1777368693606,
+      "type": "file"
+    },
+    {
+      "path": "src\\layouts\\BaseLayout.astro",
+      "accessCount": 1,
+      "lastAccessed": 1777368693660,
+      "type": "file"
+    },
+    {
+      "path": "src\\pages\\articles\\index.astro",
+      "accessCount": 1,
+      "lastAccessed": 1777368699454,
+      "type": "file"
+    },
+    {
+      "path": "src\\pages\\projects\\index.astro",
+      "accessCount": 1,
+      "lastAccessed": 1777368700055,
+      "type": "file"
+    },
+    {
+      "path": "src\\pages\\gallery\\index.astro",
+      "accessCount": 1,
+      "lastAccessed": 1777368700359,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

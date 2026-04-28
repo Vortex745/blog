@@ -9,6 +9,7 @@ const sortedProjects = projects.sort(
 );
 
 const allTags = [...new Set(sortedProjects.flatMap((p) => p.data.tags))];
+const COVER_PLACEHOLDER = "/frontend-cover-placeholder.png";
 
 const formatDate = (date: Date) =>
   new Date(date).toLocaleDateString("zh-CN", {
@@ -47,6 +48,13 @@ const formatDate = (date: Date) =>
           {sortedProjects.map((project, idx) => (
             <div class="project-item" data-tags={JSON.stringify(project.data.tags)}>
               <a href={`/projects/${project.id.replace(/\.mdx?$/, "")}`} class="project-card">
+                <div class="front-cover front-cover--card">
+                  <img
+                    src={project.data.coverImage || COVER_PLACEHOLDER}
+                    alt={project.data.coverImage ? `${project.data.title} 封面` : ""}
+                    loading="lazy"
+                  />
+                </div>
                 <div class="project-card-header">
                   <div class="project-card-num">{String(idx + 1).padStart(2, "0")}</div>
                   <div class="project-card-meta">

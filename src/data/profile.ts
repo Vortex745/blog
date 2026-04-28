@@ -1,7 +1,7 @@
 export const profile = {
   name: "",
   role: "",
-  avatar: "",
+  avatar: "/about-avatar-placeholder.png",
   bio: "",
   description: "",
   philosophy: [
