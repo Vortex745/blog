@@ -1,7 +1,5 @@
 ---
 import "../styles/globals.css";
-import { ClientRouter } from "astro:transitions";
-import { fade } from "astro:transitions";
 
 export interface Props {
   title: string;
@@ -30,7 +28,11 @@ const navItems = [
     <meta name="theme-color" content="#f4f6fa" />
     <link rel="icon" type="image/jpeg" href="/favicon.jpg" />
     <title>{adminBrowserTitle}</title>
-    <ClientRouter />
+    <!--
+      Admin pages contain page-local management scripts (forms, modals, uploads).
+      Keep the back office on normal browser navigation so those scripts are
+      initialized on every page load, including production/Vercel deployments.
+    -->
     <!-- Inline critical CSS to prevent FOUC and reduce CLS -->
     <style is:inline>{`
       .admin-body{margin:0;padding:0;background:#f4f6fa;font-family:"Inter","SF Pro Text","Helvetica Neue",Helvetica,Arial,sans-serif;color:#181c23;min-height:100vh}
@@ -51,7 +53,7 @@ const navItems = [
   <body class="admin-body">
     <div class="admin-shell admin-shell--hidden">
       <!-- Sidebar -->
-      <aside class="admin-sidebar" transition:persist>
+      <aside class="admin-sidebar">
         <div class="admin-sidebar-header">
           <a href="/" class="admin-logo">子衿</a>
           <span class="admin-badge">管理后台</span>
@@ -86,7 +88,7 @@ const navItems = [
       </aside>
 
       <!-- Main -->
-      <main class="admin-main" data-admin-module={current} transition:animate={fade({ duration: "160ms" })}>
+      <main class="admin-main" data-admin-module={current}>
         <slot />
       </main>
     </div>
