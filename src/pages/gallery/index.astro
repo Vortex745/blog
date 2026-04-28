@@ -1,80 +1,110 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import { GalleryLightbox, type GalleryImage } from "../../components/react/GalleryLightbox";
-
-// No hardcoded images — gallery data is loaded from localStorage via admin
-const images: GalleryImage[] = [];
 
 const albums = ["全部"];
 ---
 
 <BaseLayout title="子衿的个人博客网站" description="精心策划的瞬间收藏。探索光、结构与自然形态的交汇。">
   <section class="gallery-hero" data-animate="hero">
-    <div class="editorial-container">
-      <h1 class="editorial-display" data-animate="hero-item">视觉碎片</h1>
-      <p class="editorial-lead" data-animate="hero-item">
-        精心策划的瞬间收藏。通过日常观察者的镜头，探索光、结构与自然形态的交汇。
-      </p>
+    <div class="editorial-container gallery-hero-grid">
+      <div class="gallery-hero-copy">
+        <p class="gallery-kicker" data-animate="hero-item">Gallery</p>
+        <h1 class="editorial-display" data-animate="hero-item">视觉碎片</h1>
+      </div>
+
+      <aside class="gallery-stat-panel" aria-label="图库概览" data-animate="fade-up">
+        <div>
+          <p class="gallery-stat-label">收录</p>
+          <p class="gallery-stat-value"><span id="gallery-total">0</span><span>张</span></p>
+        </div>
+        <div class="gallery-stat-rule" aria-hidden="true"></div>
+        <div>
+          <p class="gallery-stat-label">当前</p>
+          <p class="gallery-stat-text" id="gallery-summary">全部图片</p>
+        </div>
+      </aside>
     </div>
   </section>
 
   <section class="gallery-content">
     <div class="editorial-container">
-      {/* Filter Chips */}
-      <div class="filter-bar" data-animate="fade-up" id="album-filters">
-        {albums.map((album) => (
-          <button class={`filter-chip ${album === "全部" ? "active" : ""}`} data-album={album}>
-            {album}
-          </button>
-        ))}
+      <div class="gallery-toolbar" data-animate="fade-up">
+        <div>
+          <p class="gallery-toolbar-label">Image Index</p>
+          <h2 class="gallery-toolbar-title">图像索引</h2>
+        </div>
+
+        <div class="filter-bar" id="album-filters" aria-label="图库分类">
+          {
+            albums.map((album) => (
+              <button class={`filter-chip ${album === "全部" ? "active" : ""}`} data-album={album}>
+                {album}
+              </button>
+            ))
+          }
+        </div>
       </div>
 
-      {/* Masonry Grid */}
-      <div class="masonry-grid" id="gallery-grid">
+      <div class="gallery-grid is-empty" id="gallery-grid">
         <div class="empty-placeholder" id="empty-initial">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="empty-icon"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="empty-icon" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
           <p class="empty-title">暂无图片</p>
           <p class="empty-desc">请在后台图库管理中上传图片。</p>
         </div>
       </div>
 
-      {/* Empty state for filtered results */}
       <div id="empty-filtered" class="empty-state hidden">
         <p>该分类下暂无图片。</p>
       </div>
     </div>
   </section>
 
-  {/* Lightbox Dialog - Client Side */}
-  <div id="lightbox-root" class="hidden">
+  <div id="lightbox-root" class="hidden" aria-hidden="true">
     <div class="lightbox-backdrop" id="lightbox-backdrop">
-      <div class="lightbox-container">
-        <button class="lightbox-close" id="lightbox-close" aria-label="关闭">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-        </button>
-        <button class="lightbox-nav lightbox-prev" id="lightbox-prev" aria-label="上一张">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-        </button>
-        <img id="lightbox-image" class="lightbox-image" src="" alt="" />
-        <button class="lightbox-nav lightbox-next" id="lightbox-next" aria-label="下一张">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-        </button>
-        <div class="lightbox-info">
-          <p id="lightbox-title" class="lightbox-title"></p>
-          <p id="lightbox-desc" class="lightbox-desc"></p>
+      <div class="lightbox-container" role="dialog" aria-modal="true" aria-labelledby="lightbox-title">
+        <div class="lightbox-toolbar" aria-label="图片操作">
+          <button class="lightbox-action" id="lightbox-download" type="button" aria-label="下载当前图片">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+          </button>
+          <button class="lightbox-action" id="lightbox-close" type="button" aria-label="关闭">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
         </div>
+
+        <button class="lightbox-nav lightbox-prev" id="lightbox-prev" type="button" aria-label="上一张">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+
+        <figure class="lightbox-figure">
+          <img id="lightbox-image" class="lightbox-image" src="" alt="" />
+          <figcaption class="lightbox-info">
+            <p id="lightbox-title" class="lightbox-title"></p>
+            <p id="lightbox-desc" class="lightbox-desc"></p>
+          </figcaption>
+        </figure>
+
+        <button class="lightbox-nav lightbox-next" id="lightbox-next" type="button" aria-label="下一张">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
       </div>
     </div>
   </div>
 </BaseLayout>
 
-<script define:vars={{ images }}>
+<script>
   const GALLERY_KEY = "admin-gallery-data";
   const SYNC_EVENT = "admin-content:changed";
   const galleryGrid = document.getElementById("gallery-grid");
   const filterBar = document.getElementById("album-filters");
   const emptyInitial = document.getElementById("empty-initial");
   const emptyFiltered = document.getElementById("empty-filtered");
+  const galleryTotal = document.getElementById("gallery-total");
+  const gallerySummary = document.getElementById("gallery-summary");
+
+  const icons = {
+    view: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12s-3.5 6.5-9.5 6.5S2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.5"/></svg>',
+    download: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>',
+  };
 
   function loadGalleryImages() {
     try {
@@ -88,7 +118,7 @@ const albums = ["全部"];
   }
 
   function getCategory(img) {
-    return (img.source === "url" || img.source === "imgbb") ? "图床" : "本地";
+    return img?.source === "url" || img?.source === "imgbb" ? "图床" : "本地";
   }
 
   function escapeHtml(value) {
@@ -101,50 +131,145 @@ const albums = ["全部"];
     }[char]));
   }
 
+  function formatDate(value) {
+    const date = value ? new Date(String(value)) : null;
+    if (!date || Number.isNaN(date.getTime())) return "未标注日期";
+    return date.toLocaleDateString("zh-CN", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  }
+
+  function formatFileSize(bytes) {
+    const size = Number(bytes || 0);
+    if (!size) return "原图";
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+    return `${(size / 1024 / 1024).toFixed(1)} MB`;
+  }
+
+  function sanitizeFilename(name) {
+    const cleaned = String(name || "gallery-image")
+      .replace(/[\\/:*?"<>|]/g, "-")
+      .replace(/\s+/g, " ")
+      .trim();
+    return cleaned || "gallery-image";
+  }
+
+  function inferExtension(url) {
+    try {
+      const pathname = new URL(url, window.location.href).pathname;
+      const match = pathname.match(/\.([a-z0-9]{2,5})$/i);
+      return match ? match[1].toLowerCase() : "jpg";
+    } catch {
+      return "jpg";
+    }
+  }
+
+  function getDownloadName(img) {
+    const base = sanitizeFilename(img?.name || "gallery-image");
+    if (/\.[a-z0-9]{2,5}$/i.test(base)) return base;
+    return `${base}.${inferExtension(img?.url || "")}`;
+  }
+
+  function triggerDownload(url, filename, openInNewTab = false) {
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.rel = "noopener";
+    if (openInNewTab) link.target = "_blank";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+
+  async function downloadImage(img, trigger) {
+    if (!img?.url) return;
+    const filename = getDownloadName(img);
+    trigger?.setAttribute("aria-busy", "true");
+
+    try {
+      const response = await fetch(img.url, { mode: "cors" });
+      if (!response.ok) throw new Error("download failed");
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      triggerDownload(objectUrl, filename);
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 5000);
+    } catch {
+      triggerDownload(img.url, filename, true);
+    } finally {
+      trigger?.removeAttribute("aria-busy");
+    }
+  }
+
   let galleryImages = loadGalleryImages();
   let currentAlbum = "全部";
   let filters = [];
+
+  function getFilteredImages() {
+    return currentAlbum === "全部"
+      ? galleryImages
+      : galleryImages.filter((img) => getCategory(img) === currentAlbum);
+  }
 
   function renderFilters() {
     const categories = ["全部", ...new Set(galleryImages.map(getCategory))];
     if (!categories.includes(currentAlbum)) currentAlbum = "全部";
     if (!filterBar) return;
-    filterBar.innerHTML = categories.map(cat =>
+    filterBar.innerHTML = categories.map((cat) =>
       `<button class="filter-chip ${cat === currentAlbum ? "active" : ""}" data-album="${escapeHtml(cat)}">${escapeHtml(cat)}</button>`
     ).join("");
     filters = Array.from(filterBar.querySelectorAll(".filter-chip"));
   }
 
-  // Re-render gallery grid
   function renderGallery() {
     if (!galleryGrid) return;
-    const existingItems = galleryGrid.querySelectorAll(".gallery-item[data-index]");
-    existingItems.forEach(el => el.remove());
 
-    if (galleryImages.length === 0) {
-      if (emptyInitial) emptyInitial.style.display = "";
-      if (emptyFiltered) emptyFiltered.classList.add("hidden");
-      return;
+    galleryGrid.querySelectorAll(".gallery-item[data-index]").forEach((el) => el.remove());
+    const filtered = getFilteredImages();
+    const hasImages = galleryImages.length > 0;
+    const hasVisibleImages = filtered.length > 0;
+
+    if (galleryTotal) galleryTotal.textContent = String(galleryImages.length);
+    if (gallerySummary) {
+      gallerySummary.textContent = currentAlbum === "全部"
+        ? `${galleryImages.length} 张图片`
+        : `${filtered.length} 张${currentAlbum}图片`;
     }
-    if (emptyInitial) emptyInitial.style.display = "none";
-    if (emptyFiltered) emptyFiltered.classList.add("hidden");
 
-    const filtered = currentAlbum === "全部"
-      ? galleryImages
-      : galleryImages.filter(img => getCategory(img) === currentAlbum);
+    galleryGrid.classList.toggle("is-empty", !hasVisibleImages);
+    galleryGrid.classList.toggle("is-single", filtered.length === 1);
+    galleryGrid.classList.toggle("has-many", filtered.length > 1);
+
+    if (emptyInitial) emptyInitial.style.display = hasImages ? "none" : "";
+    emptyFiltered?.classList.toggle("hidden", !hasImages || hasVisibleImages);
+    if (!hasVisibleImages) return;
 
     filtered.forEach((img, idx) => {
-      const item = document.createElement("div");
-      item.className = "gallery-item group";
-      item.dataset.category = getCategory(img);
-      item.dataset.index = String(galleryImages.indexOf(img));
+      const realIndex = galleryImages.indexOf(img);
+      const title = img.name || "未命名图片";
+      const category = getCategory(img);
+      const item = document.createElement("article");
+      item.className = `gallery-item ${idx === 0 ? "is-featured" : ""}`;
+      item.dataset.category = category;
+      item.dataset.index = String(realIndex);
       item.innerHTML = `
-        <div class="gallery-card">
-          <img src="${escapeHtml(img.url)}" alt="${escapeHtml(img.name || '图片')}" class="gallery-image" loading="lazy" />
-          <div class="gallery-overlay"></div>
-          <div class="gallery-caption">
-            <p class="gallery-category">${getCategory(img)}</p>
-            <h3 class="gallery-title">${escapeHtml(img.name || '图片')}</h3>
+        <div class="gallery-card" role="button" tabindex="0" aria-label="查看 ${escapeHtml(title)}">
+          <div class="gallery-media">
+            <img src="${escapeHtml(img.url)}" alt="${escapeHtml(title)}" class="gallery-image" loading="lazy" decoding="async" />
+          </div>
+          <div class="gallery-meta">
+            <div class="gallery-meta-row">
+              <span class="gallery-category">${escapeHtml(category)}</span>
+              <span class="gallery-date">${escapeHtml(formatDate(img.date))}</span>
+            </div>
+            <h3 class="gallery-title">${escapeHtml(title)}</h3>
+            <p class="gallery-file-meta">${escapeHtml(formatFileSize(img.size))}</p>
+            <div class="gallery-actions" aria-label="图片操作">
+              <button class="gallery-icon-button" type="button" data-gallery-action="open" aria-label="查看 ${escapeHtml(title)}" data-tooltip="查看">${icons.view}</button>
+              <button class="gallery-icon-button" type="button" data-gallery-action="download" aria-label="下载 ${escapeHtml(title)}" data-tooltip="下载">${icons.download}</button>
+            </div>
           </div>
         </div>
       `;
@@ -154,8 +279,8 @@ const albums = ["全部"];
 
   function render() {
     renderGallery();
-    filters.forEach(f => {
-      f.classList.toggle("active", f.dataset.album === currentAlbum);
+    filters.forEach((filter) => {
+      filter.classList.toggle("active", filter.dataset.album === currentAlbum);
     });
   }
 
@@ -166,7 +291,6 @@ const albums = ["全部"];
     render();
   });
 
-  // Lightbox functionality
   const lightboxRoot = document.getElementById("lightbox-root");
   const lightboxBackdrop = document.getElementById("lightbox-backdrop");
   const lightboxImage = document.getElementById("lightbox-image");
@@ -175,13 +299,21 @@ const albums = ["全部"];
   const lightboxClose = document.getElementById("lightbox-close");
   const lightboxPrev = document.getElementById("lightbox-prev");
   const lightboxNext = document.getElementById("lightbox-next");
+  const lightboxDownload = document.getElementById("lightbox-download");
 
   let currentIndex = 0;
   let visibleImages = [];
 
   function updateVisibleImages() {
-    visibleImages = Array.from(document.querySelectorAll(".gallery-item[data-index]:not(.hidden)"))
-      .map((item) => parseInt(item.dataset.index || "0"));
+    visibleImages = Array.from(document.querySelectorAll(".gallery-item[data-index]"))
+      .map((item) => parseInt(item.dataset.index || "0", 10))
+      .filter((idx) => Number.isInteger(idx));
+  }
+
+  function syncLightboxNav() {
+    const multiple = visibleImages.length > 1;
+    if (lightboxPrev) lightboxPrev.hidden = !multiple;
+    if (lightboxNext) lightboxNext.hidden = !multiple;
   }
 
   function openLightbox(index) {
@@ -190,7 +322,9 @@ const albums = ["全部"];
     if (imgIndex === -1) return;
     currentIndex = imgIndex;
     showImage(visibleImages[currentIndex]);
+    syncLightboxNav();
     lightboxRoot?.classList.remove("hidden");
+    lightboxRoot?.setAttribute("aria-hidden", "false");
     document.body.style.overflow = "hidden";
   }
 
@@ -202,43 +336,76 @@ const albums = ["全部"];
       lightboxImage.alt = img.name || "图片";
     }
     if (lightboxTitle) lightboxTitle.textContent = img.name || "图片";
-    if (lightboxDesc) lightboxDesc.textContent = "";
+    if (lightboxDesc) {
+      lightboxDesc.textContent = `${getCategory(img)} · ${formatFileSize(img.size)} · ${formatDate(img.date)}`;
+    }
   }
 
   function closeLightbox() {
     lightboxRoot?.classList.add("hidden");
+    lightboxRoot?.setAttribute("aria-hidden", "true");
     document.body.style.overflow = "";
   }
 
   function goNext() {
+    if (visibleImages.length < 1) return;
     currentIndex = (currentIndex + 1) % visibleImages.length;
     showImage(visibleImages[currentIndex]);
   }
 
   function goPrev() {
+    if (visibleImages.length < 1) return;
     currentIndex = (currentIndex - 1 + visibleImages.length) % visibleImages.length;
     showImage(visibleImages[currentIndex]);
   }
 
-  galleryGrid?.addEventListener("click", (e) => {
-    const item = e.target instanceof Element ? e.target.closest(".gallery-item[data-index]") : null;
+  galleryGrid?.addEventListener("click", (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    const action = target?.closest("[data-gallery-action]");
+    const item = target?.closest(".gallery-item[data-index]");
     if (!item) return;
-    const idx = parseInt(item.dataset.index || "0");
+    const idx = parseInt(item.dataset.index || "0", 10);
+    const img = galleryImages[idx];
+
+    if (action) {
+      event.stopPropagation();
+      if (action.dataset.galleryAction === "download") {
+        downloadImage(img, action);
+      } else {
+        openLightbox(idx);
+      }
+      return;
+    }
+
     openLightbox(idx);
   });
 
-  lightboxClose?.addEventListener("click", closeLightbox);
-  lightboxBackdrop?.addEventListener("click", (e) => {
-    if (e.target === lightboxBackdrop) closeLightbox();
+  galleryGrid?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const card = event.target instanceof Element ? event.target.closest(".gallery-card") : null;
+    const item = card?.closest(".gallery-item[data-index]");
+    if (!item) return;
+    event.preventDefault();
+    openLightbox(parseInt(item.dataset.index || "0", 10));
   });
-  lightboxNext?.addEventListener("click", (e) => { e.stopPropagation(); goNext(); });
-  lightboxPrev?.addEventListener("click", (e) => { e.stopPropagation(); goPrev(); });
 
-  document.addEventListener("keydown", (e) => {
+  lightboxClose?.addEventListener("click", closeLightbox);
+  lightboxBackdrop?.addEventListener("click", (event) => {
+    if (event.target === lightboxBackdrop) closeLightbox();
+  });
+  lightboxNext?.addEventListener("click", (event) => { event.stopPropagation(); goNext(); });
+  lightboxPrev?.addEventListener("click", (event) => { event.stopPropagation(); goPrev(); });
+  lightboxDownload?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const idx = visibleImages[currentIndex];
+    downloadImage(galleryImages[idx], lightboxDownload);
+  });
+
+  document.addEventListener("keydown", (event) => {
     if (lightboxRoot?.classList.contains("hidden")) return;
-    if (e.key === "Escape") closeLightbox();
-    if (e.key === "ArrowRight") goNext();
-    if (e.key === "ArrowLeft") goPrev();
+    if (event.key === "Escape") closeLightbox();
+    if (event.key === "ArrowRight") goNext();
+    if (event.key === "ArrowLeft") goPrev();
   });
 
   function reloadGalleryFromStorage() {
@@ -259,246 +426,462 @@ const albums = ["全部"];
   render();
 </script>
 
-<style>
+<style is:global>
   .editorial-container {
     max-width: 1200px;
     margin: 0 auto;
     padding: 0 24px;
   }
 
-  /* Hero Section */
   .gallery-hero {
-    padding: 80px 0 64px;
+    padding: 86px 0 52px;
+  }
+
+  .gallery-hero-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 48px;
+    align-items: end;
+  }
+
+  .gallery-kicker,
+  .gallery-toolbar-label,
+  .gallery-stat-label,
+  .gallery-category,
+  .gallery-date,
+  .gallery-file-meta,
+  .lightbox-desc {
+    margin: 0;
+    font-family: var(--font-body);
+    letter-spacing: 0;
+  }
+
+  .gallery-kicker,
+  .gallery-toolbar-label {
+    color: #0059b5;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 14px;
   }
 
   .editorial-display {
+    color: #181c23;
     font-family: var(--font-display);
     font-size: 64px;
-    font-weight: 700;
+    font-weight: 720;
+    letter-spacing: 0;
     line-height: 1.05;
-    letter-spacing: -0.02em;
-    color: #181c23;
-    margin-bottom: 24px;
+    margin: 0 0 24px;
   }
 
   .editorial-lead {
+    color: #414753;
     font-family: var(--font-body);
     font-size: 19px;
     font-weight: 400;
-    line-height: 1.5;
-    letter-spacing: -0.011em;
+    letter-spacing: 0;
+    line-height: 1.55;
+    margin: 0;
+    max-width: 660px;
+  }
+
+  .gallery-stat-panel {
+    align-items: stretch;
+    background: rgba(255, 255, 255, 0.64);
+    border: 1px solid rgba(255, 255, 255, 0.72);
+    border-radius: 24px;
+    box-shadow: 0 24px 70px rgba(44, 66, 110, 0.09);
+    display: grid;
+    gap: 18px;
+    padding: 22px;
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+  }
+
+  .gallery-stat-label {
+    color: #717785;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .gallery-stat-value {
+    align-items: baseline;
+    color: #181c23;
+    display: flex;
+    gap: 6px;
+    font-family: var(--font-display);
+    font-size: 44px;
+    font-weight: 760;
+    letter-spacing: 0;
+    line-height: 1;
+    margin: 0;
+  }
+
+  .gallery-stat-value span:last-child,
+  .gallery-stat-text {
     color: #414753;
-    max-width: 640px;
+    font-size: 14px;
+    font-weight: 650;
   }
 
-  /* Gallery Content */
+  .gallery-stat-rule {
+    background: linear-gradient(90deg, rgba(0, 89, 181, 0.26), rgba(193, 198, 214, 0.18));
+    height: 1px;
+  }
+
   .gallery-content {
-    padding-bottom: 96px;
+    padding: 20px 0 112px;
   }
 
-  /* Filter Bar */
+  .gallery-toolbar {
+    align-items: end;
+    display: grid;
+    gap: 24px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    margin-bottom: 28px;
+  }
+
+  .gallery-toolbar-title {
+    color: #181c23;
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 720;
+    letter-spacing: 0;
+    line-height: 1.15;
+    margin: 0;
+  }
+
   .filter-bar {
+    align-items: center;
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
-    margin-bottom: 48px;
+    gap: 10px;
+    justify-content: flex-end;
   }
 
   .filter-chip {
-    font-family: var(--font-body);
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    padding: 8px 20px;
+    background: rgba(255, 255, 255, 0.62);
+    border: 1px solid rgba(193, 198, 214, 0.42);
     border-radius: 9999px;
-    border: 1px solid transparent;
-    background: rgba(236, 237, 247, 0.6);
     color: #414753;
     cursor: pointer;
-    transition: background-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), color 0.2s cubic-bezier(0.23, 1, 0.32, 1), border-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.15s cubic-bezier(0.23, 1, 0.32, 1);
-    transform: scale(1);
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 650;
+    letter-spacing: 0;
+    min-height: 42px;
+    padding: 0 18px;
+    transform: translateY(0) scale(1);
+    transition:
+      background-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+      border-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+      color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+      transform 140ms cubic-bezier(0.2, 0, 0, 1);
   }
 
   @media (hover: hover) and (pointer: fine) {
     .filter-chip:hover {
-      background: rgba(224, 226, 236, 0.8);
+      background: rgba(255, 255, 255, 0.86);
+      border-color: rgba(0, 89, 181, 0.24);
       color: #181c23;
+      transform: translateY(-1px);
     }
   }
 
   .filter-chip:active {
-    transform: scale(0.97);
+    transform: translateY(1px) scale(0.98);
   }
 
   .filter-chip.active {
     background: #0059b5;
-    color: #ffffff;
     border-color: #0059b5;
+    color: #ffffff;
   }
 
-  /* Masonry Grid */
-  .masonry-grid {
-    column-count: 1;
-    column-gap: 24px;
+  .gallery-grid {
+    display: grid;
+    gap: 22px;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
   }
 
-  @media (min-width: 768px) {
-    .masonry-grid {
-      column-count: 2;
-    }
-  }
-
-  @media (min-width: 1024px) {
-    .masonry-grid {
-      column-count: 3;
-    }
+  .gallery-grid.is-empty {
+    display: block;
   }
 
   .gallery-item {
-    break-inside: avoid;
-    margin-bottom: 24px;
-    cursor: pointer;
+    grid-column: span 4;
+    min-width: 0;
   }
 
-  .gallery-item.hidden {
-    display: none;
+  .gallery-item.is-featured {
+    grid-column: span 7;
+  }
+
+  .gallery-item:nth-child(4n + 3) {
+    grid-column: span 5;
+  }
+
+  .gallery-grid.is-single .gallery-item {
+    grid-column: 1 / -1;
   }
 
   .gallery-card {
-    position: relative;
-    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.78);
+    border-radius: 24px;
+    box-shadow: 0 18px 48px rgba(44, 66, 110, 0.08);
+    cursor: pointer;
+    display: grid;
+    height: 100%;
     overflow: hidden;
-    background: rgba(255, 255, 255, 0.4);
-    backdrop-filter: blur(32px);
-    -webkit-backdrop-filter: blur(32px);
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03);
-    transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.3s cubic-bezier(0.23, 1, 0.32, 1);
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
+    transition:
+      border-color 220ms cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 220ms cubic-bezier(0.16, 1, 0.3, 1),
+      transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   @media (hover: hover) and (pointer: fine) {
     .gallery-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
+      border-color: rgba(0, 89, 181, 0.22);
+      box-shadow: 0 26px 66px rgba(44, 66, 110, 0.14);
+      transform: translateY(-3px);
     }
   }
 
   .gallery-card:active {
-    transform: translateY(-1px) scale(0.99);
+    transform: translateY(1px) scale(0.99);
+  }
+
+  .gallery-card:focus-visible,
+  .filter-chip:focus-visible,
+  .gallery-icon-button:focus-visible,
+  .lightbox-action:focus-visible,
+  .lightbox-nav:focus-visible {
+    outline: 2px solid #0071e3;
+    outline-offset: 4px;
+  }
+
+  .gallery-media {
+    aspect-ratio: 4 / 5;
+    background: #eef2f8;
+    overflow: hidden;
+  }
+
+  .gallery-item.is-featured .gallery-media {
+    aspect-ratio: 16 / 10;
+  }
+
+  .gallery-grid.is-single .gallery-card {
+    grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.75fr);
+  }
+
+  .gallery-grid.is-single .gallery-media {
+    aspect-ratio: 16 / 9;
+    min-height: 360px;
   }
 
   .gallery-image {
-    width: 100%;
-    height: auto;
-    object-fit: cover;
     display: block;
-    transition: transform 0.7s cubic-bezier(0.23, 1, 0.32, 1);
+    height: 100%;
+    object-fit: cover;
+    transform: scale(1);
+    transition: transform 700ms cubic-bezier(0.16, 1, 0.3, 1);
+    width: 100%;
   }
 
   @media (hover: hover) and (pointer: fine) {
-    .group:hover .gallery-image {
-      transform: scale(1.05);
+    .gallery-card:hover .gallery-image {
+      transform: scale(1.035);
     }
   }
 
-  .gallery-overlay {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.4), transparent, transparent);
-    opacity: 0;
-    transition: opacity 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+  .gallery-meta {
+    display: grid;
+    gap: 12px;
+    padding: 18px;
   }
 
-  @media (hover: hover) and (pointer: fine) {
-    .group:hover .gallery-overlay {
-      opacity: 1;
-    }
+  .gallery-grid.is-single .gallery-meta {
+    align-content: end;
+    padding: 28px;
   }
 
-  .gallery-caption {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 24px;
-    opacity: 0;
-    transform: translateY(16px);
-    transition: opacity 0.3s cubic-bezier(0.23, 1, 0.32, 1), transform 0.3s cubic-bezier(0.23, 1, 0.32, 1);
-  }
-
-  @media (hover: hover) and (pointer: fine) {
-    .group:hover .gallery-caption {
-      opacity: 1;
-      transform: translateY(0);
-    }
+  .gallery-meta-row {
+    align-items: center;
+    display: flex;
+    gap: 10px;
+    justify-content: space-between;
+    min-width: 0;
   }
 
   .gallery-category {
-    font-family: var(--font-body);
+    background: rgba(0, 89, 181, 0.09);
+    border-radius: 9999px;
+    color: #0059b5;
+    flex: 0 0 auto;
+    font-size: 12px;
+    font-weight: 750;
+    padding: 6px 10px;
+  }
+
+  .gallery-date {
+    color: #717785;
     font-size: 12px;
     font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.8);
-    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .gallery-title {
+    color: #181c23;
     font-family: var(--font-display);
-    font-size: 24px;
-    font-weight: 600;
-    line-height: 1.2;
-    letter-spacing: -0.01em;
-    color: #ffffff;
+    font-size: 18px;
+    font-weight: 720;
+    letter-spacing: 0;
+    line-height: 1.24;
     margin: 0;
+    overflow-wrap: anywhere;
   }
 
-  /* Empty state */
-  .empty-state {
-    text-align: center;
-    padding: 48px 0;
-    color: #717785;
-    font-size: 17px;
+  .gallery-grid.is-single .gallery-title {
+    font-size: 26px;
+    line-height: 1.2;
   }
+
+  .gallery-file-meta {
+    color: #717785;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .gallery-actions {
+    align-items: center;
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .gallery-icon-button,
+  .lightbox-action,
+  .lightbox-nav {
+    align-items: center;
+    border: 1px solid rgba(193, 198, 214, 0.38);
+    cursor: pointer;
+    display: inline-flex;
+    justify-content: center;
+    position: relative;
+    transform: translateY(0) scale(1);
+    transition:
+      background-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+      border-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+      color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+      transform 140ms cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  .gallery-icon-button {
+    background: rgba(255, 255, 255, 0.72);
+    border-radius: 9999px;
+    color: #414753;
+    height: 38px;
+    width: 38px;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .gallery-icon-button:hover {
+      background: #0059b5;
+      border-color: #0059b5;
+      color: #ffffff;
+      transform: translateY(-1px);
+    }
+
+    .gallery-icon-button:hover::after {
+      opacity: 1;
+      transform: translate(-50%, -8px);
+    }
+  }
+
+  .gallery-icon-button::after {
+    background: #181c23;
+    border-radius: 9999px;
+    bottom: 100%;
+    color: #ffffff;
+    content: attr(data-tooltip);
+    font-size: 12px;
+    font-weight: 650;
+    left: 50%;
+    opacity: 0;
+    padding: 5px 8px;
+    pointer-events: none;
+    position: absolute;
+    transform: translate(-50%, -4px);
+    transition: opacity 160ms cubic-bezier(0.16, 1, 0.3, 1), transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
+    white-space: nowrap;
+  }
+
+  .gallery-icon-button:active,
+  .lightbox-action:active,
+  .lightbox-nav:active {
+    transform: translateY(1px) scale(0.96);
+  }
+
+  .gallery-icon-button[aria-busy="true"],
+  .lightbox-action[aria-busy="true"] {
+    opacity: 0.64;
+    pointer-events: none;
+  }
+
+  .empty-state {
+    color: #717785;
+    font-size: 16px;
+    padding: 44px 0;
+    text-align: center;
+  }
+
   .empty-state.hidden {
     display: none;
   }
 
-  /* Empty Placeholder */
   .empty-placeholder {
+    align-items: center;
+    background: rgba(255, 255, 255, 0.56);
+    border: 1px dashed rgba(113, 119, 133, 0.28);
+    border-radius: 24px;
+    color: #717785;
     display: flex;
     flex-direction: column;
-    align-items: center;
     justify-content: center;
-    padding: 80px 24px;
+    min-height: 320px;
+    padding: 64px 24px;
     text-align: center;
-    border: 2px dashed rgba(193,198,214,0.4);
-    border-radius: 16px;
-    background: rgba(244,246,250,0.4);
-    column-span: all;
   }
-  .empty-placeholder .empty-icon {
-    color: #c1c6d6;
-    margin-bottom: 16px;
+
+  .empty-icon {
+    color: #8e96a7;
+    margin-bottom: 18px;
   }
-  .empty-placeholder .empty-title {
-    font-family: var(--font-display);
-    font-size: 18px;
-    font-weight: 600;
+
+  .empty-title {
     color: #181c23;
+    font-family: var(--font-display);
+    font-size: 19px;
+    font-weight: 720;
+    letter-spacing: 0;
     margin: 0 0 8px;
   }
-  .empty-placeholder .empty-desc {
-    font-size: 14px;
+
+  .empty-desc {
     color: #717785;
+    font-size: 14px;
+    line-height: 1.6;
     margin: 0;
   }
 
-  /* Lightbox */
   #lightbox-root {
-    position: fixed;
     inset: 0;
+    position: fixed;
     z-index: 100;
   }
 
@@ -507,142 +890,225 @@ const albums = ["全部"];
   }
 
   .lightbox-backdrop {
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.95);
-    display: flex;
     align-items: center;
+    background: rgba(9, 13, 20, 0.94);
+    display: flex;
+    inset: 0;
     justify-content: center;
+    position: absolute;
   }
 
   .lightbox-container {
+    align-items: center;
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr) 64px;
+    height: 100%;
+    padding: 34px;
     position: relative;
     width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
   }
 
-  .lightbox-close {
+  .lightbox-toolbar {
+    display: flex;
+    gap: 10px;
     position: absolute;
-    top: 24px;
-    right: 24px;
-    z-index: 10;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.8);
-    border: none;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.15s cubic-bezier(0.23, 1, 0.32, 1);
-    transform: scale(1);
+    right: 28px;
+    top: 28px;
   }
 
-  @media (hover: hover) and (pointer: fine) {
-    .lightbox-close:hover {
-      background-color: rgba(255, 255, 255, 0.2);
-    }
+  .lightbox-action,
+  .lightbox-nav {
+    background: rgba(255, 255, 255, 0.09);
+    border-color: rgba(255, 255, 255, 0.14);
+    color: rgba(255, 255, 255, 0.86);
   }
 
-  .lightbox-close:active {
-    transform: scale(0.92);
+  .lightbox-action {
+    border-radius: 9999px;
+    height: 42px;
+    width: 42px;
   }
 
   .lightbox-nav {
-    position: absolute;
-    z-index: 10;
-    width: 48px;
+    border-radius: 9999px;
     height: 48px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.8);
-    border: none;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.15s cubic-bezier(0.23, 1, 0.32, 1);
-    transform: scale(1);
+    justify-self: center;
+    width: 48px;
   }
 
   @media (hover: hover) and (pointer: fine) {
+    .lightbox-action:hover,
     .lightbox-nav:hover {
-      background-color: rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.16);
+      border-color: rgba(255, 255, 255, 0.26);
+      color: #ffffff;
+      transform: translateY(-1px);
     }
   }
 
-  .lightbox-nav:active {
-    transform: scale(0.92);
-  }
-
-  .lightbox-prev {
-    left: 24px;
-  }
-
-  .lightbox-next {
-    right: 24px;
+  .lightbox-figure {
+    align-items: center;
+    display: grid;
+    gap: 20px;
+    justify-items: center;
+    margin: 0;
+    min-width: 0;
   }
 
   .lightbox-image {
-    max-height: 75vh;
-    max-width: 90vw;
+    border-radius: 14px;
+    box-shadow: 0 30px 90px rgba(0, 0, 0, 0.32);
+    display: block;
+    max-height: 76vh;
+    max-width: 100%;
     object-fit: contain;
-    border-radius: 8px;
   }
 
   .lightbox-info {
-    position: absolute;
-    bottom: 32px;
-    left: 50%;
-    transform: translateX(-50%);
+    color: #ffffff;
     text-align: center;
-    color: white;
   }
 
   .lightbox-title {
+    color: #ffffff;
     font-family: var(--font-display);
     font-size: 20px;
-    font-weight: 600;
-    margin-bottom: 4px;
+    font-weight: 720;
+    letter-spacing: 0;
+    line-height: 1.3;
+    margin: 0 0 6px;
+    overflow-wrap: anywhere;
   }
 
   .lightbox-desc {
-    font-family: var(--font-body);
-    font-size: 14px;
-    color: rgba(255, 255, 255, 0.6);
+    color: rgba(255, 255, 255, 0.62);
+    font-size: 13px;
+    font-weight: 600;
   }
 
-  /* Responsive */
+  @media (prefers-reduced-motion: reduce) {
+    .filter-chip,
+    .gallery-card,
+    .gallery-image,
+    .gallery-icon-button,
+    .gallery-icon-button::after,
+    .lightbox-action,
+    .lightbox-nav {
+      transition: none !important;
+    }
+  }
+
   @media (max-width: 1024px) {
+    .gallery-hero-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .gallery-stat-panel {
+      grid-template-columns: 1fr auto 1fr;
+      max-width: 520px;
+    }
+
+    .gallery-stat-rule {
+      height: auto;
+      width: 1px;
+    }
+
     .editorial-display {
       font-size: 48px;
     }
+
+    .gallery-toolbar {
+      align-items: start;
+      grid-template-columns: 1fr;
+    }
+
+    .filter-bar {
+      justify-content: flex-start;
+    }
+
+    .gallery-item,
+    .gallery-item.is-featured,
+    .gallery-item:nth-child(4n + 3) {
+      grid-column: span 6;
+    }
+
+    .gallery-grid.is-single .gallery-card {
+      grid-template-columns: 1fr;
+    }
+
+    .gallery-grid.is-single .gallery-media {
+      min-height: 0;
+    }
   }
 
-  @media (max-width: 640px) {
+  @media (max-width: 720px) {
+    .editorial-container {
+      padding: 0 16px;
+    }
+
     .gallery-hero {
-      padding: 48px 0 40px;
+      padding: 52px 0 34px;
     }
 
     .editorial-display {
-      font-size: 36px;
+      font-size: 38px;
     }
 
     .editorial-lead {
       font-size: 17px;
     }
 
-    .editorial-container {
-      padding: 0 16px;
+    .gallery-stat-panel {
+      grid-template-columns: 1fr;
+    }
+
+    .gallery-stat-rule {
+      height: 1px;
+      width: auto;
+    }
+
+    .gallery-content {
+      padding-bottom: 72px;
+    }
+
+    .gallery-grid {
+      display: grid;
+      gap: 18px;
+      grid-template-columns: 1fr;
+    }
+
+    .gallery-item,
+    .gallery-item.is-featured,
+    .gallery-item:nth-child(4n + 3) {
+      grid-column: auto;
+    }
+
+    .gallery-media,
+    .gallery-item.is-featured .gallery-media,
+    .gallery-grid.is-single .gallery-media {
+      aspect-ratio: 4 / 3;
+    }
+
+    .gallery-grid.is-single .gallery-title {
+      font-size: 20px;
+    }
+
+    .lightbox-container {
+      grid-template-columns: 1fr;
+      padding: 22px 16px 28px;
+    }
+
+    .lightbox-toolbar {
+      right: 16px;
+      top: 16px;
     }
 
     .lightbox-nav {
       display: none;
+    }
+
+    .lightbox-image {
+      max-height: 68vh;
     }
   }
 </style>
