@@ -248,30 +248,32 @@ export function initDockPill() {
   const nav = document.getElementById("desktop-nav");
   const pill = document.getElementById("nav-pill");
   if (!nav || !pill) return;
+  const navEl = nav;
+  const pillEl = pill;
 
-  const links = nav.querySelectorAll<HTMLElement>(".editorial-nav-link");
-  let activeLink = nav.querySelector<HTMLElement>(".editorial-nav-link.is-active");
+  const links = navEl.querySelectorAll<HTMLElement>(".editorial-nav-link");
+  let activeLink = navEl.querySelector<HTMLElement>(".editorial-nav-link.is-active");
   const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   function getMetrics(target: HTMLElement) {
-    const navRect = nav!.getBoundingClientRect();
+    const navRect = navEl.getBoundingClientRect();
     const targetRect = target.getBoundingClientRect();
     return {
       width: targetRect.width,
       height: targetRect.height,
-      x: targetRect.left - navRect.left + nav.scrollLeft,
-      y: targetRect.top - navRect.top + nav.scrollTop,
+      x: targetRect.left - navRect.left + navEl.scrollLeft,
+      y: targetRect.top - navRect.top + navEl.scrollTop,
     };
   }
 
   // gsap.quickTo for hover — reuses a single tween per property (no allocation per event)
-  const pillOpacityTo = gsap.quickTo(pill, "opacity", { duration: 0.2, ease: "power2.out" });
+  const pillOpacityTo = gsap.quickTo(pillEl, "opacity", { duration: 0.2, ease: "power2.out" });
 
   function movePillTo(target: HTMLElement, animate = true) {
     const m = getMetrics(target);
 
     if (!animate || prefersReduced) {
-      gsap.set(pill, {
+      gsap.set(pillEl, {
         width: m.width,
         height: m.height,
         x: m.x,
@@ -285,12 +287,12 @@ export function initDockPill() {
 
     // --- Performance trick ---
     // Read current layout size once (batched read)
-    const curW = pill.offsetWidth;
-    const curH = pill.offsetHeight;
+    const curW = pillEl.offsetWidth;
+    const curH = pillEl.offsetHeight;
 
     // Set new layout dimensions instantly (single layout write),
     // then compensate with inverse scale so it *visually* stays the same
-    gsap.set(pill, {
+    gsap.set(pillEl, {
       width: m.width,
       height: m.height,
       scaleX: curW / m.width,
@@ -302,7 +304,7 @@ export function initDockPill() {
     const tl = gsap.timeline({ overwrite: true });
 
     // Phase 1: subtle squeeze (feels like the pill "picks up")
-    tl.to(pill, {
+    tl.to(pillEl, {
       scaleX: (curW / m.width) * 0.88,
       scaleY: 0.78,
       duration: 0.1,
@@ -310,7 +312,7 @@ export function initDockPill() {
     });
 
     // Phase 2: slide + expand to land on target
-    tl.to(pill, {
+    tl.to(pillEl, {
       x: m.x,
       y: m.y,
       scaleX: 1,
@@ -365,7 +367,7 @@ export function initDockPill() {
   window.addEventListener("resize", () => {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
-      const current = nav.querySelector<HTMLElement>(".editorial-nav-link.is-active");
+      const current = navEl.querySelector<HTMLElement>(".editorial-nav-link.is-active");
       if (current) movePillTo(current, false);
     }, 100);
   });

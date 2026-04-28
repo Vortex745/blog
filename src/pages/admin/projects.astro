@@ -1,6 +1,7 @@
 ---
 import AdminLayout from "../../layouts/AdminLayout.astro";
 import { getCollection } from "astro:content";
+import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
 
 const projects = await getCollection("projects");
 ---
@@ -125,7 +126,7 @@ const projects = await getCollection("projects");
             <input type="file" id="p-image" name="imageFile" accept="image/jpeg,image/png,image/gif,image/webp,image/bmp,image/tiff" class="image-upload-input" />
             <div id="image-preview-area" class="image-preview-area">
               <div class="image-upload-placeholder">
-                <img src="/admin-placeholder.png" alt="" loading="lazy" class="admin-placeholder-art" />
+                <img src={ADMIN_IMAGE_PLACEHOLDER} alt="" loading="lazy" class="admin-placeholder-art" />
                 <span>点击上传或拖拽图片到此处</span>
                 <small>可不上传；前台将使用默认占位图</small>
               </div>

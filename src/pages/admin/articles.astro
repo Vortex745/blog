@@ -1,5 +1,6 @@
 ---
 import AdminLayout from "../../layouts/AdminLayout.astro";
+import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
 ---
 
 <AdminLayout title="文章管理" current="articles">
@@ -55,7 +56,7 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
             <input type="file" id="cover-image-input" accept="image/jpeg,image/png,image/gif,image/webp,image/bmp,image/tiff" class="cover-upload-input" />
             <div id="cover-preview-area" class="cover-preview-area">
               <div class="cover-placeholder" id="cover-placeholder">
-                <img src="/admin-placeholder.png" alt="" loading="lazy" class="admin-placeholder-art" />
+                <img src={ADMIN_IMAGE_PLACEHOLDER} alt="" loading="lazy" class="admin-placeholder-art" />
                 <span>点击选择封面图片</span>
                 <small>可不上传；前台将使用默认占位图</small>
               </div>
@@ -149,7 +150,7 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
             <!-- Paste Upload Panel -->
             <div id="tab-panel-paste" class="content-image-panel">
               <div class="paste-area" id="paste-area" tabindex="0" role="button" aria-label="粘贴图片上传区域">
-                <img src="/admin-placeholder.png" alt="" loading="lazy" class="admin-placeholder-art admin-placeholder-art-small" />
+                <img src={ADMIN_IMAGE_PLACEHOLDER} alt="" loading="lazy" class="admin-placeholder-art admin-placeholder-art-small" />
                 <span>复制图片后在正文编辑器或此区域按 Ctrl+V</span>
                 <small>剪贴板图片会通过正文图片接口上传并自动插入 Markdown</small>
               </div>

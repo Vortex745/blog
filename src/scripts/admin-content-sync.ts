@@ -1,3 +1,5 @@
+import { COVER_IMAGE_PLACEHOLDER } from "../lib/placeholder-images";
+
 type AdminArticle = {
   id?: string;
   title?: string;
@@ -24,7 +26,7 @@ type AdminProject = {
 
 const ARTICLE_KEY = "admin-articles-data";
 const PROJECT_KEY = "admin-projects-data";
-const COVER_PLACEHOLDER = "/frontend-cover-placeholder.png";
+const COVER_PLACEHOLDER = COVER_IMAGE_PLACEHOLDER;
 const SYNC_EVENT = "admin-content:changed";
 const SYNCED_ATTR = "data-admin-synced";
 

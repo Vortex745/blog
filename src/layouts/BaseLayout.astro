@@ -131,11 +131,20 @@ const currentPath = Astro.url.pathname;
           </form>
 
           <!-- Mobile menu toggle -->
-          <button id="menu-toggle" class="editorial-icon-btn md:hidden" aria-label="Open menu" aria-expanded="false">
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-              <rect x="2" y="5" width="14" height="1.5" rx="0.75" fill="currentColor" />
-              <rect x="2" y="11" width="14" height="1.5" rx="0.75" fill="currentColor" />
-            </svg>
+          <button id="menu-toggle" class="editorial-icon-btn md:hidden" aria-label="打开菜单" aria-expanded="false">
+            <span class="t-icon-swap" data-state="a" aria-hidden="true">
+              <span class="t-icon" data-icon="a">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <rect x="2" y="5" width="14" height="1.5" rx="0.75" fill="currentColor" />
+                  <rect x="2" y="11" width="14" height="1.5" rx="0.75" fill="currentColor" />
+                </svg>
+              </span>
+              <span class="t-icon" data-icon="b">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <path d="M4 4L14 14M14 4L4 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                </svg>
+              </span>
+            </span>
           </button>
         </div>
       </div>
@@ -143,7 +152,7 @@ const currentPath = Astro.url.pathname;
 
     <!-- Mobile menu overlay -->
     <div id="mobile-menu" class="mobile-menu" aria-hidden="true">
-      <div class="mobile-menu__content">
+      <div class="mobile-menu__content t-panel-slide" data-open="false">
         {
           navLinks.map((link) => (
             <a href={link.href} class="mobile-menu__link">
@@ -184,27 +193,26 @@ const currentPath = Astro.url.pathname;
       const menu = document.getElementById("mobile-menu");
 
       if (toggle && menu) {
+        const menuPanel = menu.querySelector(".mobile-menu__content");
+        const iconSwap = toggle.querySelector(".t-icon-swap");
+
+        function setMenuOpen(open) {
+          menu.classList.toggle("is-open", open);
+          menu.setAttribute("aria-hidden", String(!open));
+          menuPanel?.setAttribute("data-open", String(open));
+          toggle.setAttribute("aria-expanded", String(open));
+          toggle.setAttribute("aria-label", open ? "关闭菜单" : "打开菜单");
+          iconSwap?.setAttribute("data-state", open ? "b" : "a");
+        }
+
         toggle.addEventListener("click", () => {
           const isOpen = menu.classList.contains("is-open");
-          if (!isOpen) {
-            menu.classList.add("is-open");
-            menu.setAttribute("aria-hidden", "false");
-            toggle.setAttribute("aria-expanded", "true");
-            toggle.innerHTML = `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 4L14 14M14 4L4 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
-          } else {
-            menu.classList.remove("is-open");
-            menu.setAttribute("aria-hidden", "true");
-            toggle.setAttribute("aria-expanded", "false");
-            toggle.innerHTML = `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="5" width="14" height="1.5" rx="0.75" fill="currentColor"/><rect x="2" y="11" width="14" height="1.5" rx="0.75" fill="currentColor"/></svg>`;
-          }
+          setMenuOpen(!isOpen);
         });
 
         menu.querySelectorAll("a").forEach((link) => {
           link.addEventListener("click", () => {
-            menu.classList.remove("is-open");
-            menu.setAttribute("aria-hidden", "true");
-            toggle.setAttribute("aria-expanded", "false");
-            toggle.innerHTML = `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="5" width="14" height="1.5" rx="0.75" fill="currentColor"/><rect x="2" y="11" width="14" height="1.5" rx="0.75" fill="currentColor"/></svg>`;
+            setMenuOpen(false);
           });
         });
       }
@@ -459,6 +467,11 @@ const currentPath = Astro.url.pathname;
         transform: scale(0.92);
       }
 
+      .editorial-icon-btn .t-icon {
+        display: grid;
+        place-items: center;
+      }
+
       /* Mobile menu */
       .mobile-menu {
         position: fixed;
@@ -480,20 +493,13 @@ const currentPath = Astro.url.pathname;
       }
 
       .mobile-menu__content {
+        --panel-translate-y: 36px;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         height: 100%;
         gap: 32px;
-        transform: translateY(8px) scale(0.98);
-        opacity: 0;
-        transition: transform 200ms cubic-bezier(0.23, 1, 0.32, 1), opacity 200ms cubic-bezier(0.23, 1, 0.32, 1);
-      }
-
-      .mobile-menu.is-open .mobile-menu__content {
-        transform: translateY(0) scale(1);
-        opacity: 1;
       }
 
       .mobile-menu__link {

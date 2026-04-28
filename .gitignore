@@ -20,6 +20,10 @@ core.*
 *.core
 *.dmp
 *.stackdump
+# Obsolete local placeholder assets replaced by remote URLs
+public/about-avatar-placeholder.png
+public/admin-placeholder.png
+public/frontend-cover-placeholder.png
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

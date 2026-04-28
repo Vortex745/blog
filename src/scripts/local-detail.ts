@@ -30,8 +30,6 @@ type TocItem = {
 
 const ARTICLE_KEY = "admin-articles-data";
 const PROJECT_KEY = "admin-projects-data";
-const COVER_PLACEHOLDER = "/frontend-cover-placeholder.png";
-
 function readList<T>(key: string): T[] {
   try {
     const raw = localStorage.getItem(key);

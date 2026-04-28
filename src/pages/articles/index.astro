@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { getCollection } from "astro:content";
+import { COVER_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
 
 const articles = await getCollection("articles");
 
@@ -9,7 +10,7 @@ const sortedArticles = articles.sort(
 );
 
 const allTags = [...new Set(sortedArticles.flatMap((a) => a.data.tags))];
-const COVER_PLACEHOLDER = "/frontend-cover-placeholder.png";
+const COVER_PLACEHOLDER = COVER_IMAGE_PLACEHOLDER;
 
 const formatDate = (date: Date) =>
   new Date(date).toLocaleDateString("zh-CN", {

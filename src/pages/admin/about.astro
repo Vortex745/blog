@@ -1,8 +1,9 @@
 ---
 import AdminLayout from "../../layouts/AdminLayout.astro";
 import { profile } from "../../data/profile";
+import { ABOUT_AVATAR_PLACEHOLDER } from "../../lib/placeholder-images";
 
-const DEFAULT_AVATAR = "/about-avatar-placeholder.png";
+const DEFAULT_AVATAR = ABOUT_AVATAR_PLACEHOLDER;
 const initialAvatar = profile.avatar || DEFAULT_AVATAR;
 ---
 
@@ -178,9 +179,9 @@ const initialAvatar = profile.avatar || DEFAULT_AVATAR;
   </form>
 </AdminLayout>
 
-<script>
+<script define:vars={{ defaultAvatar: DEFAULT_AVATAR }}>
   const ABOUT_KEY = "admin-about-data";
-  const DEFAULT_AVATAR = "/about-avatar-placeholder.png";
+  const DEFAULT_AVATAR = defaultAvatar;
 
   // ===== Elements =====
   const form = document.getElementById("about-form");
