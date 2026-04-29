@@ -116,8 +116,39 @@ const projects = await getCollection("projects");
           </div>
         </div>
         <div class="field-group">
-          <label for="p-desc" class="field-label">项目介绍 <span class="required">*</span></label>
+          <div class="field-label-row">
+            <label for="p-desc" class="field-label">项目介绍 <span class="required">*</span></label>
+            <button type="button" id="btn-polish-project" class="btn-secondary btn-small">AI 润色</button>
+          </div>
           <textarea id="p-desc" name="description" class="field-input field-textarea" rows="4" placeholder="输入项目详细介绍" required></textarea>
+          <div class="polish-options hidden" id="project-polish-options">
+            <div class="polish-options-bar">
+              <label class="field-label" style="margin-bottom:0">AI 润色</label>
+              <div class="polish-presets">
+                <button type="button" class="polish-preset active" data-preset="polite">润色修饰</button>
+                <button type="button" class="polish-preset" data-preset="concise">精简紧凑</button>
+                <button type="button" class="polish-preset" data-preset="expand">扩写丰富</button>
+              </div>
+              <div class="polish-actions">
+                <button type="button" id="btn-project-polish-run" class="btn-primary btn-small">执行润色</button>
+                <button type="button" id="btn-project-polish-cancel" class="btn-secondary btn-small">取消</button>
+              </div>
+            </div>
+            <div class="polish-custom-prompt">
+              <input id="project-polish-custom" type="text" class="field-input" placeholder="自定义润色指令，如：更偏作品集介绍语气（可选）" />
+            </div>
+            <div id="project-polish-status" class="polish-status"></div>
+            <div class="polish-diff hidden" id="project-polish-diff">
+              <div class="diff-header">
+                <span class="diff-label">润色结果预览</span>
+                <div class="diff-actions">
+                  <button type="button" id="btn-project-polish-apply" class="btn-primary btn-small">应用</button>
+                  <button type="button" id="btn-project-polish-discard" class="btn-secondary btn-small">放弃</button>
+                </div>
+              </div>
+              <div class="diff-body" id="project-polish-diff-body"></div>
+            </div>
+          </div>
         </div>
         <!-- Image Upload -->
         <div class="field-group">
@@ -148,6 +179,8 @@ const projects = await getCollection("projects");
 </AdminLayout>
 
 <script>
+  import { getLlmSettings, requestLlmChat } from "../../scripts/admin-llm";
+
   // LocalStorage key
   const STORAGE_KEY = "admin-projects-data";
 
@@ -170,8 +203,27 @@ const projects = await getCollection("projects");
   const projectTagInput = document.getElementById("project-tag-input");
   const projectTagList = document.getElementById("project-tag-list");
   const projectTagsHidden = document.getElementById("p-tech");
+  const projectDescInput = document.getElementById("p-desc");
+  const btnPolishProject = document.getElementById("btn-polish-project");
+  const projectPolishOptions = document.getElementById("project-polish-options");
+  const btnProjectPolishRun = document.getElementById("btn-project-polish-run");
+  const btnProjectPolishCancel = document.getElementById("btn-project-polish-cancel");
+  const projectPolishCustom = document.getElementById("project-polish-custom");
+  const projectPolishStatus = document.getElementById("project-polish-status");
+  const projectPolishDiff = document.getElementById("project-polish-diff");
+  const projectPolishDiffBody = document.getElementById("project-polish-diff-body");
+  const btnProjectPolishApply = document.getElementById("btn-project-polish-apply");
+  const btnProjectPolishDiscard = document.getElementById("btn-project-polish-discard");
   const PROJECT_TAG_LIMIT = 8;
   let currentProjectTags = [];
+  let currentPolishPreset = "polite";
+  let polishedProjectDescription = "";
+
+  const PROJECT_POLISH_PROMPTS = {
+    polite: "请润色以下项目介绍，使其更清晰、专业、有吸引力，但保留原始信息和语气。只输出润色后的项目介绍，不要解释。",
+    concise: "请精简以下项目介绍，去掉冗余表达，保留关键亮点。只输出精简后的项目介绍，不要解释。",
+    expand: "请扩写以下项目介绍，在保留事实的基础上补充价值、场景和亮点，使其更适合作品集展示。只输出扩写后的项目介绍，不要解释。",
+  };
 
   // Load from localStorage or default
   function loadProjects() {
@@ -329,6 +381,28 @@ const projects = await getCollection("projects");
     }, 1000);
   }
 
+  function showProjectPolishStatus(text, type) {
+    if (!projectPolishStatus) return;
+    projectPolishStatus.textContent = text;
+    projectPolishStatus.className = "polish-status is-" + type;
+  }
+
+  function renderProjectPolishDiff(original, polished) {
+    if (!projectPolishDiffBody) return;
+    projectPolishDiffBody.innerHTML = `
+      <div class="diff-content">
+        <div class="diff-section">
+          <div class="diff-section-label">润色后</div>
+          <pre class="diff-pre diff-new">${escapeHtml(polished)}</pre>
+        </div>
+        <div class="diff-section">
+          <div class="diff-section-label">原始内容</div>
+          <pre class="diff-pre diff-old">${escapeHtml(original)}</pre>
+        </div>
+      </div>
+    `;
+  }
+
   function getProjectValidationMessage(field) {
     const fieldName = {
       "p-title": "请填写项目名称",
@@ -362,6 +436,10 @@ const projects = await getCollection("projects");
     currentProjectTags = [];
     renderProjectTags();
     resetImagePreview();
+    polishedProjectDescription = "";
+    if (projectPolishOptions) projectPolishOptions.classList.add("hidden");
+    if (projectPolishDiff) projectPolishDiff.classList.add("hidden");
+    showProjectPolishStatus("", "info");
   }
 
   // Image upload handlers
@@ -472,6 +550,87 @@ const projects = await getCollection("projects");
     renderProjectTags();
   });
 
+  document.querySelectorAll("#project-polish-options .polish-preset").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll("#project-polish-options .polish-preset").forEach((item) => item.classList.remove("active"));
+      btn.classList.add("active");
+      currentPolishPreset = btn.dataset.preset || "polite";
+    });
+  });
+
+  btnPolishProject?.addEventListener("click", () => {
+    if (!projectDescInput?.value?.trim()) {
+      showToast("请先填写项目介绍", "error");
+      showStatus("请先填写项目介绍", "error");
+      focusInvalidField(projectDescInput);
+      return;
+    }
+    const settings = getLlmSettings();
+    if (!settings?.baseUrl || !settings?.apiKey || !settings?.model) {
+      showToast("请先在 API 管理中配置 LLM API", "error");
+      showStatus("请先在 API 管理中配置 LLM API", "error");
+      return;
+    }
+    polishedProjectDescription = "";
+    if (projectPolishOptions) projectPolishOptions.classList.remove("hidden");
+    if (projectPolishDiff) projectPolishDiff.classList.add("hidden");
+    showProjectPolishStatus("", "info");
+  });
+
+  btnProjectPolishCancel?.addEventListener("click", () => {
+    if (projectPolishOptions) projectPolishOptions.classList.add("hidden");
+    if (projectPolishDiff) projectPolishDiff.classList.add("hidden");
+    polishedProjectDescription = "";
+  });
+
+  btnProjectPolishRun?.addEventListener("click", async () => {
+    const content = projectDescInput?.value?.trim();
+    if (!content) {
+      showProjectPolishStatus("没有可润色的内容", "error");
+      return;
+    }
+
+    const customPrompt = projectPolishCustom?.value?.trim();
+    const systemPrompt = customPrompt || PROJECT_POLISH_PROMPTS[currentPolishPreset] || PROJECT_POLISH_PROMPTS.polite;
+
+    if (btnProjectPolishRun) btnProjectPolishRun.disabled = true;
+    showProjectPolishStatus("正在润色中，请稍候...", "info");
+
+    try {
+      polishedProjectDescription = await requestLlmChat({
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content },
+        ],
+        temperature: 0.7,
+      });
+      renderProjectPolishDiff(content, polishedProjectDescription);
+      if (projectPolishDiff) projectPolishDiff.classList.remove("hidden");
+      showProjectPolishStatus("润色完成，请预览对比", "success");
+    } catch (err) {
+      showProjectPolishStatus("润色失败: " + (err instanceof Error ? err.message : String(err)), "error");
+    } finally {
+      if (btnProjectPolishRun) btnProjectPolishRun.disabled = false;
+    }
+  });
+
+  btnProjectPolishApply?.addEventListener("click", () => {
+    if (polishedProjectDescription && projectDescInput) {
+      projectDescInput.value = polishedProjectDescription;
+      showToast("已应用润色结果", "success");
+      showStatus("已应用润色结果", "success");
+    }
+    if (projectPolishOptions) projectPolishOptions.classList.add("hidden");
+    if (projectPolishDiff) projectPolishDiff.classList.add("hidden");
+    polishedProjectDescription = "";
+  });
+
+  btnProjectPolishDiscard?.addEventListener("click", () => {
+    if (projectPolishDiff) projectPolishDiff.classList.add("hidden");
+    polishedProjectDescription = "";
+    showProjectPolishStatus("已放弃润色结果", "info");
+  });
+
   document.getElementById("btn-add")?.addEventListener("click", () => openModal(false));
   document.getElementById("btn-close")?.addEventListener("click", closeModal);
   document.getElementById("btn-cancel")?.addEventListener("click", closeModal);
@@ -489,7 +648,7 @@ const projects = await getCollection("projects");
   }, true);
 
   // Edit / Delete handlers (delegation)
-  listEl?.addEventListener("click", (e) => {
+  listEl?.addEventListener("click", async (e) => {
     const btn = e.target.closest("[data-action]");
     if (!btn) return;
     const card = btn.closest(".admin-list-card");
@@ -497,7 +656,7 @@ const projects = await getCollection("projects");
     if (idx < 0 || idx >= projects.length) return;
 
     if (btn.dataset.action === "delete") {
-      if (confirm(`确定要删除项目 "${projects[idx].title}" 吗？`)) {
+      if (await (window as any).showConfirmDialog(`确定要删除项目 "${projects[idx].title}" 吗？`)) {
         projects.splice(idx, 1);
         saveProjects(projects);
         renderList();
@@ -845,6 +1004,12 @@ const projects = await getCollection("projects");
     font-weight: 500;
     color: #181c23;
   }
+  .field-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
   .required {
     color: #b91c1c;
   }
@@ -951,6 +1116,122 @@ const projects = await getCollection("projects");
     gap: 10px;
     padding-top: 4px;
   }
+  .btn-small {
+    padding: 6px 12px;
+    font-size: 13px;
+    min-height: 32px;
+  }
+  .polish-options {
+    margin-top: 8px;
+    padding: 16px;
+    background: rgba(244,246,250,0.72);
+    border: 1px solid rgba(124,58,237,0.2);
+    border-radius: 12px;
+  }
+  .polish-options.hidden,
+  .polish-diff.hidden {
+    display: none;
+  }
+  .polish-options-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .polish-presets {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .polish-preset {
+    padding: 5px 12px;
+    border: 1px solid rgba(193,198,214,0.6);
+    border-radius: 6px;
+    background: #fff;
+    color: #414753;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .polish-preset:hover {
+    border-color: #7c3aed;
+    color: #7c3aed;
+  }
+  .polish-preset.active {
+    background: #7c3aed;
+    color: #fff;
+    border-color: #7c3aed;
+  }
+  .polish-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-left: auto;
+  }
+  .polish-custom-prompt {
+    margin-bottom: 8px;
+  }
+  .polish-status {
+    font-size: 13px;
+    min-height: 18px;
+  }
+  .polish-status.is-success { color: #059669; }
+  .polish-status.is-error { color: #dc2626; }
+  .polish-status.is-info { color: #0059b5; }
+  .diff-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 10px 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(193,198,214,0.35);
+  }
+  .diff-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #414753;
+  }
+  .diff-actions {
+    display: flex;
+    gap: 6px;
+  }
+  .diff-content {
+    display: flex;
+    gap: 12px;
+  }
+  .diff-section {
+    flex: 1;
+    min-width: 0;
+  }
+  .diff-section-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #717785;
+    margin-bottom: 6px;
+  }
+  .diff-pre {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    padding: 12px;
+    border-radius: 8px;
+    margin: 0;
+  }
+  .diff-new {
+    background: rgba(5,150,105,0.06);
+    border: 1px solid rgba(5,150,105,0.2);
+    color: #065f46;
+  }
+  .diff-old {
+    background: rgba(220,38,38,0.04);
+    border: 1px solid rgba(220,38,38,0.15);
+    color: #991b1b;
+  }
 
   /* Image Upload */
   .image-upload-wrap {
@@ -1041,6 +1322,12 @@ const projects = await getCollection("projects");
   @media (max-width: 640px) {
     .field-row {
       grid-template-columns: 1fr;
+    }
+    .diff-content {
+      flex-direction: column;
+    }
+    .polish-actions {
+      margin-left: 0;
     }
     .modal-panel {
       margin: 12px;

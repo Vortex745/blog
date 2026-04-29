@@ -24,8 +24,18 @@ type AdminProject = {
   updatedAt?: string;
 };
 
+type AdminHome = {
+  generatedDate?: string;
+  guidance?: string;
+  heroTitle?: string;
+  heroLead?: string;
+  quoteText?: string;
+  quoteAuthor?: string;
+};
+
 const ARTICLE_KEY = "admin-articles-data";
 const PROJECT_KEY = "admin-projects-data";
+const HOME_KEY = "admin-home-data";
 const COVER_PLACEHOLDER = COVER_IMAGE_PLACEHOLDER;
 const SYNC_EVENT = "admin-content:changed";
 const SYNCED_ATTR = "data-admin-synced";
@@ -40,6 +50,17 @@ function readList<T>(key: string): T[] {
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
+  }
+}
+
+function readHomeData(): AdminHome | null {
+  try {
+    const raw = localStorage.getItem(HOME_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
   }
 }
 
@@ -436,6 +457,22 @@ function ensureHomeGrid(selector: string, className: string): HTMLElement | null
 function syncHome(articles: AdminArticle[], projects: AdminProject[]): void {
   if (!hasPage(window.location.pathname, "/")) return;
 
+  const homeData = readHomeData();
+  if (homeData) {
+    const heroTitle = document.querySelector<HTMLElement>(".hero-title");
+    const heroLead = document.querySelector<HTMLElement>(".hero-desc");
+    const quoteText = document.querySelector<HTMLElement>(".quote-text");
+    const quoteAuthor = document.querySelector<HTMLElement>(".quote-author");
+
+    if (homeData.heroTitle && heroTitle) {
+      heroTitle.textContent = homeData.heroTitle;
+      heroTitle.style.whiteSpace = "pre-line";
+    }
+    if (homeData.heroLead && heroLead) heroLead.textContent = homeData.heroLead;
+    if (homeData.quoteText && quoteText) quoteText.textContent = homeData.quoteText;
+    if (homeData.quoteAuthor && quoteAuthor) quoteAuthor.textContent = homeData.quoteAuthor;
+  }
+
   const articleGrid = ensureHomeGrid(".articles-dense-grid", "articles-dense-grid");
   if (articleGrid) {
     removeSynced("home-article");
@@ -483,7 +520,7 @@ export function initAdminContentSync(): void {
   listenersBound = true;
 
   window.addEventListener("storage", (event) => {
-    if (event.key === ARTICLE_KEY || event.key === PROJECT_KEY) queueSync();
+    if (event.key === ARTICLE_KEY || event.key === PROJECT_KEY || event.key === HOME_KEY) queueSync();
   });
   window.addEventListener(SYNC_EVENT, queueSync);
   document.addEventListener("astro:after-swap", queueSync);

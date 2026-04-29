@@ -69,6 +69,8 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
       <p>配置 LLM API 后，以下功能将可用：</p>
       <ul>
         <li><strong>文章管理</strong> — 编辑文章时，工具栏中的 ✨ 按钮可对文章内容进行 AI 润色</li>
+        <li><strong>项目管理</strong> — 编辑项目时，可对项目介绍进行 AI 润色</li>
+        <li><strong>首页管理</strong> — 根据修改方向生成每日前言和引言</li>
         <li><strong>关于管理</strong> — 编辑理念内容时，可对正文进行 AI 润色</li>
       </ul>
       <p class="usage-note">支持所有 OpenAI 兼容协议的 API 服务，包括 OpenAI、DeepSeek、智谱 (GLM) 等。</p>
@@ -77,6 +79,8 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
 </AdminLayout>
 
 <script>
+  import { requestLlmChat } from "../../scripts/admin-llm";
+
   const LLM_KEY = "admin-llm-settings";
   const llmBaseUrl = document.getElementById("llm-base-url");
   const llmApiKey = document.getElementById("llm-api-key");
@@ -160,25 +164,10 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
       llmTestStatus.className = "save-status is-info";
     }
     try {
-      const url = s.baseUrl.replace(/\/+$/, "") + "/chat/completions";
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer " + s.apiKey,
-        },
-        body: JSON.stringify({
-          model: s.model,
-          messages: [{ role: "user", content: "Hello, reply with OK only." }],
-          max_tokens: 5,
-        }),
+      const reply = await requestLlmChat({
+        messages: [{ role: "user", content: "Hello, reply with OK only." }],
+        maxTokens: 5,
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error?.message || `HTTP ${res.status}`);
-      }
-      const data = await res.json();
-      const reply = data.choices?.[0]?.message?.content || "";
       if (llmTestStatus) {
         llmTestStatus.textContent = `连接成功: ${reply.trim().substring(0, 50)}`;
         llmTestStatus.className = "save-status is-success";

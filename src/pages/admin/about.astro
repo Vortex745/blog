@@ -458,8 +458,8 @@ const initialAvatar = profile.avatar || DEFAULT_AVATAR;
     showStatus("已保存到本地存储", "success");
   });
 
-  document.getElementById("btn-reset")?.addEventListener("click", () => {
-    if (confirm("确定要重置为默认内容吗？")) {
+  document.getElementById("btn-reset")?.addEventListener("click", async () => {
+    if (await (window as any).showConfirmDialog("确定要重置为默认内容吗？")) {
       localStorage.removeItem(ABOUT_KEY);
       location.reload();
     }

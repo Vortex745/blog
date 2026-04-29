@@ -1,187 +1,261 @@
 ---
 import AdminLayout from "../../layouts/AdminLayout.astro";
-import homeData from "../../data/home.json";
 ---
 
 <AdminLayout title="首页管理" current="home">
   <div class="admin-page-header">
     <h1 class="admin-page-title">首页管理</h1>
-    <p class="admin-page-desc">编辑首页的前言和引言内容，修改后会立即生效。</p>
+    <p class="admin-page-desc">引导 AI 为首页自动生成每日前言和引言。</p>
   </div>
 
   <form id="home-form" class="admin-form">
-    <!-- 前言编辑 -->
     <section class="form-section">
       <div class="section-header">
-        <h2 class="section-title">前言</h2>
-        <span class="section-badge">Hero 区域</span>
+        <h2 class="section-title">生成方向</h2>
+        <span id="daily-badge" class="section-badge">今日未生成</span>
       </div>
-      <p class="section-desc">首页顶部的大标题和描述文字。</p>
+      <p class="section-desc">后台不再手动添加前言和引言，只填写当天想要的表达方向，再由 AI 生成内容。</p>
 
-      <div class="field-row">
-        <div class="field-group field-group-large">
-          <label for="hero-title" class="field-label">主标题</label>
-          <textarea
-            id="hero-title"
-            name="heroTitle"
-            class="field-input field-textarea"
-            rows="2"
-            placeholder="输入主标题，可用换行分隔"
-          >{homeData.heroTitle}</textarea>
-          <span class="field-hint">支持换行，首页会保留换行格式</span>
-        </div>
-
-        <div class="field-group field-group-large">
-          <label for="hero-lead" class="field-label">描述</label>
-          <textarea
-            id="hero-lead"
-            name="heroLead"
-            class="field-input field-textarea"
-            rows="3"
-            placeholder="输入描述文字"
-          >{homeData.heroLead}</textarea>
-          <span class="field-hint">简短描述，建议控制在 60 字以内</span>
-        </div>
+      <div class="field-group">
+        <label for="generation-guidance" class="field-label">修改方向</label>
+        <textarea
+          id="generation-guidance"
+          name="guidance"
+          class="field-input field-textarea"
+          rows="4"
+          placeholder="例如：今天更偏技术复盘，语气克制一点，强调设计与工程的连接。"
+        ></textarea>
+        <span class="field-hint">留空也可以生成，填写后会影响标题、描述和引言的语气与主题。</span>
       </div>
 
-      <div class="preview-box">
-        <span class="preview-label">实时预览</span>
-        <div class="preview-hero">
-          <h3 id="preview-title" class="preview-title"></h3>
-          <p id="preview-lead" class="preview-lead"></p>
-        </div>
+      <div class="form-actions">
+        <button type="button" id="btn-generate-daily" class="btn-primary">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+          生成今日内容
+        </button>
+        <button type="submit" class="btn-secondary">保存结果</button>
+        <button type="button" id="btn-reset" class="btn-secondary">清除今日结果</button>
+        <span id="save-status" class="save-status"></span>
       </div>
     </section>
 
-    <!-- 引言编辑 -->
     <section class="form-section">
       <div class="section-header">
-        <h2 class="section-title">引言</h2>
-        <span class="section-badge">Quote 卡片</span>
-      </div>
-      <p class="section-desc">首页 Bento 网格中的引言卡片。</p>
-
-      <div class="field-row">
-        <div class="field-group field-group-large">
-          <label for="quote-text" class="field-label">引言内容</label>
-          <textarea
-            id="quote-text"
-            name="quoteText"
-            class="field-input field-textarea"
-            rows="3"
-            placeholder="输入引言内容"
-          >{homeData.quoteText}</textarea>
-          <span class="field-hint">建议引用简洁有力的设计名言</span>
-        </div>
-
-        <div class="field-group field-group-small">
-          <label for="quote-author" class="field-label">作者</label>
-          <input
-            id="quote-author"
-            name="quoteAuthor"
-            type="text"
-            class="field-input"
-            placeholder="输入作者姓名"
-            value={homeData.quoteAuthor}
-          />
-        </div>
+        <h2 class="section-title">今日生成结果</h2>
+        <span id="generated-date" class="section-badge">未保存</span>
       </div>
 
-      <div class="preview-box">
-        <span class="preview-label">实时预览</span>
-        <div class="preview-quote">
-          <span class="preview-quote-tag">引言</span>
-          <blockquote id="preview-quote-text" class="preview-quote-body"></blockquote>
-          <div class="preview-quote-author">
-            <span class="preview-quote-line"></span>
-            <span id="preview-quote-author"></span>
+      <div class="preview-grid">
+        <div class="preview-box">
+          <span class="preview-label">前言</span>
+          <div class="preview-hero">
+            <h3 id="preview-title" class="preview-title">等待生成</h3>
+            <p id="preview-lead" class="preview-lead">填写方向后生成今日首页前言。</p>
+          </div>
+        </div>
+
+        <div class="preview-box">
+          <span class="preview-label">引言</span>
+          <div class="preview-quote">
+            <span class="preview-quote-tag">引言</span>
+            <blockquote id="preview-quote-text" class="preview-quote-body">等待生成</blockquote>
+            <div class="preview-quote-author">
+              <span class="preview-quote-line"></span>
+              <span id="preview-quote-author">AI</span>
+            </div>
           </div>
         </div>
       </div>
     </section>
-
-    <!-- 操作按钮 -->
-    <div class="form-actions">
-      <button type="submit" class="btn-primary">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-        保存更改
-      </button>
-      <button type="button" id="btn-reset" class="btn-secondary">重置</button>
-      <span id="save-status" class="save-status"></span>
-    </div>
   </form>
 </AdminLayout>
 
 <script>
-  const form = document.getElementById("home-form");
-  const heroTitle = document.getElementById("hero-title");
-  const heroLead = document.getElementById("hero-lead");
-  const quoteText = document.getElementById("quote-text");
-  const quoteAuthor = document.getElementById("quote-author");
+  import { getLlmSettings, requestLlmChat } from "../../scripts/admin-llm";
 
+  const HOME_KEY = "admin-home-data";
+  const form = document.getElementById("home-form");
+  const guidanceInput = document.getElementById("generation-guidance");
   const previewTitle = document.getElementById("preview-title");
   const previewLead = document.getElementById("preview-lead");
   const previewQuoteText = document.getElementById("preview-quote-text");
   const previewQuoteAuthor = document.getElementById("preview-quote-author");
   const saveStatus = document.getElementById("save-status");
+  const dailyBadge = document.getElementById("daily-badge");
+  const generatedDate = document.getElementById("generated-date");
+  const btnGenerate = document.getElementById("btn-generate-daily");
+  const btnReset = document.getElementById("btn-reset");
 
-  function updatePreview() {
-    if (previewTitle) previewTitle.innerHTML = (heroTitle.value || "").replace(/\n/g, "<br>");
-    if (previewLead) previewLead.textContent = heroLead.value || "";
-    if (previewQuoteText) previewQuoteText.textContent = quoteText.value || "";
-    if (previewQuoteAuthor) previewQuoteAuthor.textContent = "—— " + (quoteAuthor.value || "");
+  let generatedData = {
+    generatedDate: "",
+    guidance: "",
+    heroTitle: "",
+    heroLead: "",
+    quoteText: "",
+    quoteAuthor: "",
+  };
+
+  function todayKey() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   }
 
-  [heroTitle, heroLead, quoteText, quoteAuthor].forEach((el) => {
-    el?.addEventListener("input", updatePreview);
-  });
-
-  updatePreview();
-
-  // Load saved data (localStorage overrides JSON defaults)
-  try {
-    const saved = localStorage.getItem("admin-home-data");
-    if (saved) {
-      const data = JSON.parse(saved);
-      if (heroTitle) heroTitle.value = data.heroTitle ?? heroTitle.value;
-      if (heroLead) heroLead.value = data.heroLead ?? heroLead.value;
-      if (quoteText) quoteText.value = data.quoteText ?? quoteText.value;
-      if (quoteAuthor) quoteAuthor.value = data.quoteAuthor ?? quoteAuthor.value;
-      updatePreview();
-    }
-  } catch {}
-
-  form?.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const data = {
-      heroTitle: heroTitle?.value || "",
-      heroLead: heroLead?.value || "",
-      quoteText: quoteText?.value || "",
-      quoteAuthor: quoteAuthor?.value || "",
-    };
-    localStorage.setItem("admin-home-data", JSON.stringify(data));
-    window.dispatchEvent(new CustomEvent("admin-content:changed", {
-      detail: { key: "home" },
-    }));
-    if (saveStatus) {
-      saveStatus.textContent = "已保存到本地存储";
-      saveStatus.className = "save-status is-success";
+  function showStatus(text, type) {
+    if (!saveStatus) return;
+    saveStatus.textContent = text;
+    saveStatus.className = "save-status is-" + type;
+    if (type !== "info") {
       setTimeout(() => {
         saveStatus.textContent = "";
         saveStatus.className = "save-status";
       }, 3000);
     }
-  });
+  }
 
-  document.getElementById("btn-reset")?.addEventListener("click", () => {
-    if (confirm("确定要重置为默认内容吗？")) {
-      localStorage.removeItem("admin-home-data");
-      window.dispatchEvent(new CustomEvent("admin-content:changed", {
-        detail: { key: "home" },
-      }));
-      location.reload();
+  function updateBadges() {
+    const isToday = generatedData.generatedDate === todayKey();
+    if (dailyBadge) {
+      dailyBadge.textContent = isToday ? "今日已生成" : "今日未生成";
+      dailyBadge.className = isToday ? "section-badge is-ok" : "section-badge";
+    }
+    if (generatedDate) generatedDate.textContent = generatedData.generatedDate || "未保存";
+  }
+
+  function updatePreview() {
+    if (previewTitle) {
+      previewTitle.textContent = generatedData.heroTitle || "等待生成";
+      previewTitle.style.whiteSpace = "pre-line";
+    }
+    if (previewLead) previewLead.textContent = generatedData.heroLead || "填写方向后生成今日首页前言。";
+    if (previewQuoteText) previewQuoteText.textContent = generatedData.quoteText || "等待生成";
+    if (previewQuoteAuthor) previewQuoteAuthor.textContent = generatedData.quoteAuthor || "AI";
+    updateBadges();
+  }
+
+  function saveHomeData() {
+    localStorage.setItem(HOME_KEY, JSON.stringify(generatedData));
+    window.dispatchEvent(new CustomEvent("admin-content:changed", {
+      detail: { key: "home" },
+    }));
+  }
+
+  function loadHomeData() {
+    try {
+      const saved = localStorage.getItem(HOME_KEY);
+      if (!saved) return;
+      const data = JSON.parse(saved);
+      generatedData = {
+        ...generatedData,
+        ...data,
+      };
+      if (guidanceInput) guidanceInput.value = generatedData.guidance || "";
+    } catch {}
+  }
+
+  function parseGeneratedJson(content) {
+    const cleaned = content
+      .trim()
+      .replace(/^```(?:json)?/i, "")
+      .replace(/```$/i, "")
+      .trim();
+    const jsonStart = cleaned.indexOf("{");
+    const jsonEnd = cleaned.lastIndexOf("}");
+    const jsonText = jsonStart >= 0 && jsonEnd > jsonStart
+      ? cleaned.slice(jsonStart, jsonEnd + 1)
+      : cleaned;
+    const data = JSON.parse(jsonText);
+    return {
+      heroTitle: String(data.heroTitle || "").trim(),
+      heroLead: String(data.heroLead || "").trim(),
+      quoteText: String(data.quoteText || "").trim(),
+      quoteAuthor: String(data.quoteAuthor || "").trim(),
+    };
+  }
+
+  btnGenerate?.addEventListener("click", async () => {
+    const settings = getLlmSettings();
+    if (!settings?.baseUrl || !settings?.apiKey || !settings?.model) {
+      showStatus("请先在 API 管理中配置 LLM API", "error");
+      return;
+    }
+
+    const date = todayKey();
+    const guidance = guidanceInput?.value?.trim() || "保持克制、真诚、适合个人博客首页的表达。";
+    const prompt = `今天日期：${date}
+生成方向：${guidance}
+
+请为个人博客首页生成每日前言和引言，要求：
+1. heroTitle 为首页主标题，12 个汉字以内，可以包含一次换行。
+2. heroLead 为首页描述，60 个汉字以内。
+3. quoteText 为引言内容，40 个汉字以内。
+4. quoteAuthor 为引言署名，可为“AI”或贴合内容的短署名。
+5. 只输出 JSON，不要输出 Markdown 或解释。
+
+JSON 字段：heroTitle, heroLead, quoteText, quoteAuthor。`;
+
+    if (btnGenerate) btnGenerate.disabled = true;
+    showStatus("正在生成今日内容...", "info");
+
+    try {
+      const content = await requestLlmChat({
+        messages: [
+          { role: "system", content: "你是个人博客首页文案助手，输出必须是可解析的 JSON。" },
+          { role: "user", content: prompt },
+        ],
+        temperature: 0.8,
+      });
+      const result = parseGeneratedJson(content);
+      generatedData = {
+        ...generatedData,
+        ...result,
+        guidance,
+        generatedDate: date,
+      };
+      if (guidanceInput) guidanceInput.value = guidance;
+      updatePreview();
+      saveHomeData();
+      showStatus("今日内容已生成并保存", "success");
+    } catch (err) {
+      showStatus("生成失败: " + (err instanceof Error ? err.message : String(err)), "error");
+    } finally {
+      if (btnGenerate) btnGenerate.disabled = false;
     }
   });
+
+  form?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (!generatedData.heroTitle && !generatedData.heroLead && !generatedData.quoteText) {
+      showStatus("请先生成今日内容", "error");
+      return;
+    }
+    generatedData.guidance = guidanceInput?.value?.trim() || generatedData.guidance || "";
+    generatedData.generatedDate = generatedData.generatedDate || todayKey();
+    saveHomeData();
+    updatePreview();
+    showStatus("已保存今日内容", "success");
+  });
+
+  btnReset?.addEventListener("click", async () => {
+    if (!await (window as any).showConfirmDialog("确定要清除今日生成结果吗？")) return;
+    localStorage.removeItem(HOME_KEY);
+    generatedData = {
+      generatedDate: "",
+      guidance: "",
+      heroTitle: "",
+      heroLead: "",
+      quoteText: "",
+      quoteAuthor: "",
+    };
+    if (guidanceInput) guidanceInput.value = "";
+    updatePreview();
+    window.dispatchEvent(new CustomEvent("admin-content:changed", {
+      detail: { key: "home" },
+    }));
+    showStatus("已清除今日结果", "success");
+  });
+
+  loadHomeData();
+  updatePreview();
 </script>
 
 <style>
@@ -203,7 +277,6 @@ import homeData from "../../data/home.json";
     display: flex;
     flex-direction: column;
     gap: 24px;
-    max-width: 100%;
   }
   .form-section {
     background: rgba(255,255,255,0.6);
@@ -232,29 +305,19 @@ import homeData from "../../data/home.json";
     font-size: 12px;
     font-weight: 500;
   }
+  .section-badge.is-ok {
+    background: rgba(5,150,105,0.1);
+    color: #059669;
+  }
   .section-desc {
     font-size: 14px;
     color: #717785;
     margin-bottom: 20px;
   }
-
-  /* Field layout: horizontal row, large inputs */
-  .field-row {
-    display: grid;
-    grid-template-columns: 2fr 1fr;
-    gap: 20px;
-    align-items: start;
-  }
   .field-group {
     display: flex;
     flex-direction: column;
     gap: 8px;
-  }
-  .field-group-large {
-    /* default 2fr */
-  }
-  .field-group-small {
-    /* default 1fr */
   }
   .field-label {
     font-size: 14px;
@@ -284,17 +347,19 @@ import homeData from "../../data/home.json";
   }
   .field-textarea {
     resize: vertical;
-    min-height: 80px;
+    min-height: 100px;
     line-height: 1.6;
   }
   .field-hint {
     font-size: 12px;
     color: #717785;
   }
-
-  /* Preview box */
+  .preview-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 16px;
+  }
   .preview-box {
-    margin-top: 20px;
     padding: 20px;
     border-radius: 16px;
     background: rgba(244,246,250,0.8);
@@ -309,10 +374,12 @@ import homeData from "../../data/home.json";
     letter-spacing: 0.05em;
     margin-bottom: 16px;
   }
-  .preview-hero {
+  .preview-hero,
+  .preview-quote {
     padding: 24px;
     background: rgba(255,255,255,0.8);
     border-radius: 12px;
+    min-height: 148px;
   }
   .preview-title {
     font-family: var(--font-display);
@@ -327,11 +394,6 @@ import homeData from "../../data/home.json";
     line-height: 1.5;
     color: #414753;
     margin: 0;
-  }
-  .preview-quote {
-    padding: 24px;
-    background: rgba(255,255,255,0.8);
-    border-radius: 12px;
   }
   .preview-quote-tag {
     display: inline-block;
@@ -369,38 +431,16 @@ import homeData from "../../data/home.json";
     display: flex;
     align-items: center;
     gap: 12px;
-    padding-top: 8px;
+    flex-wrap: wrap;
+    padding-top: 18px;
   }
-  .btn-primary {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 24px;
-    border-radius: 12px;
-    border: none;
-    background: #0059b5;
-    color: #ffffff;
-    font-family: var(--font-body);
-    font-size: 15px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.15s cubic-bezier(0.23, 1, 0.32, 1);
-    transform: scale(1);
-  }
-  .btn-primary:hover {
-    background: #004a94;
-  }
-  .btn-primary:active {
-    transform: scale(0.97);
-  }
+  .btn-primary,
   .btn-secondary {
     display: inline-flex;
     align-items: center;
+    gap: 8px;
     padding: 12px 20px;
     border-radius: 12px;
-    border: 1px solid rgba(193,198,214,0.5);
-    background: rgba(255,255,255,0.6);
-    color: #414753;
     font-family: var(--font-body);
     font-size: 15px;
     font-weight: 500;
@@ -408,28 +448,52 @@ import homeData from "../../data/home.json";
     transition: background-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), border-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), color 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.15s cubic-bezier(0.23, 1, 0.32, 1);
     transform: scale(1);
   }
+  .btn-primary {
+    border: none;
+    background: #0059b5;
+    color: #ffffff;
+  }
+  .btn-primary:hover {
+    background: #004a94;
+  }
+  .btn-primary:disabled {
+    opacity: 0.65;
+    cursor: wait;
+  }
+  .btn-secondary {
+    border: 1px solid rgba(193,198,214,0.5);
+    background: rgba(255,255,255,0.6);
+    color: #414753;
+  }
   .btn-secondary:hover {
     background: rgba(255,255,255,0.9);
     border-color: rgba(113,119,133,0.4);
     color: #181c23;
   }
+  .btn-primary:active,
   .btn-secondary:active {
     transform: scale(0.97);
   }
   .save-status {
     font-size: 14px;
     color: #717785;
-    margin-left: 8px;
-    transition: opacity 0.3s cubic-bezier(0.23, 1, 0.32, 1), color 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+    min-height: 20px;
   }
-  .save-status.is-success {
-    color: #0d8a4f;
-  }
+  .save-status.is-success { color: #0d8a4f; }
+  .save-status.is-error { color: #b91c1c; }
+  .save-status.is-info { color: #0059b5; }
 
-  /* Responsive */
-  @media (max-width: 768px) {
-    .field-row {
+  @media (max-width: 900px) {
+    .preview-grid {
       grid-template-columns: 1fr;
+    }
+  }
+  @media (max-width: 640px) {
+    .form-section {
+      padding: 22px;
+    }
+    .preview-title {
+      font-size: 26px;
     }
   }
 </style>

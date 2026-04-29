@@ -458,7 +458,7 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
   }
 
   // ===== Gallery Actions =====
-  galleryGrid?.addEventListener("click", (e) => {
+  galleryGrid?.addEventListener("click", async (e) => {
     const btn = e.target.closest("[data-action]");
     if (!btn) return;
     const item = btn.closest(".gallery-item");
@@ -474,7 +474,7 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
       previewModal?.classList.add("is-open");
       document.body.style.overflow = "hidden";
     } else if (btn.dataset.action === "delete") {
-      if (confirm(`确定要删除「${img.name}」吗？`)) {
+      if (await (window as any).showConfirmDialog(`确定要删除「${img.name}」吗？`)) {
         gallery.splice(idx, 1);
         saveGallery(gallery);
         renderGallery();

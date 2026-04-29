@@ -230,6 +230,8 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
 </AdminLayout>
 
 <script>
+  import { getLlmSettings, requestLlmChat } from "../../scripts/admin-llm";
+
   // ===== Storage Keys =====
   const ARTICLES_KEY = "admin-articles-data";
 
@@ -763,14 +765,20 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
     });
   });
 
-  btnPolish?.addEventListener("click", () => {
+  btnPolish?.addEventListener("click", async () => {
     if (!contentTextarea?.value?.trim()) {
       showStatus("请先输入文章内容", "error");
       return;
     }
     const s = getLlmSettings();
     if (!s || !s.baseUrl || !s.apiKey || !s.model) {
-      showStatus("请先在 API 管理中配置 LLM API", "error");
+      const go = await (window as any).showConfirmDialog(
+        "尚未配置大模型 API，无法使用 AI 润色功能。\n\n是否现在前往 API 管理页面进行配置？",
+        { title: "提示", confirmText: "前往配置", cancelText: "稍后再说" }
+      );
+      if (go) {
+        window.location.href = "/admin/api";
+      }
       return;
     }
     if (polishOptions) polishOptions.classList.remove("hidden");
@@ -809,29 +817,13 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
     showPolishStatus("正在润色中，请稍候...", "info");
 
     try {
-      const url = s.baseUrl.replace(/\/+$/, "") + "/chat/completions";
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer " + s.apiKey,
-        },
-        body: JSON.stringify({
-          model: s.model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: content },
-          ],
-          temperature: 0.7,
-        }),
+      polishedContent = await requestLlmChat({
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content },
+        ],
+        temperature: 0.7,
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error?.message || `HTTP ${res.status}`);
-      }
-      const data = await res.json();
-      polishedContent = data.choices?.[0]?.message?.content || "";
-      if (!polishedContent) throw new Error("API 返回内容为空");
 
       showPolishStatus("润色完成，请预览对比", "success");
       // Show diff
@@ -846,10 +838,6 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
 
   function renderDiff(original, polished) {
     if (!polishDiffBody) return;
-    const oLines = original.split("\n");
-    const pLines = polished.split("\n");
-    // Simple line-by-line diff: show changed lines with +/- prefix
-    const maxLen = Math.max(oLines.length, pLines.length);
     let html = '<div class="diff-content">';
     // Show full polished version with highlights
     html += '<div class="diff-section"><div class="diff-section-label">润色后</div><pre class="diff-pre diff-new">' + escapeHtml(polished) + '</pre></div>';
@@ -996,7 +984,7 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
     `).join("");
   }
 
-  listEl?.addEventListener("click", (e) => {
+  listEl?.addEventListener("click", async (e) => {
     const btn = e.target.closest("[data-action]");
     if (!btn) return;
     const card = btn.closest(".admin-list-card");
@@ -1018,7 +1006,7 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
       if (titleHint) titleHint.textContent = `${(a.title || "").length} / 100 字符`;
       openModal(true);
     } else if (btn.dataset.action === "delete") {
-      if (confirm("确定要删除这篇文章吗？")) {
+      if (await (window as any).showConfirmDialog("确定要删除这篇文章吗？")) {
         articles.splice(idx, 1);
         saveArticles(articles);
         renderList();
