@@ -127,17 +127,10 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
             </div>
           </div>
           <div class="markdown-renderer" data-markdown-renderer>
-            <div class="markdown-renderer-tabs" role="tablist" aria-label="文章内容 Markdown 视图">
-              <button type="button" class="markdown-renderer-tab is-active" data-markdown-mode="edit" aria-pressed="true">编辑</button>
-              <button type="button" class="markdown-renderer-tab" data-markdown-mode="preview" aria-pressed="false">预览</button>
-            </div>
             <div class="markdown-renderer-pane is-active" data-markdown-edit-pane>
               <div class="editor-wrap">
                 <textarea id="a-content" name="content" class="field-input field-textarea editor-textarea" rows="16" placeholder="在此输入 Markdown 格式的文章内容...&#10;&#10;支持直接粘贴图片，图片会自动上传并插入到正文中。" required data-markdown-source></textarea>
               </div>
-            </div>
-            <div class="markdown-renderer-pane" data-markdown-preview-pane hidden>
-              <div class="markdown-renderer-preview prose prose-apple max-w-none" data-markdown-preview></div>
             </div>
           </div>
         </div>

@@ -65,42 +65,42 @@ const toc = headings.filter(
             >← 返回文章列表</a
           >
 
+          {articleCover && (
+            <figure class="front-cover front-cover--article-detail" data-animate="fade-up">
+              <img
+                src={articleCover}
+                alt={article.data.coverImage ? `${article.data.title} 封面` : ""}
+              />
+            </figure>
+          )}
+
+          <header class="article-detail-header" data-animate="hero">
+            <h1 class="article-detail-title text-[var(--color-near-black)]" data-animate="hero-item">
+              {article.data.title}
+            </h1>
+            <div class="article-detail-tags" data-animate="hero-item">
+              {tags.map((tag: string) => (
+                <a
+                  href={`/articles?tag=${encodeURIComponent(tag)}`}
+                  class="apple-badge no-underline"
+                >
+                  {tag}
+                </a>
+              ))}
+            </div>
+            <div class="article-detail-meta caption-text text-[var(--color-text-secondary)]" data-animate="hero-item">
+              <time>{article.data.date.toLocaleDateString("zh-CN")}</time>
+              {article.data.updated && (
+                <span>
+                  更新于 {article.data.updated.toLocaleDateString("zh-CN")}
+                </span>
+              )}
+              <span>{readingMinutes} 分钟阅读</span>
+            </div>
+          </header>
+
           <div class="article-detail-layout">
             <main class="article-detail-main">
-              {articleCover && (
-                <figure class="front-cover front-cover--article-detail" data-animate="fade-up">
-                  <img
-                    src={articleCover}
-                    alt={article.data.coverImage ? `${article.data.title} 封面` : ""}
-                  />
-                </figure>
-              )}
-
-              <header class="article-detail-header" data-animate="hero">
-                <h1 class="article-detail-title text-[var(--color-near-black)]" data-animate="hero-item">
-                  {article.data.title}
-                </h1>
-                <div class="article-detail-tags" data-animate="hero-item">
-                  {tags.map((tag: string) => (
-                    <a
-                      href={`/articles?tag=${encodeURIComponent(tag)}`}
-                      class="apple-badge no-underline"
-                    >
-                      {tag}
-                    </a>
-                  ))}
-                </div>
-                <div class="article-detail-meta caption-text text-[var(--color-text-secondary)]" data-animate="hero-item">
-                  <time>{article.data.date.toLocaleDateString("zh-CN")}</time>
-                  {article.data.updated && (
-                    <span>
-                      更新于 {article.data.updated.toLocaleDateString("zh-CN")}
-                    </span>
-                  )}
-                  <span>{readingMinutes} 分钟阅读</span>
-                </div>
-              </header>
-
               <article
                 id="article-content"
                 class="article-detail-prose prose prose-apple max-w-none"
@@ -197,23 +197,23 @@ const toc = headings.filter(
             >← 返回文章列表</a
           >
 
+          <figure class="front-cover front-cover--article-detail hidden" data-animate="fade-up" data-local-cover-wrap>
+            <img src="" alt="" data-local-cover />
+          </figure>
+
+          <header class="article-detail-header" data-animate="hero">
+            <h1 class="article-detail-title text-[var(--color-near-black)]" data-local-title data-animate="hero-item">
+              正在载入文章...
+            </h1>
+            <div class="article-detail-tags" data-local-tags data-animate="hero-item"></div>
+            <div class="article-detail-meta caption-text text-[var(--color-text-secondary)]" data-animate="hero-item">
+              <time data-local-date></time>
+              <span data-local-reading></span>
+            </div>
+          </header>
+
           <div class="article-detail-layout">
             <main class="article-detail-main">
-              <figure class="front-cover front-cover--article-detail hidden" data-animate="fade-up" data-local-cover-wrap>
-                <img src="" alt="" data-local-cover />
-              </figure>
-
-              <header class="article-detail-header" data-animate="hero">
-                <h1 class="article-detail-title text-[var(--color-near-black)]" data-local-title data-animate="hero-item">
-                  正在载入文章...
-                </h1>
-                <div class="article-detail-tags" data-local-tags data-animate="hero-item"></div>
-                <div class="article-detail-meta caption-text text-[var(--color-text-secondary)]" data-animate="hero-item">
-                  <time data-local-date></time>
-                  <span data-local-reading></span>
-                </div>
-              </header>
-
               <article
                 id="article-content"
                 class="article-detail-prose prose prose-apple max-w-none"

@@ -1,7 +1,3 @@
-import { renderMarkdown } from "../lib/markdown";
-
-type MarkdownMode = "edit" | "preview";
-
 type MarkdownLine = {
   kind: "paragraph" | "heading" | "quote" | "unordered-list" | "ordered-list" | "code";
   level?: number;
@@ -15,7 +11,6 @@ type LiveEditorState = {
   isComposing: boolean;
   isRendering: boolean;
   isSyncingFromEditor: boolean;
-  renderer: HTMLElement;
   source: HTMLTextAreaElement;
 };
 
@@ -26,12 +21,6 @@ type MarkdownSelection = {
 
 const stateBySource = new WeakMap<HTMLTextAreaElement, LiveEditorState>();
 let selectionSyncReady = false;
-
-export function renderAdminMarkdown(markdown: string): string {
-  return renderMarkdown(markdown, {
-    emptyHtml: '<p class="markdown-preview-empty">暂无预览内容。</p>',
-  });
-}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
@@ -270,13 +259,6 @@ function setEditorSelection(state: LiveEditorState, start: number, end = start):
   state.editor.focus({ preventScroll: true });
 }
 
-function renderPreview(renderer: HTMLElement): void {
-  const source = renderer.querySelector<HTMLTextAreaElement>("textarea[data-markdown-source]");
-  const preview = renderer.querySelector<HTMLElement>("[data-markdown-preview]");
-  if (!source || !preview) return;
-  preview.innerHTML = renderAdminMarkdown(source.value);
-}
-
 function renderLiveEditor(state: LiveEditorState, selection?: MarkdownSelection, shouldFocus = false): void {
   state.isRendering = true;
   state.editor.replaceChildren(...parseMarkdownLines(state.source.value).map(createLiveLine));
@@ -349,13 +331,12 @@ function maybeRemoveBlockPrefix(state: LiveEditorState, event: KeyboardEvent): v
 }
 
 function handleSourceChanged(state: LiveEditorState): void {
-  renderPreview(state.renderer);
   if (!state.isSyncingFromEditor) {
     renderLiveEditor(state, getSourceSelection(state.source), document.activeElement === state.source);
   }
 }
 
-function setupLiveEditor(renderer: HTMLElement, source: HTMLTextAreaElement): LiveEditorState {
+function setupLiveEditor(source: HTMLTextAreaElement): LiveEditorState {
   const existingState = stateBySource.get(source);
   if (existingState) return existingState;
 
@@ -378,7 +359,6 @@ function setupLiveEditor(renderer: HTMLElement, source: HTMLTextAreaElement): Li
     isComposing: false,
     isRendering: false,
     isSyncingFromEditor: false,
-    renderer,
     source,
   };
 
@@ -445,38 +425,18 @@ function setupLiveEditor(renderer: HTMLElement, source: HTMLTextAreaElement): Li
   source.addEventListener("change", () => handleSourceChanged(state));
 
   renderLiveEditor(state, getSourceSelection(source), false);
-  renderPreview(renderer);
 
   return state;
 }
 
-function setMode(renderer: HTMLElement, mode: MarkdownMode): void {
-  const editPane = renderer.querySelector<HTMLElement>("[data-markdown-edit-pane]");
-  const previewPane = renderer.querySelector<HTMLElement>("[data-markdown-preview-pane]");
-
-  renderer.querySelectorAll<HTMLButtonElement>("[data-markdown-mode]").forEach((button) => {
-    const active = button.dataset.markdownMode === mode;
-    button.classList.toggle("is-active", active);
-    button.setAttribute("aria-pressed", String(active));
-  });
-
-  if (editPane) editPane.hidden = mode !== "edit";
-  if (previewPane) previewPane.hidden = mode !== "preview";
-  if (mode === "preview") renderPreview(renderer);
-}
-
 export function refreshMarkdownRendererFor(source: HTMLTextAreaElement | null | undefined): void {
-  const renderer = source?.closest<HTMLElement>("[data-markdown-renderer]");
-  if (!source || !renderer) return;
+  if (!source || !source.closest<HTMLElement>("[data-markdown-renderer]")) return;
 
   const state = stateBySource.get(source);
   if (state) {
-    renderPreview(renderer);
     renderLiveEditor(state, getSourceSelection(source), document.activeElement === source);
     return;
   }
-
-  renderPreview(renderer);
 }
 
 export function initMarkdownRenderers(scope: ParentNode = document): void {
@@ -492,14 +452,7 @@ export function initMarkdownRenderers(scope: ParentNode = document): void {
     const source = renderer.querySelector<HTMLTextAreaElement>("textarea[data-markdown-source]");
     if (!source) return;
 
-    setupLiveEditor(renderer, source);
-
-    renderer.querySelectorAll<HTMLButtonElement>("[data-markdown-mode]").forEach((button) => {
-      button.addEventListener("click", () => {
-        const mode = button.dataset.markdownMode === "preview" ? "preview" : "edit";
-        setMode(renderer, mode);
-      });
-    });
+    setupLiveEditor(source);
   });
 
   if (!selectionSyncReady) {

@@ -248,6 +248,12 @@ function localProjectHref(project: AdminProject, index: number): string {
   return `/projects/local-${localItemKey(project, index)}`;
 }
 
+function itemYear(item: { date?: string; updatedAt?: string }): string {
+  const date = item.date ? new Date(item.date) : item.updatedAt ? new Date(item.updatedAt) : new Date();
+  const validDate = Number.isNaN(date.getTime()) ? new Date() : date;
+  return String(validDate.getFullYear());
+}
+
 function renderArticleRow(article: AdminArticle, index: number): string {
   const tags = articleTags(article);
   const href = localArticleHref(article, index);
@@ -307,6 +313,38 @@ function renderProjectItem(project: AdminProject, index: number): string {
         }
         <a href="${escapeHtml(detailHref)}" class="project-link project-link-primary">详情<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>
       </div>
+    </div>
+  `;
+}
+
+function renderArchiveItem(
+  item: { title?: string; date?: string; updatedAt?: string },
+  href: string,
+  syncType: "archive-article" | "archive-project"
+): string {
+  return `
+    <a href="${escapeHtml(href)}" class="archive-item admin-local-row" ${SYNCED_ATTR}="${syncType}">
+      <span class="archive-date">${formatDate(item.date || item.updatedAt)}</span>
+      <span class="archive-title">${escapeHtml(item.title || "未命名内容")}</span>
+      <span class="archive-arrow">→</span>
+    </a>
+  `;
+}
+
+function renderArchiveGroup(
+  year: string,
+  items: string,
+  count: number,
+  unit: "篇" | "个",
+  syncType: "archive-article" | "archive-project"
+): string {
+  return `
+    <div class="archive-year-group admin-local-row" ${SYNCED_ATTR}="${syncType}-group" data-archive-year="${escapeHtml(year)}" data-static-count="0">
+      <div class="year-marker">
+        <span class="year-number">${escapeHtml(year)}</span>
+        <span class="year-count" data-archive-year-count>${count} ${unit}</span>
+      </div>
+      <div class="year-items">${items}</div>
     </div>
   `;
 }
@@ -436,6 +474,131 @@ function syncProjectsPage(projects: AdminProject[]): void {
   if (stats[1]) stats[1].textContent = `${unique(tags).length} 个技术标签`;
 }
 
+function parseCount(value: string | undefined): number {
+  const count = Number.parseInt(value || "0", 10);
+  return Number.isNaN(count) ? 0 : count;
+}
+
+function readStaticArchiveCount(list: HTMLElement): number {
+  return Array.from(list.querySelectorAll<HTMLElement>(".archive-year-group")).reduce(
+    (total, group) => total + parseCount(group.dataset.staticCount),
+    0
+  );
+}
+
+function resetArchiveYearCounts(list: HTMLElement, unit: "篇" | "个"): void {
+  list.querySelectorAll<HTMLElement>(".archive-year-group").forEach((group) => {
+    const count = group.querySelector<HTMLElement>("[data-archive-year-count]");
+    if (count) count.textContent = `${parseCount(group.dataset.staticCount)} ${unit}`;
+  });
+}
+
+function getArchiveYears(list: HTMLElement): string[] {
+  return Array.from(list.querySelectorAll<HTMLElement>(".archive-year-group"))
+    .filter((group) => group.querySelector(".archive-item"))
+    .map((group) => group.dataset.archiveYear || "")
+    .filter(Boolean);
+}
+
+function insertArchiveGroup(list: HTMLElement, group: HTMLElement, year: string): void {
+  const yearNumber = parseCount(year);
+  const before = Array.from(list.querySelectorAll<HTMLElement>(".archive-year-group")).find(
+    (candidate) => parseCount(candidate.dataset.archiveYear) < yearNumber
+  );
+
+  if (before) {
+    before.insertAdjacentElement("beforebegin", group);
+  } else {
+    list.appendChild(group);
+  }
+}
+
+function syncArchiveSection<T extends { id?: string; title?: string; date?: string; updatedAt?: string }>(
+  list: HTMLElement | null,
+  empty: HTMLElement | null,
+  items: T[],
+  syncType: "archive-article" | "archive-project",
+  unit: "篇" | "个",
+  hrefForItem: (item: T, index: number) => string
+): { count: number; years: string[] } {
+  if (!list) return { count: 0, years: [] };
+
+  removeSynced(`${syncType}-group`);
+  removeSynced(syncType);
+  resetArchiveYearCounts(list, unit);
+
+  const sorted = sortByDateDesc(items).filter((item) => item.title);
+  const grouped = new Map<string, Array<{ item: T; index: number }>>();
+  sorted.forEach((item, index) => {
+    const year = itemYear(item);
+    grouped.set(year, [...(grouped.get(year) || []), { item, index }]);
+  });
+
+  Array.from(grouped.entries())
+    .sort((a, b) => parseCount(b[0]) - parseCount(a[0]))
+    .forEach(([year, entries]) => {
+      const markup = entries
+        .map(({ item, index }) => renderArchiveItem(item, hrefForItem(item, index), syncType))
+        .join("");
+      const existing = Array.from(list.querySelectorAll<HTMLElement>(".archive-year-group")).find(
+        (group) => group.dataset.archiveYear === year && group.getAttribute(SYNCED_ATTR) !== `${syncType}-group`
+      );
+
+      if (existing) {
+        existing.querySelector<HTMLElement>(".year-items")?.insertAdjacentHTML("afterbegin", markup);
+        const count = existing.querySelector<HTMLElement>("[data-archive-year-count]");
+        if (count) count.textContent = `${parseCount(existing.dataset.staticCount) + entries.length} ${unit}`;
+        return;
+      }
+
+      const template = document.createElement("template");
+      template.innerHTML = renderArchiveGroup(year, markup, entries.length, unit, syncType).trim();
+      const group = template.content.firstElementChild;
+      if (group instanceof HTMLElement) insertArchiveGroup(list, group, year);
+    });
+
+  const count = readStaticArchiveCount(list) + sorted.length;
+  if (empty) empty.hidden = count > 0;
+  list.hidden = count === 0;
+
+  return { count, years: getArchiveYears(list) };
+}
+
+function syncArchivePage(articles: AdminArticle[], projects: AdminProject[]): void {
+  if (!hasPage(window.location.pathname, "/archive")) return;
+
+  const articleResult = syncArchiveSection(
+    document.querySelector<HTMLElement>('[data-archive-list="articles"]'),
+    document.querySelector<HTMLElement>('[data-archive-empty="articles"]'),
+    articles,
+    "archive-article",
+    "篇",
+    localArticleHref
+  );
+  const projectResult = syncArchiveSection(
+    document.querySelector<HTMLElement>('[data-archive-list="projects"]'),
+    document.querySelector<HTMLElement>('[data-archive-empty="projects"]'),
+    projects,
+    "archive-project",
+    "个",
+    localProjectHref
+  );
+  const yearCount = unique([...articleResult.years, ...projectResult.years]).length;
+
+  const summary = document.querySelector<HTMLElement>("[data-archive-summary]");
+  if (summary) {
+    const total = articleResult.count + projectResult.count;
+    summary.textContent = `所有内容的完整记录。截至目前，共收录 ${total} 条内容，包括 ${articleResult.count} 篇文章和 ${projectResult.count} 个项目。`;
+  }
+
+  const articleStat = document.querySelector<HTMLElement>('[data-archive-stat="articles"]');
+  const projectStat = document.querySelector<HTMLElement>('[data-archive-stat="projects"]');
+  const yearStat = document.querySelector<HTMLElement>('[data-archive-stat="years"]');
+  if (articleStat) articleStat.textContent = String(articleResult.count);
+  if (projectStat) projectStat.textContent = String(projectResult.count);
+  if (yearStat) yearStat.textContent = String(yearCount);
+}
+
 function ensureHomeGrid(selector: string, className: string): HTMLElement | null {
   const existing = document.querySelector<HTMLElement>(selector);
   if (existing) return existing;
@@ -507,6 +670,7 @@ function syncCurrentPage(): void {
   syncHome(articles, projects);
   syncArticlesPage(articles);
   syncProjectsPage(projects);
+  syncArchivePage(articles, projects);
 }
 
 function queueSync(): void {

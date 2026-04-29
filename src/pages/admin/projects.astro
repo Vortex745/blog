@@ -118,18 +118,13 @@ const projects = await getCollection("projects");
         <div class="field-group">
           <div class="field-label-row">
             <label for="p-desc" class="field-label">项目介绍 <span class="required">*</span></label>
-            <button type="button" id="btn-polish-project" class="btn-secondary btn-small">AI 润色</button>
+            <button type="button" id="btn-polish-project" class="toolbar-btn toolbar-btn-polish" title="AI 润色" aria-label="AI 润色">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+            </button>
           </div>
           <div class="markdown-renderer" data-markdown-renderer>
-            <div class="markdown-renderer-tabs" role="tablist" aria-label="项目介绍 Markdown 视图">
-              <button type="button" class="markdown-renderer-tab is-active" data-markdown-mode="edit" aria-pressed="true">编辑</button>
-              <button type="button" class="markdown-renderer-tab" data-markdown-mode="preview" aria-pressed="false">预览</button>
-            </div>
             <div class="markdown-renderer-pane is-active" data-markdown-edit-pane>
               <textarea id="p-desc" name="description" class="field-input field-textarea" rows="8" placeholder="使用 Markdown 输入项目详细介绍" required data-markdown-source></textarea>
-            </div>
-            <div class="markdown-renderer-pane" data-markdown-preview-pane hidden>
-              <div class="markdown-renderer-preview prose prose-apple max-w-none" data-markdown-preview></div>
             </div>
           </div>
           <div class="polish-options hidden" id="project-polish-options">
@@ -836,6 +831,30 @@ const projects = await getCollection("projects");
   }
   .btn-secondary:active {
     transform: scale(0.97);
+  }
+  .toolbar-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: none;
+    background: #f4f6fa;
+    color: #414753;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .toolbar-btn:hover {
+    background: #e8ebf0;
+  }
+  .toolbar-btn-polish {
+    color: #7c3aed;
+    background: rgba(124, 58, 237, 0.08);
+  }
+  .toolbar-btn-polish:hover {
+    background: rgba(124, 58, 237, 0.15);
+    color: #6d28d9;
   }
   .save-status {
     font-size: 14px;

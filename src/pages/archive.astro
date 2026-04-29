@@ -10,8 +10,8 @@ const allProjects = (await getCollection("projects"))
   .sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
 
 // Group by year
-function groupByYear(items: typeof allArticles) {
-  const groups: Record<string, typeof allArticles> = {};
+function groupByYear<T extends { data: { date: Date } }>(items: T[]) {
+  const groups: Record<string, T[]> = {};
   items.forEach((item) => {
     const year = item.data.date.getFullYear().toString();
     if (!groups[year]) groups[year] = [];
@@ -22,6 +22,9 @@ function groupByYear(items: typeof allArticles) {
 
 const articleGroups = groupByYear(allArticles);
 const projectGroups = groupByYear(allProjects);
+const archiveYearCount = new Set(
+  [...allArticles, ...allProjects].map((item) => item.data.date.getFullYear().toString())
+).size;
 
 function formatDate(date: Date): string {
   return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
@@ -34,7 +37,11 @@ const totalCount = allArticles.length + allProjects.length;
   <section class="archive-hero" data-animate="hero">
     <div class="editorial-container">
       <h1 class="editorial-display" data-animate="hero-item">归档</h1>
-      <p class="editorial-lead" data-animate="hero-item">
+      <p
+        class="editorial-lead"
+        data-animate="hero-item"
+        data-archive-summary
+      >
         所有内容的完整记录。截至目前，共收录 {totalCount} 条内容，包括 {allArticles.length} 篇文章和 {allProjects.length} 个项目。
       </p>
     </div>
@@ -45,77 +52,79 @@ const totalCount = allArticles.length + allProjects.length;
       {/* Stats Cards */}
       <div class="stats-grid" data-animate="stagger">
         <div class="stat-card">
-          <span class="stat-number" data-animate="counter">{allArticles.length}</span>
+          <span class="stat-number" data-animate="counter" data-archive-stat="articles">{allArticles.length}</span>
           <span class="stat-label">文章</span>
         </div>
         <div class="stat-card">
-          <span class="stat-number" data-animate="counter">{allProjects.length}</span>
+          <span class="stat-number" data-animate="counter" data-archive-stat="projects">{allProjects.length}</span>
           <span class="stat-label">项目</span>
         </div>
         <div class="stat-card">
-          <span class="stat-number" data-animate="counter">{articleGroups.length}</span>
+          <span class="stat-number" data-animate="counter" data-archive-stat="years">{archiveYearCount}</span>
           <span class="stat-label">年份跨度</span>
         </div>
       </div>
 
       {/* Articles Archive */}
-      <div class="archive-section" data-animate="fade-up">
+      <div class="archive-section" data-archive-section="articles" data-animate="fade-up">
         <h2 class="archive-section-title">文章</h2>
-        {
-          articleGroups.length === 0 ? (
-            <p class="empty-text">暂无文章</p>
-          ) : (
-            <div class="archive-list" data-animate="stagger">
-              {articleGroups.map(([year, articles]) => (
-                <div class="archive-year-group">
-                  <div class="year-marker">
-                    <span class="year-number">{year}</span>
-                    <span class="year-count">{articles.length} 篇</span>
-                  </div>
-                  <div class="year-items">
-                    {articles.map((article) => (
-                      <a href={`/articles/${article.id.replace(/\.mdx?$/, "")}`} class="archive-item">
-                        <span class="archive-date">{formatDate(article.data.date)}</span>
-                        <span class="archive-title">{article.data.title}</span>
-                        <span class="archive-arrow">→</span>
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              ))}
+        <p class="empty-text" data-archive-empty="articles" hidden={articleGroups.length > 0}>暂无文章</p>
+        <div
+          class="archive-list"
+          data-animate="stagger"
+          data-archive-list="articles"
+          data-static-count={allArticles.length}
+          hidden={articleGroups.length === 0}
+        >
+          {articleGroups.map(([year, articles]) => (
+            <div class="archive-year-group" data-archive-year={year} data-static-count={articles.length}>
+              <div class="year-marker">
+                <span class="year-number">{year}</span>
+                <span class="year-count" data-archive-year-count>{articles.length} 篇</span>
+              </div>
+              <div class="year-items">
+                {articles.map((article) => (
+                  <a href={`/articles/${article.id.replace(/\.mdx?$/, "")}`} class="archive-item">
+                    <span class="archive-date">{formatDate(article.data.date)}</span>
+                    <span class="archive-title">{article.data.title}</span>
+                    <span class="archive-arrow">→</span>
+                  </a>
+                ))}
+              </div>
             </div>
-          )
-        }
+          ))}
+        </div>
       </div>
 
       {/* Projects Archive */}
-      <div class="archive-section" data-animate="fade-up">
+      <div class="archive-section" data-archive-section="projects" data-animate="fade-up">
         <h2 class="archive-section-title">项目</h2>
-        {
-          projectGroups.length === 0 ? (
-            <p class="empty-text">暂无项目</p>
-          ) : (
-            <div class="archive-list" data-animate="stagger">
-              {projectGroups.map(([year, projects]) => (
-                <div class="archive-year-group">
-                  <div class="year-marker">
-                    <span class="year-number">{year}</span>
-                    <span class="year-count">{projects.length} 个</span>
-                  </div>
-                  <div class="year-items">
-                    {projects.map((project) => (
-                      <a href={`/projects/${project.id.replace(/\.mdx?$/, "")}`} class="archive-item">
-                        <span class="archive-date">{formatDate(project.data.date)}</span>
-                        <span class="archive-title">{project.data.title}</span>
-                        <span class="archive-arrow">→</span>
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              ))}
+        <p class="empty-text" data-archive-empty="projects" hidden={projectGroups.length > 0}>暂无项目</p>
+        <div
+          class="archive-list"
+          data-animate="stagger"
+          data-archive-list="projects"
+          data-static-count={allProjects.length}
+          hidden={projectGroups.length === 0}
+        >
+          {projectGroups.map(([year, projects]) => (
+            <div class="archive-year-group" data-archive-year={year} data-static-count={projects.length}>
+              <div class="year-marker">
+                <span class="year-number">{year}</span>
+                <span class="year-count" data-archive-year-count>{projects.length} 个</span>
+              </div>
+              <div class="year-items">
+                {projects.map((project) => (
+                  <a href={`/projects/${project.id.replace(/\.mdx?$/, "")}`} class="archive-item">
+                    <span class="archive-date">{formatDate(project.data.date)}</span>
+                    <span class="archive-title">{project.data.title}</span>
+                    <span class="archive-arrow">→</span>
+                  </a>
+                ))}
+              </div>
             </div>
-          )
-        }
+          ))}
+        </div>
       </div>
     </div>
   </section>

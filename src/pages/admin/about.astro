@@ -111,15 +111,8 @@ const initialAvatar = profile.avatar || DEFAULT_AVATAR;
           </div>
         </div>
         <div class="markdown-renderer" data-markdown-renderer>
-          <div class="markdown-renderer-tabs" role="tablist" aria-label="理念内容 Markdown 视图">
-            <button type="button" class="markdown-renderer-tab is-active" data-markdown-mode="edit" aria-pressed="true">编辑</button>
-            <button type="button" class="markdown-renderer-tab" data-markdown-mode="preview" aria-pressed="false">预览</button>
-          </div>
           <div class="markdown-renderer-pane is-active" data-markdown-edit-pane>
             <textarea id="philosophy-content" name="philosophy" class="field-input field-textarea editor-textarea" rows="10" placeholder="在此输入 Markdown 格式的理念内容...&#10;&#10;每段之间用空行分隔。" data-markdown-source>{profile.philosophy.join("\n\n")}</textarea>
-          </div>
-          <div class="markdown-renderer-pane" data-markdown-preview-pane hidden>
-            <div class="markdown-renderer-preview prose prose-apple max-w-none" data-markdown-preview></div>
           </div>
         </div>
 
