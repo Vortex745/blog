@@ -1,9 +1,0 @@
-{
-  "id": "2",
-  "subject": "frontend. Admin pages under src/pages/admin/ create/edit content that should app",
-  "description": "frontend. Admin pages under src/pages/admin/ create/edit content that should appear on frontend pages under src/pages/ (excluding admin). Check: content collection reload after writes, cache-control headers in middleware.ts,",
-  "status": "pending",
-  "owner": null,
-  "result": null,
-  "created_at": "2026-04-28T09:27:29.364Z"
-}

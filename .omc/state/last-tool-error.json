@@ -1,7 +1,0 @@
-{
-  "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"mcp__plugin_oh-my-claudecode_t__state_write mode=team active=false current_phase=complete\",\"description\":\"Reset team state to inactive\"}",
-  "error": "Exit code 127\n/usr/bin/bash: line 1: mcp__plugin_oh-my-claudecode_t__state_write: command not found",
-  "timestamp": "2026-04-28T09:27:13.450Z",
-  "retry_count": 2
-}
