@@ -6,9 +6,9 @@ import { gsap } from "gsap";
  * - Only animate low-frequency interactions (page load, scroll reveals)
  * - Never animate keyboard-initiated or high-frequency actions
  * - Use ease-out for entrances (feels responsive)
- * - Start from scale(0.95) + opacity: 0, never scale(0)
+ * - Start from a visible scale + opacity: 0, never scale(0)
  * - Keep UI animations under 300ms; page entrances can be 400–600ms
- * - Stagger items 40–80ms apart
+ * - Stagger items 35–60ms apart
  * - Respect prefers-reduced-motion
  */
 
@@ -20,16 +20,16 @@ const EASE = {
 };
 
 const DURATION = {
-  fast: 0.2,
-  standard: 0.35,
-  entrance: 0.5,
-  slow: 0.6,
+  fast: 0.16,
+  standard: 0.28,
+  entrance: 0.42,
+  slow: 0.5,
 };
 
 const STAGGER = {
-  tight: 0.04,
-  standard: 0.06,
-  loose: 0.08,
+  tight: 0.035,
+  standard: 0.045,
+  loose: 0.06,
 };
 
 function prefersReducedMotion(): boolean {
@@ -51,7 +51,7 @@ function animateHero(container: Element) {
   const children = container.querySelectorAll("[data-animate='hero-item']");
   if (children.length === 0) return;
 
-  gsap.set(children, { opacity: 0, y: 16, scale: 0.98 });
+  gsap.set(children, { opacity: 0, y: 12, scale: 0.98 });
 
   gsap.to(children, {
     opacity: 1,
@@ -73,12 +73,12 @@ function animateFadeUp(el: Element) {
   const delay = getDelay(el);
   gsap.fromTo(
     el,
-    { opacity: 0, y: 20, scale: 0.98 },
+    { opacity: 0, y: 14, scale: 0.98 },
     {
       opacity: 1,
       y: 0,
       scale: 1,
-      duration: DURATION.entrance,
+      duration: DURATION.standard,
       ease: EASE.out,
       delay,
     }
@@ -96,7 +96,7 @@ function animateStagger(container: Element) {
 
   gsap.fromTo(
     children,
-    { opacity: 0, y: 16 },
+    { opacity: 0, y: 10 },
     {
       opacity: 1,
       y: 0,
@@ -117,12 +117,12 @@ function animateScaleIn(el: Element) {
   const delay = getDelay(el);
   gsap.fromTo(
     el,
-    { opacity: 0, y: 12, scale: 0.97 },
+    { opacity: 0, y: 10, scale: 0.98 },
     {
       opacity: 1,
       y: 0,
       scale: 1,
-      duration: DURATION.entrance,
+      duration: DURATION.standard,
       ease: EASE.out,
       delay,
     }
@@ -141,8 +141,8 @@ function animateCounter(el: Element) {
   const obj = { val: 0 };
   gsap.to(obj, {
     val: target,
-    duration: 1.2,
-    ease: EASE.inOut,
+    duration: DURATION.slow,
+    ease: EASE.out,
     onUpdate: () => {
       el.textContent = String(Math.round(obj.val));
     },
@@ -158,11 +158,11 @@ function setInitialScrollStates() {
 
   document
     .querySelectorAll("[data-animate='fade-up']")
-    .forEach((el) => gsap.set(el, { opacity: 0, y: 20, scale: 0.98 }));
+    .forEach((el) => gsap.set(el, { opacity: 0, y: 14, scale: 0.98 }));
 
   document
     .querySelectorAll("[data-animate='scale-in']")
-    .forEach((el) => gsap.set(el, { opacity: 0, y: 12, scale: 0.97 }));
+    .forEach((el) => gsap.set(el, { opacity: 0, y: 10, scale: 0.98 }));
 }
 
 /**
@@ -217,7 +217,7 @@ export function initAnimations() {
     // Set children initial state immediately
     const children = container.children;
     if (children.length > 0) {
-      gsap.set(children, { opacity: 0, y: 16 });
+      gsap.set(children, { opacity: 0, y: 10 });
     }
 
     const obs = new IntersectionObserver(
@@ -266,8 +266,8 @@ export function initDockPill() {
     };
   }
 
-  // gsap.quickTo for hover — reuses a single tween per property (no allocation per event)
-  const pillOpacityTo = gsap.quickTo(pillEl, "opacity", { duration: 0.2, ease: "power2.out" });
+  // gsap.quickTo reuses a single opacity tween instead of allocating on each move.
+  const pillOpacityTo = gsap.quickTo(pillEl, "opacity", { duration: DURATION.fast, ease: EASE.out });
 
   function movePillTo(target: HTMLElement, animate = true) {
     const m = getMetrics(target);
@@ -301,25 +301,15 @@ export function initDockPill() {
 
     // Now animate ONLY compositor properties: x, y, scaleX, scaleY
     // This keeps everything on the GPU — no layout/paint per frame
-    const tl = gsap.timeline({ overwrite: true });
-
-    // Phase 1: subtle squeeze (feels like the pill "picks up")
-    tl.to(pillEl, {
-      scaleX: (curW / m.width) * 0.88,
-      scaleY: 0.78,
-      duration: 0.1,
-      ease: "power2.in",
-    });
-
-    // Phase 2: slide + expand to land on target
-    tl.to(pillEl, {
+    gsap.to(pillEl, {
       x: m.x,
       y: m.y,
       scaleX: 1,
       scaleY: 1,
-      duration: 0.42,
-      ease: "expo.out",
-    }, ">-=0.03");
+      duration: DURATION.standard,
+      ease: EASE.outStrong,
+      overwrite: true,
+    });
 
     // Opacity via quickTo (reuses tween)
     pillOpacityTo(1);
@@ -331,14 +321,7 @@ export function initDockPill() {
   }
 
   links.forEach((link) => {
-    // Hover: soft lift using quickTo for efficiency
-    if (!prefersReduced) {
-      const linkYTo = gsap.quickTo(link, "y", { duration: 0.3, ease: "power3.out" });
-      link.addEventListener("mouseenter", () => linkYTo(-2));
-      link.addEventListener("mouseleave", () => linkYTo(0));
-    }
-
-    link.addEventListener("click", (e) => {
+    link.addEventListener("click", () => {
       const href = link.getAttribute("href");
 
       links.forEach((l) => l.classList.remove("is-active"));
@@ -347,15 +330,6 @@ export function initDockPill() {
 
       // Move pill instantly (no animate — the page will navigate immediately anyway)
       movePillTo(link, false);
-
-      // Click feedback: gentle press-and-spring (will be cut short by navigation, that's fine)
-      if (!prefersReduced) {
-        gsap.fromTo(
-          link,
-          { scale: 0.95 },
-          { scale: 1, duration: 0.3, ease: "back.out(1.3)", overwrite: true }
-        );
-      }
 
       // Navigate immediately — no delay
       if (href) window.location.href = href;

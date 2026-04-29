@@ -210,13 +210,24 @@ const formatDate = (date: Date) =>
     background: rgba(236,237,247,0.6);
     color: #414753;
     cursor: pointer;
-    transition: all 0.15s ease;
     white-space: nowrap;
+    transform: scale(1);
+    transition:
+      background-color var(--motion-duration-standard) var(--motion-ease-out),
+      border-color var(--motion-duration-standard) var(--motion-ease-out),
+      color var(--motion-duration-standard) var(--motion-ease-out),
+      transform var(--motion-duration-fast) var(--motion-ease-press);
   }
 
-  .filter-chip:hover {
-    background: rgba(224,226,236,0.8);
-    color: #181c23;
+  @media (hover: hover) and (pointer: fine) {
+    .filter-chip:hover {
+      background: rgba(224,226,236,0.8);
+      color: #181c23;
+    }
+  }
+
+  .filter-chip:active {
+    transform: scale(0.97);
   }
 
   .filter-chip.active {
@@ -238,11 +249,20 @@ const formatDate = (date: Date) =>
     padding: 16px 0;
     border-bottom: 1px solid rgba(193,198,214,0.25);
     text-decoration: none;
-    transition: all 0.15s ease;
+    transform: translateX(0) scale(1);
+    transition:
+      border-color var(--motion-duration-standard) var(--motion-ease-out),
+      transform var(--motion-duration-fast) var(--motion-ease-press);
   }
 
-  .article-row:hover {
-    padding-left: 8px;
+  @media (hover: hover) and (pointer: fine) {
+    .article-row:hover {
+      transform: translateX(4px) scale(1);
+    }
+  }
+
+  .article-row:active {
+    transform: translateX(2px) scale(0.995);
   }
 
   .article-row.hidden {
@@ -282,10 +302,13 @@ const formatDate = (date: Date) =>
     color: #181c23;
     margin: 0;
     word-break: break-word;
+    transition: color var(--motion-duration-standard) var(--motion-ease-out);
   }
 
-  .article-row:hover .article-row-title {
-    color: #0059b5;
+  @media (hover: hover) and (pointer: fine) {
+    .article-row:hover .article-row-title {
+      color: #0059b5;
+    }
   }
 
   .article-row-date {
@@ -330,13 +353,17 @@ const formatDate = (date: Date) =>
 
   .article-row-arrow {
     color: #a0a8b8;
-    transition: all 0.15s ease;
+    transition:
+      color var(--motion-duration-standard) var(--motion-ease-out),
+      transform var(--motion-duration-standard) var(--motion-ease-out);
     flex-shrink: 0;
   }
 
-  .article-row:hover .article-row-arrow {
-    color: #0059b5;
-    transform: translateX(4px);
+  @media (hover: hover) and (pointer: fine) {
+    .article-row:hover .article-row-arrow {
+      color: #0059b5;
+      transform: translateX(4px);
+    }
   }
 
   /* Empty State */

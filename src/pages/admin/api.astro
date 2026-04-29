@@ -33,30 +33,26 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
       </div>
       <div class="field-group">
         <label for="llm-model" class="field-label">模型名称</label>
-        <div class="model-input-wrap">
-          <div class="model-combobox" id="llm-model-combobox">
-            <input id="llm-model" type="text" class="field-input" placeholder="gpt-4o-mini" list="llm-model-list" autocomplete="off" />
-            <datalist id="llm-model-list">
-              <option value="gpt-4o-mini">
-              <option value="gpt-4o">
-              <option value="gpt-4-turbo">
-              <option value="gpt-3.5-turbo">
-              <option value="claude-3-5-sonnet-20241022">
-              <option value="deepseek-chat">
-              <option value="glm-4-flash">
-            </datalist>
-            <div id="llm-model-dropdown" class="model-dropdown" hidden></div>
-          </div>
+        <div class="model-combobox" id="llm-model-combobox">
+          <input id="llm-model" type="text" class="field-input" placeholder="gpt-4o-mini" autocomplete="off" />
+          <div id="llm-model-dropdown" class="model-dropdown" hidden></div>
+        </div>
+        <div class="model-actions">
           <button type="button" id="btn-fetch-models" class="btn-secondary btn-small" title="从 API 获取可用模型列表">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-9 9m9-9a9 9 0 0 0-9-9m9 9H3m9 9a9 9 0 0 1-9-9m9 9c1.66 0 3-4.03 3-9s-1.34-9-3-9m0 18c-1.66 0-3-4.03-3-9s1.34-9 3-9m-9 9a9 9 0 0 1 9-9"/></svg>
             获取模型
           </button>
+          <span class="field-hint">输入模型名称或点击"获取模型"从 API 自动识别可用模型</span>
         </div>
-        <span class="field-hint">输入模型名称或点击"获取模型"从 API 自动识别可用模型</span>
       </div>
       <div class="llm-actions">
         <button type="button" id="btn-save-llm" class="btn-primary btn-small">保存设置</button>
         <button type="button" id="btn-test-llm" class="btn-secondary btn-small">测试连接</button>
+        <div id="llm-test-progress-group" class="test-progress-group hidden">
+          <div class="test-progress-track">
+            <div id="llm-test-progress-fill" class="test-progress-fill"></div>
+          </div>
+        </div>
         <span id="llm-test-status" class="save-status"></span>
       </div>
     </div>
@@ -85,21 +81,25 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
   import { requestLlmChat } from "../../scripts/admin-llm";
 
   const LLM_KEY = "admin-llm-settings";
+  const LLM_MODELS_KEY = "admin-llm-models-cache";
   const llmBaseUrl = document.getElementById("llm-base-url");
   const llmApiKey = document.getElementById("llm-api-key");
   const llmModel = document.getElementById("llm-model");
-  const llmModelList = document.getElementById("llm-model-list");
   const llmModelCombobox = document.getElementById("llm-model-combobox");
   const llmModelDropdown = document.getElementById("llm-model-dropdown");
   const btnToggleKey = document.getElementById("btn-toggle-key");
   const btnSaveLlm = document.getElementById("btn-save-llm");
   const btnTestLlm = document.getElementById("btn-test-llm");
   const llmTestStatus = document.getElementById("llm-test-status");
+  const llmTestProgressGroup = document.getElementById("llm-test-progress-group");
+  const llmTestProgressFill = document.getElementById("llm-test-progress-fill");
   const btnFetchModels = document.getElementById("btn-fetch-models");
   const llmBadge = document.getElementById("llm-status-badge");
-  let availableModels = Array.from(llmModelList?.querySelectorAll("option") || [])
-    .map((option) => option.value.trim())
-    .filter(Boolean);
+  let availableModels: string[] = [
+    "gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo",
+    "claude-3-5-sonnet-20241022", "deepseek-chat", "glm-4-flash",
+  ];
+  let autoFetchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   function loadLlmSettings() {
     try {
@@ -110,6 +110,23 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
         if (llmApiKey) llmApiKey.value = s.apiKey || "";
         if (llmModel) llmModel.value = s.model || "";
         updateLlmBadge(s);
+      }
+    } catch {}
+    // Load cached model list if the API key hasn't changed
+    try {
+      const cachedRaw = localStorage.getItem(LLM_MODELS_KEY);
+      if (cachedRaw) {
+        const cached = JSON.parse(cachedRaw);
+        const currentApiKey = llmApiKey?.value?.trim() || "";
+        const currentBaseUrl = llmBaseUrl?.value?.trim() || "";
+        if (
+          cached.apiKey === currentApiKey &&
+          cached.baseUrl === currentBaseUrl &&
+          Array.isArray(cached.models) &&
+          cached.models.length > 0
+        ) {
+          availableModels = cached.models;
+        }
       }
     } catch {}
   }
@@ -150,12 +167,6 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
 
   function setModelOptions(models) {
     availableModels = Array.from(new Set(models.map((model) => String(model).trim()).filter(Boolean)));
-    if (llmModelList) llmModelList.innerHTML = "";
-    availableModels.forEach((id) => {
-      const opt = document.createElement("option");
-      opt.value = id;
-      llmModelList?.appendChild(opt);
-    });
   }
 
   function closeModelDropdown() {
@@ -180,10 +191,11 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
       return;
     }
 
+    const currentValue = llmModel?.value?.trim() || "";
     visibleModels.forEach((id) => {
       const option = document.createElement("button");
       option.type = "button";
-      option.className = "model-option";
+      option.className = "model-option" + (id === currentValue ? " is-selected" : "");
       option.textContent = id;
       option.addEventListener("click", () => {
         if (llmModel) llmModel.value = id;
@@ -208,9 +220,13 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     if (availableModels.length > 0) renderModelDropdown(true);
   });
 
-  document.addEventListener("click", (event) => {
-    if (!(event.target instanceof Node) || llmModelCombobox?.contains(event.target)) return;
-    closeModelDropdown();
+  llmModel?.addEventListener("blur", () => {
+    // Delay to allow click on dropdown option to register first
+    setTimeout(() => {
+      if (llmModelDropdown && !llmModelDropdown.hidden) {
+        llmModelDropdown.hidden = true;
+      }
+    }, 150);
   });
 
   btnSaveLlm?.addEventListener("click", () => {
@@ -232,10 +248,24 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
       return;
     }
     saveLlmSettings();
+
+    // Reset and show progress
+    if (llmTestProgressGroup) llmTestProgressGroup.classList.remove("hidden");
+    if (llmTestProgressFill) {
+      llmTestProgressFill.className = "test-progress-fill";
+      llmTestProgressFill.style.width = "0%";
+    }
     if (llmTestStatus) {
       llmTestStatus.textContent = "正在测试连接...";
       llmTestStatus.className = "save-status is-info";
     }
+
+    let progress = 0;
+    const progressTimer = setInterval(() => {
+      progress = Math.min(progress + 4, 92);
+      if (llmTestProgressFill) llmTestProgressFill.style.width = progress + "%";
+    }, 100);
+
     try {
       const reply = await requestLlmChat({
         messages: [{ role: "user", content: "Hello, reply with OK only." }],
@@ -247,11 +277,21 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
           }
         },
       });
+      clearInterval(progressTimer);
+      if (llmTestProgressFill) {
+        llmTestProgressFill.style.width = "100%";
+        llmTestProgressFill.classList.add("is-success");
+      }
       if (llmTestStatus) {
         llmTestStatus.textContent = `连接成功: ${reply.trim().substring(0, 50)}`;
         llmTestStatus.className = "save-status is-success";
       }
     } catch (err) {
+      clearInterval(progressTimer);
+      if (llmTestProgressFill) {
+        llmTestProgressFill.style.width = "100%";
+        llmTestProgressFill.classList.add("is-error");
+      }
       if (llmTestStatus) {
         llmTestStatus.textContent = "连接失败: " + (err instanceof Error ? err.message : String(err));
         llmTestStatus.className = "save-status is-error";
@@ -259,19 +299,10 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     }
   });
 
-  btnFetchModels?.addEventListener("click", async () => {
-    const baseUrl = llmBaseUrl?.value?.trim();
-    const apiKey = llmApiKey?.value?.trim();
-    if (!baseUrl || !apiKey) {
-      if (llmTestStatus) {
-        llmTestStatus.textContent = "请先填写 Base URL 和 API Key";
-        llmTestStatus.className = "save-status is-error";
-      }
-      return;
-    }
+  async function doFetchModels(baseUrl: string, apiKey: string, silent = false) {
     if (btnFetchModels) btnFetchModels.disabled = true;
     const slowTimer = window.setTimeout(() => {
-      if (llmTestStatus) {
+      if (llmTestStatus && !silent) {
         llmTestStatus.textContent = "API 响应较慢，请继续等待...";
         llmTestStatus.className = "save-status is-info";
       }
@@ -288,17 +319,21 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
         ? data.models.map(m => typeof m === "string" ? m : m?.id).filter(Boolean)
         : [];
       setModelOptions(models);
+      // Persist model list keyed by apiKey + baseUrl
+      try {
+        localStorage.setItem(LLM_MODELS_KEY, JSON.stringify({ baseUrl, apiKey, models }));
+      } catch {}
       if (models.length > 0 && llmModel && !llmModel.value) {
         llmModel.value = models[0];
       }
       if (models.length > 0) renderModelDropdown(false);
-      if (llmTestStatus) {
+      if (llmTestStatus && !silent) {
         llmTestStatus.textContent = models.length > 0 ? `获取到 ${models.length} 个模型` : "未获取到模型，请手动输入模型名称";
         llmTestStatus.className = "save-status is-success";
         setTimeout(() => { llmTestStatus.textContent = ""; llmTestStatus.className = "save-status"; }, 3000);
       }
     } catch (err) {
-      if (llmTestStatus) {
+      if (llmTestStatus && !silent) {
         llmTestStatus.textContent = "获取模型失败: " + (err instanceof Error ? err.message : String(err));
         llmTestStatus.className = "save-status is-error";
       }
@@ -306,7 +341,49 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
       window.clearTimeout(slowTimer);
       if (btnFetchModels) btnFetchModels.disabled = false;
     }
+  }
+
+  btnFetchModels?.addEventListener("click", async () => {
+    const baseUrl = llmBaseUrl?.value?.trim();
+    const apiKey = llmApiKey?.value?.trim();
+    if (!baseUrl || !apiKey) {
+      if (llmTestStatus) {
+        llmTestStatus.textContent = "请先填写 Base URL 和 API Key";
+        llmTestStatus.className = "save-status is-error";
+      }
+      return;
+    }
+    await doFetchModels(baseUrl, apiKey);
   });
+
+  function scheduleAutoFetchModels() {
+    if (autoFetchDebounceTimer) clearTimeout(autoFetchDebounceTimer);
+    autoFetchDebounceTimer = setTimeout(async () => {
+      const baseUrl = llmBaseUrl?.value?.trim();
+      const apiKey = llmApiKey?.value?.trim();
+      if (!baseUrl || !apiKey) return;
+      // Skip if cached models already match this key+url
+      try {
+        const cachedRaw = localStorage.getItem(LLM_MODELS_KEY);
+        if (cachedRaw) {
+          const cached = JSON.parse(cachedRaw);
+          if (
+            cached.apiKey === apiKey &&
+            cached.baseUrl === baseUrl &&
+            Array.isArray(cached.models) &&
+            cached.models.length > 0
+          ) {
+            availableModels = cached.models;
+            return;
+          }
+        }
+      } catch {}
+      await doFetchModels(baseUrl, apiKey, true);
+    }, 1000);
+  }
+
+  llmApiKey?.addEventListener("input", scheduleAutoFetchModels);
+  llmBaseUrl?.addEventListener("input", scheduleAutoFetchModels);
 
   loadLlmSettings();
 </script>
@@ -430,15 +507,9 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
   .btn-toggle-key:hover {
     color: #414753;
   }
-  .model-input-wrap {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-  }
   .model-combobox {
     position: relative;
-    flex: 1;
-    min-width: 0;
+    width: 100%;
   }
   .model-combobox .field-input {
     width: 100%;
@@ -446,19 +517,22 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
   .model-dropdown {
     position: absolute;
     z-index: 30;
-    top: calc(100% + 6px);
+    top: calc(100% + 4px);
     left: 0;
     right: 0;
-    max-height: 260px;
+    max-height: 240px;
     overflow-y: auto;
     padding: 6px;
     border: 1px solid rgba(193,198,214,0.55);
     border-radius: 12px;
     background: rgba(255,255,255,0.98);
     box-shadow: 0 14px 34px rgba(24,28,35,0.12);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
   }
   .model-dropdown[hidden] {
-    display: none;
+    display: none !important;
   }
   .model-option {
     width: 100%;
@@ -467,21 +541,39 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     background: transparent;
     color: #181c23;
     cursor: pointer;
-    display: block;
+    display: block !important;
     font-family: var(--font-body);
     font-size: 13px;
     line-height: 1.4;
     padding: 9px 10px;
     text-align: left;
+    word-break: break-all;
+    white-space: normal;
+    box-sizing: border-box;
+    margin: 0;
   }
-  .model-option:hover {
-    background: rgba(0,89,181,0.08);
-    color: #0059b5;
+  .model-option:hover,
+  .model-option.is-selected {
+    background: rgba(0,89,181,0.08) !important;
+    color: #0059b5 !important;
+  }
+  .model-option.is-selected {
+    font-weight: 600;
   }
   .model-dropdown-empty {
     color: #717785;
     font-size: 13px;
     padding: 9px 10px;
+  }
+  .model-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 6px;
+  }
+  .model-actions .field-hint {
+    flex: 1;
+    min-width: 0;
   }
   .llm-actions {
     display: flex;
@@ -561,6 +653,35 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
   .save-status.is-success { color: #059669; }
   .save-status.is-error { color: #dc2626; }
   .save-status.is-info { color: #0059b5; }
+  .test-progress-group {
+    display: flex;
+    align-items: center;
+    width: 100px;
+    flex-shrink: 0;
+  }
+  .test-progress-group.hidden {
+    display: none !important;
+  }
+  .test-progress-track {
+    width: 100%;
+    height: 4px;
+    background: rgba(193,198,214,0.35);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .test-progress-fill {
+    width: 0%;
+    height: 100%;
+    border-radius: 999px;
+    background: #0059b5;
+    transition: width 0.2s ease, background-color 0.2s ease;
+  }
+  .test-progress-fill.is-error {
+    background: #dc2626;
+  }
+  .test-progress-fill.is-success {
+    background: #059669;
+  }
 
   /* Usage Info */
   .usage-info {

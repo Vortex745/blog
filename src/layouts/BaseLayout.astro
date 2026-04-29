@@ -367,14 +367,17 @@ const currentPath = Astro.url.pathname;
         border: 1px solid rgba(193, 198, 214, 0.5);
         background: rgba(255, 255, 255, 0.6);
         backdrop-filter: blur(16px);
-        transition: border-color 0.2s ease, box-shadow 0.2s ease, width 0.3s ease;
+        transition:
+          border-color var(--motion-duration-standard) var(--motion-ease-out),
+          box-shadow var(--motion-duration-standard) var(--motion-ease-out),
+          background-color var(--motion-duration-standard) var(--motion-ease-out);
         overflow: hidden;
       }
 
       .nav-search-group:focus-within {
         border-color: #0059b5;
         box-shadow: 0 0 0 3px rgba(0, 89, 181, 0.1);
-        width: 220px;
+        background: rgba(255, 255, 255, 0.82);
       }
 
       .nav-search-input {
@@ -416,9 +419,11 @@ const currentPath = Astro.url.pathname;
         transition: color 0.2s ease, background-color 0.2s ease;
       }
 
-      .nav-search-icon-btn:hover {
-        color: #0059b5;
-        background-color: rgba(0, 89, 181, 0.06);
+      @media (hover: hover) and (pointer: fine) {
+        .nav-search-icon-btn:hover {
+          color: #0059b5;
+          background-color: rgba(0, 89, 181, 0.06);
+        }
       }
 
       /* Mobile search */
@@ -493,7 +498,9 @@ const currentPath = Astro.url.pathname;
       }
 
       .mobile-menu__content {
-        --panel-translate-y: 36px;
+        --panel-open-dur: 260ms;
+        --panel-close-dur: 180ms;
+        --panel-translate-y: 28px;
         display: flex;
         flex-direction: column;
         align-items: center;

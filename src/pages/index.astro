@@ -268,18 +268,19 @@ const quote = quotes[Math.floor(Math.random() * quotes.length)];
     font-size: 14px;
     font-weight: 500;
     text-decoration: none;
-    transition: all 0.15s ease;
     min-height: 40px;
+    transform: translateY(0) scale(1);
+    transition:
+      background-color var(--motion-duration-standard) var(--motion-ease-out),
+      border-color var(--motion-duration-standard) var(--motion-ease-out),
+      color var(--motion-duration-standard) var(--motion-ease-out),
+      box-shadow var(--motion-duration-standard) var(--motion-ease-out),
+      transform var(--motion-duration-fast) var(--motion-ease-press);
   }
 
   .hero-btn-primary {
     background: #0071e3;
     color: #fff;
-  }
-
-  .hero-btn-primary:hover {
-    background: #005bbf;
-    transform: translateY(-1px);
   }
 
   .hero-btn-secondary {
@@ -288,8 +289,20 @@ const quote = quotes[Math.floor(Math.random() * quotes.length)];
     border: 1px solid rgba(193,198,214,0.5);
   }
 
-  .hero-btn-secondary:hover {
-    background: #e8ebf0;
+  @media (hover: hover) and (pointer: fine) {
+    .hero-btn-primary:hover {
+      background: #005bbf;
+      transform: translateY(-1px) scale(1);
+    }
+
+    .hero-btn-secondary:hover {
+      background: #e8ebf0;
+      transform: translateY(-1px) scale(1);
+    }
+  }
+
+  .hero-btn:active {
+    transform: translateY(0) scale(0.97);
   }
 
   /* Quote Card */
@@ -373,12 +386,18 @@ const quote = quotes[Math.floor(Math.random() * quotes.length)];
     font-weight: 600;
     color: #0059b5;
     text-decoration: none;
-    transition: gap 0.2s ease;
+    transition: color var(--motion-duration-standard) var(--motion-ease-out);
     white-space: nowrap;
   }
 
-  .section-link:hover {
-    gap: 8px;
+  .section-link svg {
+    transition: transform var(--motion-duration-standard) var(--motion-ease-out);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .section-link:hover svg {
+      transform: translateX(3px);
+    }
   }
 
   /* Articles Dense Grid */
@@ -406,13 +425,23 @@ const quote = quotes[Math.floor(Math.random() * quotes.length)];
     border: 1px solid rgba(193,198,214,0.3);
     border-radius: 12px;
     text-decoration: none;
-    transition: all 0.15s ease;
+    transform: translateY(0) scale(1);
+    transition:
+      border-color var(--motion-duration-standard) var(--motion-ease-out),
+      box-shadow var(--motion-duration-standard) var(--motion-ease-out),
+      transform var(--motion-duration-fast) var(--motion-ease-press);
   }
 
-  .article-card:hover {
-    border-color: rgba(193,198,214,0.6);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.05);
-    transform: translateY(-1px);
+  @media (hover: hover) and (pointer: fine) {
+    .article-card:hover {
+      border-color: rgba(193,198,214,0.6);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.05);
+      transform: translateY(-1px) scale(1);
+    }
+  }
+
+  .article-card:active {
+    transform: translateY(0) scale(0.99);
   }
 
   .article-card-featured {
@@ -504,13 +533,23 @@ const quote = quotes[Math.floor(Math.random() * quotes.length)];
     border: 1px solid rgba(193,198,214,0.3);
     border-radius: 12px;
     text-decoration: none;
-    transition: all 0.15s ease;
+    transform: translateY(0) scale(1);
+    transition:
+      border-color var(--motion-duration-standard) var(--motion-ease-out),
+      box-shadow var(--motion-duration-standard) var(--motion-ease-out),
+      transform var(--motion-duration-fast) var(--motion-ease-press);
   }
 
-  .project-dense-card:hover {
-    border-color: rgba(193,198,214,0.6);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.05);
-    transform: translateY(-1px);
+  @media (hover: hover) and (pointer: fine) {
+    .project-dense-card:hover {
+      border-color: rgba(193,198,214,0.6);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.05);
+      transform: translateY(-1px) scale(1);
+    }
+  }
+
+  .project-dense-card:active {
+    transform: translateY(0) scale(0.99);
   }
 
   .project-dense-top {
@@ -588,13 +627,23 @@ const quote = quotes[Math.floor(Math.random() * quotes.length)];
     border-radius: 16px;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
     text-decoration: none;
-    transition: all 0.15s ease;
+    transform: translateY(0) scale(1);
+    transition:
+      border-color var(--motion-duration-standard) var(--motion-ease-out),
+      box-shadow var(--motion-duration-standard) var(--motion-ease-out),
+      transform var(--motion-duration-fast) var(--motion-ease-press);
   }
 
-  .profile-card:hover {
-    border-color: rgba(193, 198, 214, 0.6);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
-    transform: translateY(-1px);
+  @media (hover: hover) and (pointer: fine) {
+    .profile-card:hover {
+      border-color: rgba(193, 198, 214, 0.6);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+      transform: translateY(-1px) scale(1);
+    }
+  }
+
+  .profile-card:active {
+    transform: translateY(0) scale(0.99);
   }
 
   .profile-avatar {
