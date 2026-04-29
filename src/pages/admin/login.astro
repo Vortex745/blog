@@ -221,6 +221,7 @@
           if (username === "admin" && password === "1234") {
             localStorage.setItem("admin-auth", "1");
             localStorage.setItem("admin-auth-time", String(Date.now()));
+            document.cookie = "admin-auth=1; path=/; max-age=604800; SameSite=Lax";
             const redirect = new URLSearchParams(window.location.search).get("redirect") || "/admin";
             window.location.replace(redirect);
           } else {

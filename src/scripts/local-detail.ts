@@ -32,12 +32,28 @@ type TocItem = {
 
 const ARTICLE_KEY = "admin-articles-data";
 const PROJECT_KEY = "admin-projects-data";
+const ARTICLE_API = "/api/articles";
 function readList<T>(key: string): T[] {
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+async function readRemoteArticles(): Promise<AdminArticle[]> {
+  try {
+    const response = await fetch(ARTICLE_API, {
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    });
+    if (!response.ok) return [];
+
+    const data = await response.json();
+    return Array.isArray(data?.articles) ? data.articles : [];
   } catch {
     return [];
   }
@@ -153,6 +169,10 @@ function showMissing(root: HTMLElement, type: "文章" | "项目"): void {
 }
 
 export function initLocalArticleDetail(): void {
+  void hydrateLocalArticleDetail();
+}
+
+async function hydrateLocalArticleDetail(): Promise<void> {
   const root = document.querySelector<HTMLElement>("[data-local-article-detail]");
   if (!root || root.dataset.localDetailReady === "true") return;
   root.dataset.localDetailReady = "true";
@@ -161,7 +181,12 @@ export function initLocalArticleDetail(): void {
   if (!token) return;
 
   const articles = readList<AdminArticle>(ARTICLE_KEY);
-  const article = articles.find((item, index) => itemMatchesSlug(item, index, token));
+  let article = articles.find((item, index) => itemMatchesSlug(item, index, token));
+  if (!article) {
+    const remoteArticles = await readRemoteArticles();
+    article = remoteArticles.find((item, index) => itemMatchesSlug(item, index, token));
+  }
+
   if (!article) {
     showMissing(root, "文章");
     return;

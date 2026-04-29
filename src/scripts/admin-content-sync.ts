@@ -36,6 +36,7 @@ type AdminHome = {
 const ARTICLE_KEY = "admin-articles-data";
 const PROJECT_KEY = "admin-projects-data";
 const HOME_KEY = "admin-home-data";
+const ARTICLE_API = "/api/articles";
 const COVER_PLACEHOLDER = COVER_IMAGE_PLACEHOLDER;
 const SYNC_EVENT = "admin-content:changed";
 const SYNCED_ATTR = "data-admin-synced";
@@ -61,6 +62,21 @@ function readHomeData(): AdminHome | null {
     return parsed && typeof parsed === "object" ? parsed : null;
   } catch {
     return null;
+  }
+}
+
+async function readRemoteArticles(): Promise<AdminArticle[]> {
+  try {
+    const response = await fetch(ARTICLE_API, {
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    });
+    if (!response.ok) return [];
+
+    const data = await response.json();
+    return Array.isArray(data?.articles) ? data.articles : [];
+  } catch {
+    return [];
   }
 }
 
@@ -222,6 +238,20 @@ function splitTagsFromDataset(item: HTMLElement): string[] {
 
 function articleTags(article: AdminArticle): string[] {
   return splitTags(article.tags);
+}
+
+function mergeArticles(localArticles: AdminArticle[], remoteArticles: AdminArticle[]): AdminArticle[] {
+  const seen = new Set<string>();
+  const merged: AdminArticle[] = [];
+
+  [...localArticles, ...remoteArticles].forEach((article, index) => {
+    const key = String(article.id || article.title || index).trim();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    merged.push(article);
+  });
+
+  return merged;
 }
 
 function articleCover(article: AdminArticle): string {
@@ -664,12 +694,20 @@ function syncHome(articles: AdminArticle[], projects: AdminProject[]): void {
   }
 }
 
-function syncCurrentPage(): void {
-  const articles = readList<AdminArticle>(ARTICLE_KEY);
+async function syncCurrentPage(): Promise<void> {
+  const localArticles = readList<AdminArticle>(ARTICLE_KEY);
   const projects = readList<AdminProject>(PROJECT_KEY);
+  syncHome(localArticles, projects);
+  syncArticlesPage(localArticles);
+  syncProjectsPage(projects);
+  syncArchivePage(localArticles, projects);
+
+  const remoteArticles = await readRemoteArticles();
+  if (remoteArticles.length === 0) return;
+
+  const articles = mergeArticles(localArticles, remoteArticles);
   syncHome(articles, projects);
   syncArticlesPage(articles);
-  syncProjectsPage(projects);
   syncArchivePage(articles, projects);
 }
 

@@ -239,6 +239,7 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
 
   // ===== Storage Keys =====
   const ARTICLES_KEY = "admin-articles-data";
+  const ARTICLES_API = "/api/articles";
 
   // ===== Elements =====
   const modal = document.getElementById("article-modal");
@@ -269,15 +270,89 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
     return [];
   }
 
+  async function loadRemoteArticles() {
+    try {
+      const response = await fetch(ARTICLES_API, {
+        headers: { accept: "application/json" },
+        cache: "no-store",
+      });
+      if (!response.ok) return [];
+
+      const data = await response.json();
+      return Array.isArray(data?.articles) ? data.articles : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function mergeArticles(localList, remoteList) {
+    const seen = new Set();
+    const merged = [];
+
+    [...localList, ...remoteList].forEach((article, index) => {
+      const key = String(article?.id || article?.title || index).trim();
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      merged.push(article);
+    });
+
+    return merged;
+  }
+
   function notifyContentChanged() {
     window.dispatchEvent(new CustomEvent("admin-content:changed", {
       detail: { key: ARTICLES_KEY, module: "articles" },
     }));
   }
 
-  function saveArticles(list) {
+  function persistArticles(list) {
     localStorage.setItem(ARTICLES_KEY, JSON.stringify(list));
     notifyContentChanged();
+  }
+
+  async function saveArticles(list) {
+    persistArticles(list);
+
+    try {
+      const response = await fetch(ARTICLES_API, {
+        method: "PUT",
+        headers: {
+          "content-type": "application/json",
+          "x-admin-auth": localStorage.getItem("admin-auth") || "",
+        },
+        body: JSON.stringify({ articles: list }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.ok) {
+        throw new Error(result.message || "云端同步失败");
+      }
+
+      if (Array.isArray(result.articles)) {
+        articles = result.articles;
+        persistArticles(articles);
+      }
+      return true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "云端同步失败";
+      showToast(`已保存在本机，云端同步失败：${message}`, "error");
+      showStatus("云端同步失败，手机端暂时不可见", "error");
+      return false;
+    }
+  }
+
+  async function hydrateArticlesFromCloud() {
+    const localArticles = loadArticles();
+    const remoteArticles = await loadRemoteArticles();
+    if (remoteArticles.length === 0) {
+      if (localArticles.length > 0 && await saveArticles(localArticles)) {
+        showStatus("本机文章已同步到云端", "success");
+      }
+      return;
+    }
+
+    articles = mergeArticles(localArticles, remoteArticles);
+    persistArticles(articles);
+    renderList();
   }
 
   let articles = loadArticles();
@@ -1021,15 +1096,15 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
     } else if (btn.dataset.action === "delete") {
       if (await (window as any).showConfirmDialog("确定要删除这篇文章吗？")) {
         articles.splice(idx, 1);
-        saveArticles(articles);
+        const synced = await saveArticles(articles);
         renderList();
-        showStatus("文章已删除", "success");
+        if (synced) showStatus("文章已删除并同步", "success");
       }
     }
   });
 
   // ===== Form Submit =====
-  form?.addEventListener("submit", (e) => {
+  form?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const title = document.getElementById("a-title")?.value?.trim() || "";
     const content = contentTextarea?.value?.trim() || "";
@@ -1065,6 +1140,7 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
     };
 
     const editId = document.getElementById("article-id")?.value;
+    let successMessage = "文章已添加并同步";
     if (editId !== undefined && editId !== "") {
       const editIdx = parseInt(editId, 10);
       if (editIdx >= 0 && editIdx < articles.length) {
@@ -1075,22 +1151,24 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
           date: articles[editIdx].date || article.date,
           updatedAt: new Date().toISOString(),
         };
-        showToast("文章已更新", "success");
-        showStatus("文章已更新", "success");
+        successMessage = "文章已更新并同步";
       }
     } else {
       articles.unshift(article);
-      showToast("文章已添加", "success");
-      showStatus("文章已添加", "success");
     }
 
-    saveArticles(articles);
+    const synced = await saveArticles(articles);
     renderList();
+    if (synced) {
+      showToast(successMessage, "success");
+      showStatus(successMessage, "success");
+    }
     closeModal();
   });
 
   // ===== Init =====
   renderList();
+  void hydrateArticlesFromCloud();
 </script>
 
 <style>

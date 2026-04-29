@@ -181,6 +181,7 @@ const navItems = [
           if (await showConfirmDialog("确定要退出登录吗？")) {
             localStorage.removeItem("admin-auth");
             localStorage.removeItem("admin-auth-time");
+            document.cookie = "admin-auth=; path=/; max-age=0; SameSite=Lax";
             window.location.replace("/admin/login");
           }
         }, { signal: controller.signal });
