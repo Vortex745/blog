@@ -126,8 +126,19 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
               </button>
             </div>
           </div>
-          <div class="editor-wrap">
-            <textarea id="a-content" name="content" class="field-input field-textarea editor-textarea" rows="16" placeholder="在此输入 Markdown 格式的文章内容...&#10;&#10;支持直接粘贴图片，图片会自动上传并插入到正文中。" required></textarea>
+          <div class="markdown-renderer" data-markdown-renderer>
+            <div class="markdown-renderer-tabs" role="tablist" aria-label="文章内容 Markdown 视图">
+              <button type="button" class="markdown-renderer-tab is-active" data-markdown-mode="edit" aria-pressed="true">编辑</button>
+              <button type="button" class="markdown-renderer-tab" data-markdown-mode="preview" aria-pressed="false">预览</button>
+            </div>
+            <div class="markdown-renderer-pane is-active" data-markdown-edit-pane>
+              <div class="editor-wrap">
+                <textarea id="a-content" name="content" class="field-input field-textarea editor-textarea" rows="16" placeholder="在此输入 Markdown 格式的文章内容...&#10;&#10;支持直接粘贴图片，图片会自动上传并插入到正文中。" required data-markdown-source></textarea>
+              </div>
+            </div>
+            <div class="markdown-renderer-pane" data-markdown-preview-pane hidden>
+              <div class="markdown-renderer-preview" data-markdown-preview></div>
+            </div>
           </div>
         </div>
 
@@ -230,6 +241,7 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
 </AdminLayout>
 
 <script>
+  import { initMarkdownRenderers, refreshMarkdownRendererFor } from "../../scripts/admin-markdown-renderer";
   import { getLlmSettings, requestLlmChat } from "../../scripts/admin-llm";
 
   // ===== Storage Keys =====
@@ -252,7 +264,8 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
   let currentTags = [];
 
   // Content editor
-  const contentTextarea = document.getElementById("a-content");
+  const contentTextarea = document.getElementById("a-content") as HTMLTextAreaElement | null;
+  initMarkdownRenderers();
 
   // ===== Data =====
   function loadArticles() {
@@ -495,6 +508,7 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
     contentTextarea.value = text.substring(0, start) + markdown + text.substring(start);
     contentTextarea.selectionStart = contentTextarea.selectionEnd = start + markdown.length;
     contentTextarea.focus();
+    refreshMarkdownRendererFor(contentTextarea);
   }
 
   function addContentImageItem(url, label, altText) {
@@ -849,6 +863,7 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
   btnApplyPolish?.addEventListener("click", () => {
     if (polishedContent && contentTextarea) {
       contentTextarea.value = polishedContent;
+      refreshMarkdownRendererFor(contentTextarea);
       showStatus("已应用润色结果", "success");
     }
     if (polishOptions) polishOptions.classList.add("hidden");
@@ -874,6 +889,7 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
     contentTextarea.selectionStart = start + before.length;
     contentTextarea.selectionEnd = start + before.length + selected.length;
     contentTextarea.focus();
+    refreshMarkdownRendererFor(contentTextarea);
   }
 
   document.querySelectorAll(".toolbar-btn[data-action]").forEach(btn => {
@@ -904,6 +920,7 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
     modal.classList.remove("is-open");
     document.body.style.overflow = "";
     form.reset();
+    refreshMarkdownRendererFor(contentTextarea);
     document.getElementById("article-id").value = "";
     currentTags = [];
     renderTags();
@@ -999,6 +1016,7 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
         : [];
       renderTags();
       if (contentTextarea) contentTextarea.value = a.content || "";
+      refreshMarkdownRendererFor(contentTextarea);
       if (a.coverImage) {
         showCoverPreview(a.coverImage);
         if (coverImageData) coverImageData.value = a.coverImage;

@@ -395,6 +395,161 @@ const navItems = [
     content-visibility: auto;
     contain-intrinsic-size: auto 220px;
   }
+  :global(.markdown-renderer) {
+    display: grid;
+    gap: 10px;
+  }
+  :global(.markdown-renderer-tabs) {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    padding: 3px;
+    border: 1px solid rgba(193,198,214,0.5);
+    border-radius: 10px;
+    background: rgba(244,246,250,0.8);
+  }
+  :global(.markdown-renderer-tab) {
+    min-height: 30px;
+    padding: 5px 14px;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: #414753;
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition:
+      background-color var(--admin-duration-fast) var(--admin-ease-out),
+      color var(--admin-duration-fast) var(--admin-ease-out);
+  }
+  :global(.markdown-renderer-tab.is-active) {
+    background: #fff;
+    color: #0059b5;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  :global(.markdown-renderer-pane[hidden]) {
+    display: none;
+  }
+  :global(.markdown-renderer-preview) {
+    min-height: 220px;
+    max-height: 520px;
+    overflow: auto;
+    box-sizing: border-box;
+    padding: 16px 18px;
+    border: 1px solid rgba(193,198,214,0.5);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.76);
+    color: #181c23;
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  :global(.markdown-renderer-preview > *:first-child) {
+    margin-top: 0;
+  }
+  :global(.markdown-renderer-preview > *:last-child) {
+    margin-bottom: 0;
+  }
+  :global(.markdown-renderer-preview h1),
+  :global(.markdown-renderer-preview h2),
+  :global(.markdown-renderer-preview h3),
+  :global(.markdown-renderer-preview h4) {
+    margin: 1.2em 0 0.45em;
+    color: #181c23;
+    font-family: var(--font-display);
+    font-weight: 650;
+    line-height: 1.25;
+    letter-spacing: 0;
+  }
+  :global(.markdown-renderer-preview h1) {
+    font-size: 24px;
+  }
+  :global(.markdown-renderer-preview h2) {
+    font-size: 20px;
+  }
+  :global(.markdown-renderer-preview h3) {
+    font-size: 17px;
+  }
+  :global(.markdown-renderer-preview h4) {
+    font-size: 15px;
+  }
+  :global(.markdown-renderer-preview p),
+  :global(.markdown-renderer-preview ul),
+  :global(.markdown-renderer-preview ol),
+  :global(.markdown-renderer-preview blockquote),
+  :global(.markdown-renderer-preview pre),
+  :global(.markdown-renderer-preview figure),
+  :global(.markdown-renderer-preview table) {
+    margin: 0 0 14px;
+  }
+  :global(.markdown-renderer-preview ul),
+  :global(.markdown-renderer-preview ol) {
+    padding-left: 22px;
+  }
+  :global(.markdown-renderer-preview li + li) {
+    margin-top: 4px;
+  }
+  :global(.markdown-renderer-preview a) {
+    color: #0059b5;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  :global(.markdown-renderer-preview blockquote) {
+    padding: 10px 14px;
+    border-left: 3px solid #0059b5;
+    border-radius: 8px;
+    background: rgba(0,89,181,0.06);
+    color: #414753;
+  }
+  :global(.markdown-renderer-preview code) {
+    padding: 2px 5px;
+    border-radius: 5px;
+    background: rgba(0,0,0,0.06);
+    font-family: var(--font-mono);
+    font-size: 0.92em;
+  }
+  :global(.markdown-renderer-preview pre) {
+    padding: 14px;
+    overflow: auto;
+    border-radius: 10px;
+    background: #181c23;
+    color: #f8fafc;
+  }
+  :global(.markdown-renderer-preview pre code) {
+    padding: 0;
+    background: transparent;
+    color: inherit;
+  }
+  :global(.markdown-renderer-preview img) {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border-radius: 10px;
+  }
+  :global(.markdown-table-wrap) {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  :global(.markdown-renderer-preview table) {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  :global(.markdown-renderer-preview th),
+  :global(.markdown-renderer-preview td) {
+    padding: 8px 10px;
+    border: 1px solid rgba(193,198,214,0.55);
+    text-align: left;
+    vertical-align: top;
+  }
+  :global(.markdown-renderer-preview th) {
+    background: rgba(244,246,250,0.9);
+    font-weight: 600;
+  }
+  :global(.markdown-preview-empty) {
+    color: #717785;
+  }
   @media (max-width: 768px) {
     .admin-sidebar {
       display: none;

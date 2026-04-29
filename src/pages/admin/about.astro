@@ -110,7 +110,18 @@ const initialAvatar = profile.avatar || DEFAULT_AVATAR;
             </button>
           </div>
         </div>
-        <textarea id="philosophy-content" name="philosophy" class="field-input field-textarea editor-textarea" rows="10" placeholder="在此输入 Markdown 格式的理念内容...&#10;&#10;每段之间用空行分隔。">{profile.philosophy.join("\n\n")}</textarea>
+        <div class="markdown-renderer" data-markdown-renderer>
+          <div class="markdown-renderer-tabs" role="tablist" aria-label="理念内容 Markdown 视图">
+            <button type="button" class="markdown-renderer-tab is-active" data-markdown-mode="edit" aria-pressed="true">编辑</button>
+            <button type="button" class="markdown-renderer-tab" data-markdown-mode="preview" aria-pressed="false">预览</button>
+          </div>
+          <div class="markdown-renderer-pane is-active" data-markdown-edit-pane>
+            <textarea id="philosophy-content" name="philosophy" class="field-input field-textarea editor-textarea" rows="10" placeholder="在此输入 Markdown 格式的理念内容...&#10;&#10;每段之间用空行分隔。" data-markdown-source>{profile.philosophy.join("\n\n")}</textarea>
+          </div>
+          <div class="markdown-renderer-pane" data-markdown-preview-pane hidden>
+            <div class="markdown-renderer-preview" data-markdown-preview></div>
+          </div>
+        </div>
 
         {/* AI Polish Options */}
         <div class="polish-options hidden" id="polish-options">
@@ -179,6 +190,12 @@ const initialAvatar = profile.avatar || DEFAULT_AVATAR;
   </form>
 </AdminLayout>
 
+<script>
+  import { initMarkdownRenderers } from "../../scripts/admin-markdown-renderer";
+
+  initMarkdownRenderers();
+</script>
+
 <script define:vars={{ defaultAvatar: DEFAULT_AVATAR }}>
   const ABOUT_KEY = "admin-about-data";
   const DEFAULT_AVATAR = defaultAvatar;
@@ -217,6 +234,10 @@ const initialAvatar = profile.avatar || DEFAULT_AVATAR;
 
   let currentSkills = [];
 
+  function syncPhilosophyPreview() {
+    philosophyInput?.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
   // ===== Helpers =====
   function showStatus(text, type) {
     if (!saveStatus) return;
@@ -245,6 +266,7 @@ const initialAvatar = profile.avatar || DEFAULT_AVATAR;
       if (data.description && descInput) descInput.value = data.description;
       if (data.philosophy && Array.isArray(data.philosophy) && philosophyInput) {
         philosophyInput.value = data.philosophy.join("\n\n");
+        syncPhilosophyPreview();
       }
       if (data.skills && Array.isArray(data.skills)) {
         currentSkills = data.skills;
@@ -382,6 +404,7 @@ const initialAvatar = profile.avatar || DEFAULT_AVATAR;
       philosophyInput.value = text.substring(0, start) + replacement + text.substring(end);
       philosophyInput.selectionStart = philosophyInput.selectionEnd = start + replacement.length + cursorOffset;
       philosophyInput.focus();
+      syncPhilosophyPreview();
     });
   });
 
@@ -604,6 +627,7 @@ const initialAvatar = profile.avatar || DEFAULT_AVATAR;
   btnApplyPolish?.addEventListener("click", () => {
     if (polishedContent && philosophyInput) {
       philosophyInput.value = polishedContent;
+      syncPhilosophyPreview();
       showStatus("已应用润色结果", "success");
     }
     if (polishOptions) polishOptions.classList.add("hidden");

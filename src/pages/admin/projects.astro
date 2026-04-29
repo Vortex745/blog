@@ -120,7 +120,18 @@ const projects = await getCollection("projects");
             <label for="p-desc" class="field-label">项目介绍 <span class="required">*</span></label>
             <button type="button" id="btn-polish-project" class="btn-secondary btn-small">AI 润色</button>
           </div>
-          <textarea id="p-desc" name="description" class="field-input field-textarea" rows="4" placeholder="输入项目详细介绍" required></textarea>
+          <div class="markdown-renderer" data-markdown-renderer>
+            <div class="markdown-renderer-tabs" role="tablist" aria-label="项目介绍 Markdown 视图">
+              <button type="button" class="markdown-renderer-tab is-active" data-markdown-mode="edit" aria-pressed="true">编辑</button>
+              <button type="button" class="markdown-renderer-tab" data-markdown-mode="preview" aria-pressed="false">预览</button>
+            </div>
+            <div class="markdown-renderer-pane is-active" data-markdown-edit-pane>
+              <textarea id="p-desc" name="description" class="field-input field-textarea" rows="8" placeholder="使用 Markdown 输入项目详细介绍" required data-markdown-source></textarea>
+            </div>
+            <div class="markdown-renderer-pane" data-markdown-preview-pane hidden>
+              <div class="markdown-renderer-preview" data-markdown-preview></div>
+            </div>
+          </div>
           <div class="polish-options hidden" id="project-polish-options">
             <div class="polish-options-bar">
               <label class="field-label" style="margin-bottom:0">AI 润色</label>
@@ -179,6 +190,7 @@ const projects = await getCollection("projects");
 </AdminLayout>
 
 <script>
+  import { initMarkdownRenderers, refreshMarkdownRendererFor } from "../../scripts/admin-markdown-renderer";
   import { getLlmSettings, requestLlmChat } from "../../scripts/admin-llm";
 
   // LocalStorage key
@@ -203,7 +215,8 @@ const projects = await getCollection("projects");
   const projectTagInput = document.getElementById("project-tag-input");
   const projectTagList = document.getElementById("project-tag-list");
   const projectTagsHidden = document.getElementById("p-tech");
-  const projectDescInput = document.getElementById("p-desc");
+  const projectDescInput = document.getElementById("p-desc") as HTMLTextAreaElement | null;
+  initMarkdownRenderers();
   const btnPolishProject = document.getElementById("btn-polish-project");
   const projectPolishOptions = document.getElementById("project-polish-options");
   const btnProjectPolishRun = document.getElementById("btn-project-polish-run");
@@ -432,6 +445,7 @@ const projects = await getCollection("projects");
     modal.classList.remove("is-open");
     document.body.style.overflow = "";
     form.reset();
+    refreshMarkdownRendererFor(projectDescInput);
     document.getElementById("project-id").value = "";
     currentProjectTags = [];
     renderProjectTags();
@@ -617,6 +631,7 @@ const projects = await getCollection("projects");
   btnProjectPolishApply?.addEventListener("click", () => {
     if (polishedProjectDescription && projectDescInput) {
       projectDescInput.value = polishedProjectDescription;
+      refreshMarkdownRendererFor(projectDescInput);
       showToast("已应用润色结果", "success");
       showStatus("已应用润色结果", "success");
     }
@@ -673,7 +688,8 @@ const projects = await getCollection("projects");
       currentProjectTags = splitProjectTags(p.tech || "");
       renderProjectTags();
       document.getElementById("p-url").value = p.url || "";
-      document.getElementById("p-desc").value = p.description || "";
+      if (projectDescInput) projectDescInput.value = p.description || "";
+      refreshMarkdownRendererFor(projectDescInput);
       if (p.imageData) {
         showImagePreview(p.imageData);
         if (imageDataInput) imageDataInput.value = p.imageData;
