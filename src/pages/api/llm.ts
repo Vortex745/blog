@@ -1,4 +1,5 @@
 import type { APIRoute } from "astro";
+import { buildOpenAiCompatibleEndpoint } from "../../lib/llm-endpoint";
 
 type LlmMessage = {
   role: "system" | "user" | "assistant";
@@ -51,16 +52,11 @@ export const POST: APIRoute = async ({ request }) => {
     return jsonResponse({ ok: false, message: "缺少有效的对话内容" }, 400);
   }
 
-  let endpoint: URL;
-  try {
-    const baseUrl = new URL(baseUrlRaw);
-    if (baseUrl.protocol !== "http:" && baseUrl.protocol !== "https:") {
-      return jsonResponse({ ok: false, message: "Base URL 必须以 http:// 或 https:// 开头" }, 400);
-    }
-    endpoint = new URL(`${baseUrl.pathname.replace(/\/+$/, "")}/chat/completions`, baseUrl);
-  } catch {
-    return jsonResponse({ ok: false, message: "Base URL 格式不正确" }, 400);
+  const endpointResult = buildOpenAiCompatibleEndpoint(baseUrlRaw, "chat/completions");
+  if ("error" in endpointResult) {
+    return jsonResponse({ ok: false, message: endpointResult.error }, 400);
   }
+  const endpoint = endpointResult.endpoint;
 
   try {
     const response = await fetch(endpoint, {

@@ -29,7 +29,7 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
           </button>
         </div>
-        <span class="field-hint">API 密钥仅保存在浏览器本地，不会上传到服务器</span>
+        <span class="field-hint">API 密钥仅保存在浏览器本地，测试和调用时会通过本站后端转发</span>
       </div>
       <div class="field-group">
         <label for="llm-model" class="field-label">模型名称</label>
@@ -106,14 +106,19 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     } catch {}
   }
 
-  function saveLlmSettings() {
-    const s = {
+  function readLlmFormSettings() {
+    return {
       baseUrl: llmBaseUrl?.value?.trim() || "",
       apiKey: llmApiKey?.value?.trim() || "",
       model: llmModel?.value?.trim() || "",
     };
+  }
+
+  function saveLlmSettings() {
+    const s = readLlmFormSettings();
     localStorage.setItem(LLM_KEY, JSON.stringify(s));
     updateLlmBadge(s);
+    return s;
   }
 
   function updateLlmBadge(s) {
@@ -151,14 +156,15 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
   });
 
   btnTestLlm?.addEventListener("click", async () => {
-    const s = getLlmSettings();
+    const s = readLlmFormSettings();
     if (!s || !s.baseUrl || !s.apiKey || !s.model) {
       if (llmTestStatus) {
-        llmTestStatus.textContent = "请先填写并保存设置";
+        llmTestStatus.textContent = "请先填写完整设置";
         llmTestStatus.className = "save-status is-error";
       }
       return;
     }
+    saveLlmSettings();
     if (llmTestStatus) {
       llmTestStatus.textContent = "正在测试连接...";
       llmTestStatus.className = "save-status is-info";
@@ -204,24 +210,27 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
       }
     }, 8000);
     try {
-      const url = baseUrl.replace(/\/+$/, "") + "/models";
-      const res = await fetch(url, {
-        headers: { "Authorization": "Bearer " + apiKey },
+      const res = await fetch("/api/llm-models", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ baseUrl, apiKey }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      const models = data.data || [];
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) throw new Error(data.message || `HTTP ${res.status}`);
+      const models = Array.isArray(data.models) ? data.models : [];
       if (llmModelList) llmModelList.innerHTML = "";
       models.forEach(m => {
+        const id = typeof m === "string" ? m : m?.id;
+        if (!id) return;
         const opt = document.createElement("option");
-        opt.value = m.id;
+        opt.value = id;
         if (llmModelList) llmModelList.appendChild(opt);
       });
       if (models.length > 0 && llmModel && !llmModel.value) {
-        llmModel.value = models[0].id;
+        llmModel.value = typeof models[0] === "string" ? models[0] : models[0].id;
       }
       if (llmTestStatus) {
-        llmTestStatus.textContent = `获取到 ${models.length} 个模型`;
+        llmTestStatus.textContent = models.length > 0 ? `获取到 ${models.length} 个模型` : "未获取到模型，请手动输入模型名称";
         llmTestStatus.className = "save-status is-success";
         setTimeout(() => { llmTestStatus.textContent = ""; llmTestStatus.className = "save-status"; }, 3000);
       }
