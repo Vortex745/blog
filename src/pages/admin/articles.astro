@@ -133,6 +133,41 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
               </div>
             </div>
           </div>
+
+          <!-- Polish Options (inline) -->
+          <div class="polish-options hidden" id="polish-options">
+            <div class="polish-options-bar">
+              <label class="field-label" style="margin-bottom:0">AI 润色</label>
+              <div class="polish-presets">
+                <button type="button" class="polish-preset active" data-preset="polite">润色修饰</button>
+                <button type="button" class="polish-preset" data-preset="concise">精简紧凑</button>
+                <button type="button" class="polish-preset" data-preset="expand">扩写丰富</button>
+                <button type="button" class="polish-preset" data-preset="translate">翻译为英文</button>
+              </div>
+              <div class="polish-actions">
+                <button type="button" id="btn-polish-run" class="btn-primary btn-small">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                  执行润色
+                </button>
+                <button type="button" id="btn-polish-cancel" class="btn-secondary btn-small">取消</button>
+              </div>
+            </div>
+            <div class="polish-custom-prompt">
+              <input id="polish-custom" type="text" class="field-input" placeholder="自定义润色指令，如：用更学术的语气改写（可选）" />
+            </div>
+            <div id="polish-status" class="cover-status"></div>
+            <!-- Diff Preview -->
+            <div class="polish-diff hidden" id="polish-diff">
+              <div class="diff-header">
+                <span class="diff-label">润色结果预览</span>
+                <div class="diff-actions">
+                  <button type="button" id="btn-apply-polish" class="btn-primary btn-small">应用</button>
+                  <button type="button" id="btn-discard-polish" class="btn-secondary btn-small">放弃</button>
+                </div>
+              </div>
+              <div class="diff-body" id="polish-diff-body"></div>
+            </div>
+          </div>
         </div>
 
         <!-- Content Image Insert Module -->
@@ -187,41 +222,6 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
           </div>
           <!-- Inserted Content Images List -->
           <div id="content-images-list" class="content-images-list"></div>
-        </div>
-
-        <!-- Polish Options (inline) -->
-        <div class="field-group polish-options hidden" id="polish-options">
-          <div class="polish-options-bar">
-            <label class="field-label" style="margin-bottom:0">AI 润色</label>
-            <div class="polish-presets">
-              <button type="button" class="polish-preset active" data-preset="polite">润色修饰</button>
-              <button type="button" class="polish-preset" data-preset="concise">精简紧凑</button>
-              <button type="button" class="polish-preset" data-preset="expand">扩写丰富</button>
-              <button type="button" class="polish-preset" data-preset="translate">翻译为英文</button>
-            </div>
-            <div class="polish-actions">
-              <button type="button" id="btn-polish-run" class="btn-primary btn-small">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
-                执行润色
-              </button>
-              <button type="button" id="btn-polish-cancel" class="btn-secondary btn-small">取消</button>
-            </div>
-          </div>
-          <div class="polish-custom-prompt">
-            <input id="polish-custom" type="text" class="field-input" placeholder="自定义润色指令，如：用更学术的语气改写（可选）" />
-          </div>
-          <div id="polish-status" class="cover-status"></div>
-          <!-- Diff Preview -->
-          <div class="polish-diff hidden" id="polish-diff">
-            <div class="diff-header">
-              <span class="diff-label">润色结果预览</span>
-              <div class="diff-actions">
-                <button type="button" id="btn-apply-polish" class="btn-primary btn-small">应用</button>
-                <button type="button" id="btn-discard-polish" class="btn-secondary btn-small">放弃</button>
-              </div>
-            </div>
-            <div class="diff-body" id="polish-diff-body"></div>
-          </div>
         </div>
 
         <div class="form-actions">
@@ -1778,6 +1778,7 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
 
   /* Polish Options */
   .polish-options {
+    margin-top: 12px;
     margin-bottom: 18px;
     padding: 16px;
     background: #fafbfc;
