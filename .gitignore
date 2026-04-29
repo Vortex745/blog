@@ -13,6 +13,7 @@ dist/
 .claude/
 repomix-output.xml
 .planning/
+docs/
 test-results/
 playwright-report/
 core

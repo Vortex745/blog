@@ -573,15 +573,19 @@ const initialAvatar = profile.avatar || DEFAULT_AVATAR;
     if (btnPolishRun) btnPolishRun.disabled = true;
     showPolishStatus("正在润色中，请稍候...", "info");
 
+    const slowTimer = window.setTimeout(() => {
+      showPolishStatus("API 响应较慢，请继续等待...", "info");
+    }, 8000);
+
     try {
-      const url = s.baseUrl.replace(/\/+$/, "") + "/chat/completions";
-      const res = await fetch(url, {
+      const res = await fetch("/api/llm", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": "Bearer " + s.apiKey,
         },
         body: JSON.stringify({
+          baseUrl: s.baseUrl,
+          apiKey: s.apiKey,
           model: s.model,
           messages: [
             { role: "system", content: systemPrompt },
@@ -590,12 +594,11 @@ const initialAvatar = profile.avatar || DEFAULT_AVATAR;
           temperature: 0.7,
         }),
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error?.message || `HTTP ${res.status}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        throw new Error(data.message || `HTTP ${res.status}`);
       }
-      const data = await res.json();
-      polishedContent = data.choices?.[0]?.message?.content || "";
+      polishedContent = typeof data.content === "string" ? data.content.trim() : "";
       if (!polishedContent) throw new Error("API 返回内容为空");
 
       showPolishStatus("润色完成，请预览对比", "success");
@@ -604,6 +607,7 @@ const initialAvatar = profile.avatar || DEFAULT_AVATAR;
     } catch (err) {
       showPolishStatus("润色失败: " + (err instanceof Error ? err.message : String(err)), "error");
     } finally {
+      window.clearTimeout(slowTimer);
       if (btnPolishRun) btnPolishRun.disabled = false;
     }
   });

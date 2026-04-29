@@ -830,6 +830,7 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
           { role: "user", content },
         ],
         temperature: 0.7,
+        onSlow: () => showPolishStatus("API 响应较慢，请继续等待...", "info"),
       });
 
       showPolishStatus("润色完成，请预览对比", "success");
@@ -856,6 +857,7 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
   btnApplyPolish?.addEventListener("click", () => {
     if (polishedContent && contentTextarea) {
       contentTextarea.value = polishedContent;
+      contentTextarea.dispatchEvent(new Event("input", { bubbles: true }));
       refreshMarkdownRendererFor(contentTextarea);
       showStatus("已应用润色结果", "success");
     }

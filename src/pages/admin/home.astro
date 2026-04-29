@@ -203,6 +203,7 @@ JSON 字段：heroTitle, heroLead, quoteText, quoteAuthor。`;
           { role: "user", content: prompt },
         ],
         temperature: 0.8,
+        onSlow: () => showStatus("API 响应较慢，请继续等待...", "info"),
       });
       const result = parseGeneratedJson(content);
       generatedData = {

@@ -167,6 +167,12 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
       const reply = await requestLlmChat({
         messages: [{ role: "user", content: "Hello, reply with OK only." }],
         maxTokens: 5,
+        onSlow: () => {
+          if (llmTestStatus) {
+            llmTestStatus.textContent = "API 响应较慢，请继续等待...";
+            llmTestStatus.className = "save-status is-info";
+          }
+        },
       });
       if (llmTestStatus) {
         llmTestStatus.textContent = `连接成功: ${reply.trim().substring(0, 50)}`;
@@ -191,6 +197,12 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
       return;
     }
     if (btnFetchModels) btnFetchModels.disabled = true;
+    const slowTimer = window.setTimeout(() => {
+      if (llmTestStatus) {
+        llmTestStatus.textContent = "API 响应较慢，请继续等待...";
+        llmTestStatus.className = "save-status is-info";
+      }
+    }, 8000);
     try {
       const url = baseUrl.replace(/\/+$/, "") + "/models";
       const res = await fetch(url, {
@@ -219,6 +231,7 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
         llmTestStatus.className = "save-status is-error";
       }
     } finally {
+      window.clearTimeout(slowTimer);
       if (btnFetchModels) btnFetchModels.disabled = false;
     }
   });

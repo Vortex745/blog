@@ -612,6 +612,7 @@ const projects = await getCollection("projects");
           { role: "user", content },
         ],
         temperature: 0.7,
+        onSlow: () => showProjectPolishStatus("API 响应较慢，请继续等待...", "info"),
       });
       renderProjectPolishDiff(content, polishedProjectDescription);
       if (projectPolishDiff) projectPolishDiff.classList.remove("hidden");
@@ -626,6 +627,7 @@ const projects = await getCollection("projects");
   btnProjectPolishApply?.addEventListener("click", () => {
     if (polishedProjectDescription && projectDescInput) {
       projectDescInput.value = polishedProjectDescription;
+      projectDescInput.dispatchEvent(new Event("input", { bubbles: true }));
       refreshMarkdownRendererFor(projectDescInput);
       showToast("已应用润色结果", "success");
       showStatus("已应用润色结果", "success");

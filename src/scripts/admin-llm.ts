@@ -27,31 +27,42 @@ export async function requestLlmChat(options: {
   messages: LlmMessage[];
   temperature?: number;
   maxTokens?: number;
+  slowMs?: number;
+  onSlow?: () => void;
 }): Promise<string> {
   const settings = getLlmSettings();
   if (!hasLlmSettings(settings)) {
     throw new Error("LLM API 未配置，请先在 API 管理中填写并保存设置");
   }
 
-  const response = await fetch("/api/llm", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      baseUrl: settings.baseUrl,
-      apiKey: settings.apiKey,
-      model: settings.model,
-      messages: options.messages,
-      temperature: options.temperature ?? 0.7,
-      maxTokens: options.maxTokens,
-    }),
-  });
+  const slowMs = options.slowMs ?? 8000;
+  const slowTimer = options.onSlow && slowMs > 0
+    ? window.setTimeout(options.onSlow, slowMs)
+    : undefined;
 
-  const result = await response.json().catch(() => ({}));
-  if (!response.ok || !result.ok) {
-    throw new Error(result.message || `LLM API 请求失败 (HTTP ${response.status})`);
+  try {
+    const response = await fetch("/api/llm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        baseUrl: settings.baseUrl,
+        apiKey: settings.apiKey,
+        model: settings.model,
+        messages: options.messages,
+        temperature: options.temperature ?? 0.7,
+        maxTokens: options.maxTokens,
+      }),
+    });
+
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.ok) {
+      throw new Error(result.message || `LLM API 请求失败 (HTTP ${response.status})`);
+    }
+
+    const content = typeof result.content === "string" ? result.content.trim() : "";
+    if (!content) throw new Error("LLM API 返回内容为空");
+    return content;
+  } finally {
+    if (slowTimer) window.clearTimeout(slowTimer);
   }
-
-  const content = typeof result.content === "string" ? result.content.trim() : "";
-  if (!content) throw new Error("LLM API 返回内容为空");
-  return content;
 }
