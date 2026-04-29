@@ -1,3 +1,5 @@
+import { escapeHtml, renderMarkdown, renderMarkdownDocument, stripMarkdown } from "../lib/markdown";
+
 type AdminArticle = {
   id?: string;
   title?: string;
@@ -39,19 +41,6 @@ function readList<T>(key: string): T[] {
   } catch {
     return [];
   }
-}
-
-function escapeHtml(value: unknown): string {
-  return String(value ?? "").replace(/[&<>"']/g, (char) => {
-    const entities: Record<string, string> = {
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#39;",
-    };
-    return entities[char] ?? char;
-  });
 }
 
 function splitTags(value: unknown): string[] {
@@ -100,15 +89,6 @@ function itemMatchesSlug(
   });
 }
 
-function stripMarkdown(value: string): string {
-  return value
-    .replace(/!\[[^\]]*]\([^)]*\)/g, "")
-    .replace(/\[[^\]]+]\([^)]*\)/g, (match) => match.replace(/^\[|\]\([^)]*\)$/g, ""))
-    .replace(/[`*_>#-]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 function articleSummary(article: AdminArticle): string {
   const source = article.description || stripMarkdown(article.content || "");
   return source.length > 140 ? `${source.slice(0, 140)}...` : source;
@@ -134,62 +114,6 @@ function safeAssetUrl(value: unknown, fallback = ""): string {
   } catch {}
 
   return fallback;
-}
-
-function renderInline(value: string): string {
-  return escapeHtml(value)
-    .replace(/`([^`]+)`/g, "<code>$1</code>")
-    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*([^*]+)\*/g, "<em>$1</em>");
-}
-
-function renderMarkdownLiteWithToc(markdown: string): { html: string; toc: TocItem[] } {
-  const source = markdown.trim();
-  if (!source) return { html: "<p>暂无正文内容。</p>", toc: [] };
-
-  let headingIndex = 0;
-  const toc: TocItem[] = [];
-
-  const html = source
-    .split(/\n{2,}/)
-    .map((block) => {
-      const trimmed = block.trim();
-      const imageMatch = trimmed.match(/^!\[([^\]]*)]\(([^)]+)\)$/);
-      if (imageMatch) {
-        const url = safeAssetUrl(imageMatch[2]);
-        if (!url) return "";
-        return `<figure><img src="${escapeHtml(url)}" alt="${escapeHtml(imageMatch[1])}" loading="lazy" /></figure>`;
-      }
-
-      const headingMatch = trimmed.match(/^(#{1,3})\s+(.+)$/);
-      if (headingMatch) {
-        const level = Math.min(headingMatch[1].length + 1, 4);
-        const text = stripMarkdown(headingMatch[2]) || `段落 ${headingIndex + 1}`;
-        const id = `local-heading-${headingIndex + 1}`;
-        headingIndex += 1;
-        if (level < 4) {
-          toc.push({ depth: level, id, text });
-        }
-        return `<h${level} id="${id}">${renderInline(headingMatch[2])}</h${level}>`;
-      }
-
-      const lines = trimmed.split(/\n/);
-      if (lines.every((line) => /^[-*]\s+/.test(line.trim()))) {
-        return `<ul>${lines
-          .map((line) => `<li>${renderInline(line.trim().replace(/^[-*]\s+/, ""))}</li>`)
-          .join("")}</ul>`;
-      }
-
-      return `<p>${lines.map(renderInline).join("<br>")}</p>`;
-    })
-    .filter(Boolean)
-    .join("");
-
-  return { html, toc };
-}
-
-function renderMarkdownLite(markdown: string): string {
-  return renderMarkdownLiteWithToc(markdown).html;
 }
 
 function setText(root: ParentNode, selector: string, value: string): void {
@@ -255,9 +179,17 @@ export function initLocalArticleDetail(): void {
   setText(root, "[data-local-date]", formatDate(article.date || article.updatedAt));
   setText(root, "[data-local-reading]", `${readingMinutes} 分钟阅读`);
   setHtml(root, "[data-local-tags]", renderTags(tags));
-  const renderedContent = renderMarkdownLiteWithToc(content);
+  const renderedContent = renderMarkdownDocument(content, {
+    emptyHtml: "<p>暂无正文内容。</p>",
+    includeToc: true,
+    headingIdPrefix: "local-heading",
+  });
   setHtml(root, "[data-local-body]", renderedContent.html);
-  setHtml(root, "[data-local-toc]", renderToc(renderedContent.toc));
+  setHtml(
+    root,
+    "[data-local-toc]",
+    renderToc(renderedContent.toc.filter((item) => item.depth > 1 && item.depth < 4))
+  );
 
   const image = root.querySelector<HTMLImageElement>("[data-local-cover]");
   const coverWrap = root.querySelector<HTMLElement>("[data-local-cover-wrap]");
@@ -299,7 +231,11 @@ export function initLocalProjectDetail(): void {
   setText(root, "[data-local-tag-count]", `${tags.length} 个标签`);
   setHtml(root, "[data-local-tags]", renderTags(tags));
   setHtml(root, "[data-local-sidebar-tags]", renderTags(tags));
-  setHtml(root, "[data-local-body]", renderMarkdownLite(description));
+  setHtml(
+    root,
+    "[data-local-body]",
+    renderMarkdown(description, { emptyHtml: "<p>暂无项目说明。</p>" })
+  );
 
   const image = root.querySelector<HTMLImageElement>("[data-local-cover]");
   const coverWrap = root.querySelector<HTMLElement>("[data-local-cover-wrap]");

@@ -1,6 +1,12 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { profile } from "../data/profile";
+import { renderMarkdown } from "../lib/markdown";
+
+const initialPhilosophyHtml = renderMarkdown(
+  profile.philosophy.filter(Boolean).join("\n\n"),
+  { emptyHtml: "" }
+);
 ---
 
 <BaseLayout title="子衿的个人博客网站" description="设计高于装饰。我相信剥离不必要的元素，揭示本质。">
@@ -37,11 +43,7 @@ import { profile } from "../data/profile";
             </svg>
             理念
           </h2>
-          <div class="philosophy-body" id="about-philosophy">
-            {profile.philosophy.map((text) => (
-              <p>{text}</p>
-            ))}
-          </div>
+          <div class="philosophy-body prose prose-apple max-w-none" id="about-philosophy" set:html={initialPhilosophyHtml}></div>
         </div>
 
         {/* Skills */}
@@ -59,6 +61,21 @@ import { profile } from "../data/profile";
 </BaseLayout>
 
 <script>
+  import { renderMarkdown } from "../lib/markdown";
+
+  function escapeHtml(value: unknown): string {
+    return String(value ?? "").replace(/[&<>"']/g, (char) => {
+      const entities: Record<string, string> = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      };
+      return entities[char] ?? char;
+    });
+  }
+
   // Load custom data from localStorage if available
   (function() {
     try {
@@ -74,9 +91,9 @@ import { profile } from "../data/profile";
       if (data.philosophy && Array.isArray(data.philosophy) && data.philosophy.length > 0) {
         const philoBody = document.getElementById("about-philosophy");
         if (philoBody) {
-          philoBody.innerHTML = data.philosophy.map((text: string) =>
-            `<p>${text.replace(/[&<>'"]/g, (c: string) => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c] || c))}</p>`
-          ).join("");
+          philoBody.innerHTML = renderMarkdown(data.philosophy.filter(Boolean).join("\n\n"), {
+            emptyHtml: "",
+          });
         }
       }
 
@@ -84,7 +101,7 @@ import { profile } from "../data/profile";
         const skillsList = document.getElementById("about-skills");
         if (skillsList) {
           skillsList.innerHTML = data.skills.map((skill: string) =>
-            `<span class="skill-tag">${skill.replace(/[&<>'"]/g, (c: string) => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c] || c))}</span>`
+            `<span class="skill-tag">${escapeHtml(skill)}</span>`
           ).join("");
         }
       }
@@ -181,19 +198,18 @@ import { profile } from "../data/profile";
   }
 
   .philosophy-body {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .philosophy-body p {
+    color: #414753;
     font-family: var(--font-body);
     font-size: 16px;
-    font-weight: 400;
-    line-height: 1.6;
-    letter-spacing: -0.011em;
-    color: #414753;
-    margin: 0;
+    line-height: 1.7;
+  }
+
+  .philosophy-body > :first-child {
+    margin-top: 0;
+  }
+
+  .philosophy-body > :last-child {
+    margin-bottom: 0;
   }
 
   /* Skills Section */
@@ -275,7 +291,7 @@ import { profile } from "../data/profile";
       font-size: 20px;
     }
 
-    .philosophy-body p {
+    .philosophy-body {
       font-size: 15px;
     }
   }

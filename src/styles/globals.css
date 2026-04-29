@@ -11,6 +11,7 @@
 :root {
   --font-display: "Inter", "SF Pro Display", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-body: "Inter", "SF Pro Text", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-editor: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", sans-serif;
   --font-mono: "Geist Mono", "SF Mono", "Fira Code", monospace;
   --font-heading: var(--font-display);
   --font-sans: var(--font-body);
@@ -1249,6 +1250,172 @@ body {
   html {
     @apply font-sans font-mono;
   }
+}
+
+.markdown-renderer {
+  display: grid;
+  gap: 10px;
+}
+
+.markdown-renderer-tabs {
+  display: inline-flex;
+  width: fit-content;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid rgba(193, 198, 214, 0.6);
+  border-radius: 10px;
+  background: rgba(244, 246, 250, 0.86);
+}
+
+.markdown-renderer-tab {
+  min-height: 32px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #414753;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.markdown-renderer-tab.is-active {
+  background: #ffffff;
+  color: #0059b5;
+  box-shadow: 0 1px 5px rgba(24, 28, 35, 0.08);
+}
+
+.markdown-renderer-pane[hidden] {
+  display: none !important;
+}
+
+.markdown-source-hidden {
+  position: absolute !important;
+  left: -10000px !important;
+  top: auto !important;
+  width: 1px !important;
+  height: 1px !important;
+  min-height: 1px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.markdown-live-editor,
+.markdown-renderer-preview {
+  width: 100%;
+  min-height: 220px;
+  padding: 16px;
+  border: 1px solid rgba(193, 198, 214, 0.6);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #181c23;
+  box-sizing: border-box;
+}
+
+.markdown-live-editor {
+  position: relative;
+  overflow: auto;
+  font-family: var(--font-editor);
+  font-size: 14px;
+  line-height: 1.65;
+  outline: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+  transition:
+    border-color var(--motion-duration-standard) var(--motion-ease-out),
+    box-shadow var(--motion-duration-standard) var(--motion-ease-out);
+}
+
+.markdown-live-editor:focus {
+  border-color: #0059b5;
+  box-shadow: 0 0 0 3px rgba(0, 89, 181, 0.1);
+}
+
+.markdown-live-editor.is-empty::before {
+  content: attr(data-placeholder);
+  position: absolute;
+  inset: 16px;
+  color: #a0a8b8;
+  white-space: pre-line;
+  pointer-events: none;
+}
+
+.markdown-live-line {
+  min-height: 1.65em;
+  margin: 0 0 0.45em;
+  outline: none;
+}
+
+.markdown-live-line:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-live-heading {
+  margin: 0.9em 0 0.48em;
+  color: #111827;
+  font-family: var(--font-editor);
+  font-weight: 750;
+  line-height: 1.22;
+}
+
+.markdown-live-heading:first-child {
+  margin-top: 0;
+}
+
+.markdown-live-heading-1 {
+  font-size: 1.75rem;
+}
+
+.markdown-live-heading-2 {
+  font-size: 1.45rem;
+}
+
+.markdown-live-heading-3 {
+  font-size: 1.24rem;
+}
+
+.markdown-live-heading-4,
+.markdown-live-heading-5,
+.markdown-live-heading-6 {
+  font-size: 1.08rem;
+}
+
+.markdown-live-quote {
+  margin: 0.6em 0;
+  padding-left: 14px;
+  border-left: 3px solid rgba(0, 89, 181, 0.28);
+  color: #414753;
+}
+
+.markdown-live-unordered-list,
+.markdown-live-ordered-list {
+  position: relative;
+  padding-left: 1.6em;
+}
+
+.markdown-live-unordered-list::before,
+.markdown-live-ordered-list::before {
+  content: attr(data-marker);
+  position: absolute;
+  left: 0.35em;
+  color: #717785;
+  font-weight: 650;
+}
+
+.markdown-live-code {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(24, 28, 35, 0.06);
+  color: #181c23;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.markdown-renderer-preview {
+  overflow: auto;
 }
 /* Product UI additions for DESIGN.md rebuild */
 .eyebrow {

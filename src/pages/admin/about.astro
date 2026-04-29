@@ -119,7 +119,7 @@ const initialAvatar = profile.avatar || DEFAULT_AVATAR;
             <textarea id="philosophy-content" name="philosophy" class="field-input field-textarea editor-textarea" rows="10" placeholder="在此输入 Markdown 格式的理念内容...&#10;&#10;每段之间用空行分隔。" data-markdown-source>{profile.philosophy.join("\n\n")}</textarea>
           </div>
           <div class="markdown-renderer-pane" data-markdown-preview-pane hidden>
-            <div class="markdown-renderer-preview" data-markdown-preview></div>
+            <div class="markdown-renderer-preview prose prose-apple max-w-none" data-markdown-preview></div>
           </div>
         </div>
 
@@ -737,10 +737,10 @@ const initialAvatar = profile.avatar || DEFAULT_AVATAR;
     resize: vertical;
     min-height: 80px;
     line-height: 1.6;
+    font-family: var(--font-editor);
   }
   .editor-textarea {
     min-height: 200px;
-    font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
     font-size: 14px;
   }
 

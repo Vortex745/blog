@@ -1,206 +1,453 @@
+import { renderMarkdown } from "../lib/markdown";
+
 type MarkdownMode = "edit" | "preview";
 
-function escapeHtml(value: unknown): string {
-  return String(value ?? "").replace(/[&<>"']/g, (char) => {
-    const entities: Record<string, string> = {
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#39;",
-    };
-    return entities[char] ?? char;
+type MarkdownLine = {
+  kind: "paragraph" | "heading" | "quote" | "unordered-list" | "ordered-list" | "code";
+  level?: number;
+  marker?: string;
+  prefix: string;
+  text: string;
+};
+
+type LiveEditorState = {
+  editor: HTMLDivElement;
+  isComposing: boolean;
+  isRendering: boolean;
+  isSyncingFromEditor: boolean;
+  renderer: HTMLElement;
+  source: HTMLTextAreaElement;
+};
+
+type MarkdownSelection = {
+  start: number;
+  end: number;
+};
+
+const stateBySource = new WeakMap<HTMLTextAreaElement, LiveEditorState>();
+let selectionSyncReady = false;
+
+export function renderAdminMarkdown(markdown: string): string {
+  return renderMarkdown(markdown, {
+    emptyHtml: '<p class="markdown-preview-empty">暂无预览内容。</p>',
   });
 }
 
-function safeUrl(value: string, allowImageData = false): string {
-  const raw = value.trim();
-  if (!raw) return "";
-  if (raw.startsWith("/") || raw.startsWith("#") || raw.startsWith("./") || raw.startsWith("../")) {
-    return raw;
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+function parseMarkdownLine(line: string): MarkdownLine {
+  const heading = line.match(/^(#{1,6})\s(.*)$/);
+  if (heading) {
+    return {
+      kind: "heading",
+      level: heading[1].length,
+      prefix: `${heading[1]} `,
+      text: heading[2],
+    };
   }
-  if (allowImageData && /^data:image\//i.test(raw)) return raw;
+
+  const quote = line.match(/^>\s?(.*)$/);
+  if (quote) {
+    return {
+      kind: "quote",
+      prefix: line.startsWith("> ") ? "> " : ">",
+      text: quote[1],
+    };
+  }
+
+  const unordered = line.match(/^([-*+])\s(.*)$/);
+  if (unordered) {
+    return {
+      kind: "unordered-list",
+      marker: "•",
+      prefix: `${unordered[1]} `,
+      text: unordered[2],
+    };
+  }
+
+  const ordered = line.match(/^(\d+\.)\s(.*)$/);
+  if (ordered) {
+    return {
+      kind: "ordered-list",
+      marker: ordered[1],
+      prefix: `${ordered[1]} `,
+      text: ordered[2],
+    };
+  }
+
+  if (/^```/.test(line.trim()) || /^ {4}/.test(line)) {
+    return {
+      kind: "code",
+      prefix: "",
+      text: line,
+    };
+  }
+
+  return {
+    kind: "paragraph",
+    prefix: "",
+    text: line,
+  };
+}
+
+function parseMarkdownLines(markdown: string): MarkdownLine[] {
+  const normalized = markdown.replace(/\r\n?/g, "\n");
+  const lines = normalized.length > 0 ? normalized.split("\n") : [""];
+  return lines.map(parseMarkdownLine);
+}
+
+function createLiveLine(line: MarkdownLine): HTMLDivElement {
+  const element = document.createElement("div");
+  element.className = `markdown-live-line markdown-live-${line.kind}`;
+  element.dataset.liveLine = "true";
+  element.dataset.prefix = line.prefix;
+
+  if (line.kind === "heading") {
+    element.classList.add("markdown-live-heading", `markdown-live-heading-${line.level || 1}`);
+  }
+
+  if (line.marker) {
+    element.dataset.marker = line.marker;
+  }
+
+  if (line.text) {
+    element.textContent = line.text;
+  } else {
+    element.appendChild(document.createElement("br"));
+  }
+
+  return element;
+}
+
+function getLiveLines(editor: HTMLElement): HTMLElement[] {
+  return Array.from(editor.querySelectorAll<HTMLElement>("[data-live-line]"));
+}
+
+function getLineText(line: HTMLElement): string {
+  return (line.textContent || "").replace(/\u00a0/g, " ");
+}
+
+function getLineRawLength(line: HTMLElement): number {
+  return (line.dataset.prefix || "").length + getLineText(line).length;
+}
+
+function serializeEditor(editor: HTMLElement): string {
+  const lines = getLiveLines(editor);
+  if (lines.length === 0) return "";
+
+  return lines.map((line) => `${line.dataset.prefix || ""}${getLineText(line)}`).join("\n");
+}
+
+function findLineForNode(editor: HTMLElement, node: Node): HTMLElement | null {
+  if (node === editor) return getLiveLines(editor)[0] || null;
+
+  const element = node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement;
+  return element?.closest<HTMLElement>("[data-live-line]") || null;
+}
+
+function getLineStartOffset(editor: HTMLElement, targetLine: HTMLElement): number {
+  let offset = 0;
+  for (const line of getLiveLines(editor)) {
+    if (line === targetLine) return offset;
+    offset += getLineRawLength(line) + 1;
+  }
+  return offset;
+}
+
+function getTextOffsetWithinLine(line: HTMLElement, node: Node, offset: number): number {
+  const range = document.createRange();
+  range.selectNodeContents(line);
 
   try {
-    const url = new URL(raw, window.location.origin);
-    if (["http:", "https:", "mailto:", "tel:"].includes(url.protocol)) return raw;
-  } catch {}
-
-  return "";
-}
-
-function renderInline(value: string): string {
-  const placeholders: string[] = [];
-  const stash = (html: string) => {
-    const key = `\u0000${placeholders.length}\u0000`;
-    placeholders.push(html);
-    return key;
-  };
-
-  let text = value
-    .replace(/`([^`]+)`/g, (_match, code) => stash(`<code>${escapeHtml(code)}</code>`))
-    .replace(/!\[([^\]]*)]\(([^)]+)\)/g, (_match, alt, url) => {
-      const safe = safeUrl(url, true);
-      if (!safe) return "";
-      return stash(`<img src="${escapeHtml(safe)}" alt="${escapeHtml(alt)}" loading="lazy" />`);
-    })
-    .replace(/\[([^\]]+)]\(([^)]+)\)/g, (_match, label, url) => {
-      const safe = safeUrl(url);
-      if (!safe) return escapeHtml(label);
-      return stash(`<a href="${escapeHtml(safe)}" target="_blank" rel="noreferrer">${escapeHtml(label)}</a>`);
-    });
-
-  text = escapeHtml(text)
-    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-    .replace(/__([^_]+)__/g, "<strong>$1</strong>")
-    .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, "$1<em>$2</em>")
-    .replace(/(^|[^_])_([^_\n]+)_(?!_)/g, "$1<em>$2</em>");
-
-  return placeholders.reduce((html, placeholder, index) => {
-    return html.replace(new RegExp(`\\u0000${index}\\u0000`, "g"), placeholder);
-  }, text);
-}
-
-function isTableDivider(line: string): boolean {
-  return /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(line);
-}
-
-function splitTableRow(line: string): string[] {
-  return line
-    .trim()
-    .replace(/^\|/, "")
-    .replace(/\|$/, "")
-    .split("|")
-    .map((cell) => cell.trim());
-}
-
-function renderParagraph(lines: string[]): string {
-  const content = lines.map((line) => renderInline(line.trim())).join("<br>");
-  return content ? `<p>${content}</p>` : "";
-}
-
-export function renderAdminMarkdown(markdown: string): string {
-  const source = markdown.replace(/\r\n/g, "\n").trim();
-  if (!source) return '<p class="markdown-preview-empty">暂无预览内容。</p>';
-
-  const lines = source.split("\n");
-  const html: string[] = [];
-  let index = 0;
-
-  while (index < lines.length) {
-    const line = lines[index];
-    const trimmed = line.trim();
-
-    if (!trimmed) {
-      index += 1;
-      continue;
-    }
-
-    if (trimmed.startsWith("```")) {
-      const codeLines: string[] = [];
-      index += 1;
-      while (index < lines.length && !lines[index].trim().startsWith("```")) {
-        codeLines.push(lines[index]);
-        index += 1;
-      }
-      if (index < lines.length) index += 1;
-      html.push(`<pre><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
-      continue;
-    }
-
-    const heading = trimmed.match(/^(#{1,4})\s+(.+)$/);
-    if (heading) {
-      const level = heading[1].length;
-      html.push(`<h${level}>${renderInline(heading[2])}</h${level}>`);
-      index += 1;
-      continue;
-    }
-
-    const image = trimmed.match(/^!\[([^\]]*)]\(([^)]+)\)$/);
-    if (image) {
-      const url = safeUrl(image[2], true);
-      if (url) {
-        html.push(`<figure><img src="${escapeHtml(url)}" alt="${escapeHtml(image[1])}" loading="lazy" /></figure>`);
-      }
-      index += 1;
-      continue;
-    }
-
-    if (index + 1 < lines.length && trimmed.includes("|") && isTableDivider(lines[index + 1])) {
-      const headers = splitTableRow(trimmed);
-      const rows: string[][] = [];
-      index += 2;
-      while (index < lines.length && lines[index].trim().includes("|")) {
-        rows.push(splitTableRow(lines[index]));
-        index += 1;
-      }
-      html.push(
-        `<div class="markdown-table-wrap"><table><thead><tr>${headers
-          .map((cell) => `<th>${renderInline(cell)}</th>`)
-          .join("")}</tr></thead><tbody>${rows
-          .map((row) => `<tr>${row.map((cell) => `<td>${renderInline(cell)}</td>`).join("")}</tr>`)
-          .join("")}</tbody></table></div>`
-      );
-      continue;
-    }
-
-    if (/^>\s?/.test(trimmed)) {
-      const quoteLines: string[] = [];
-      while (index < lines.length && /^>\s?/.test(lines[index].trim())) {
-        quoteLines.push(lines[index].trim().replace(/^>\s?/, ""));
-        index += 1;
-      }
-      html.push(`<blockquote>${renderParagraph(quoteLines)}</blockquote>`);
-      continue;
-    }
-
-    if (/^[-*+]\s+/.test(trimmed)) {
-      const items: string[] = [];
-      while (index < lines.length && /^[-*+]\s+/.test(lines[index].trim())) {
-        items.push(lines[index].trim().replace(/^[-*+]\s+/, ""));
-        index += 1;
-      }
-      html.push(`<ul>${items.map((item) => `<li>${renderInline(item)}</li>`).join("")}</ul>`);
-      continue;
-    }
-
-    if (/^\d+\.\s+/.test(trimmed)) {
-      const items: string[] = [];
-      while (index < lines.length && /^\d+\.\s+/.test(lines[index].trim())) {
-        items.push(lines[index].trim().replace(/^\d+\.\s+/, ""));
-        index += 1;
-      }
-      html.push(`<ol>${items.map((item) => `<li>${renderInline(item)}</li>`).join("")}</ol>`);
-      continue;
-    }
-
-    const paragraph: string[] = [line];
-    index += 1;
-    while (
-      index < lines.length &&
-      lines[index].trim() &&
-      !lines[index].trim().startsWith("```") &&
-      !/^(#{1,4})\s+/.test(lines[index].trim()) &&
-      !/^!\[([^\]]*)]\(([^)]+)\)$/.test(lines[index].trim()) &&
-      !/^>\s?/.test(lines[index].trim()) &&
-      !/^[-*+]\s+/.test(lines[index].trim()) &&
-      !/^\d+\.\s+/.test(lines[index].trim()) &&
-      !(index + 1 < lines.length && lines[index].trim().includes("|") && isTableDivider(lines[index + 1]))
-    ) {
-      paragraph.push(lines[index]);
-      index += 1;
-    }
-    html.push(renderParagraph(paragraph));
+    range.setEnd(node, offset);
+  } catch {
+    range.detach();
+    return getLineText(line).length;
   }
 
-  return html.filter(Boolean).join("");
+  const textOffset = range.toString().length;
+  range.detach();
+  return clamp(textOffset, 0, getLineText(line).length);
 }
 
-function renderRenderer(renderer: HTMLElement): void {
+function domPointToMarkdownOffset(state: LiveEditorState, node: Node, offset: number): number | null {
+  const line = findLineForNode(state.editor, node);
+  if (!line) return null;
+
+  const lineStart = getLineStartOffset(state.editor, line);
+  const prefixLength = (line.dataset.prefix || "").length;
+  const textOffset = getTextOffsetWithinLine(line, node, offset);
+
+  return lineStart + prefixLength + textOffset;
+}
+
+function getEditorSelection(state: LiveEditorState): MarkdownSelection | null {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return null;
+
+  const range = selection.getRangeAt(0);
+  if (!state.editor.contains(range.startContainer) || !state.editor.contains(range.endContainer)) {
+    return null;
+  }
+
+  const start = domPointToMarkdownOffset(state, range.startContainer, range.startOffset);
+  const end = domPointToMarkdownOffset(state, range.endContainer, range.endOffset);
+  if (start === null || end === null) return null;
+
+  return {
+    start: Math.min(start, end),
+    end: Math.max(start, end),
+  };
+}
+
+function getSourceSelection(source: HTMLTextAreaElement): MarkdownSelection {
+  return {
+    start: source.selectionStart ?? source.value.length,
+    end: source.selectionEnd ?? source.value.length,
+  };
+}
+
+function setSourceSelection(source: HTMLTextAreaElement, start: number, end = start): void {
+  const max = source.value.length;
+  source.setSelectionRange(clamp(start, 0, max), clamp(end, 0, max));
+}
+
+function findDomPointForTextOffset(line: HTMLElement, offset: number): { node: Node; offset: number } {
+  const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT);
+  let remaining = offset;
+  let textNode = walker.nextNode();
+
+  while (textNode) {
+    const length = textNode.textContent?.length || 0;
+    if (remaining <= length) {
+      return { node: textNode, offset: remaining };
+    }
+    remaining -= length;
+    textNode = walker.nextNode();
+  }
+
+  return { node: line, offset: line.childNodes.length };
+}
+
+function markdownOffsetToDomPoint(editor: HTMLElement, markdownOffset: number): { node: Node; offset: number } {
+  const lines = getLiveLines(editor);
+  if (lines.length === 0) return { node: editor, offset: 0 };
+
+  let current = 0;
+  for (const line of lines) {
+    const rawLength = getLineRawLength(line);
+    const lineEnd = current + rawLength;
+
+    if (markdownOffset <= lineEnd) {
+      const prefixLength = (line.dataset.prefix || "").length;
+      const textLength = getLineText(line).length;
+      const textOffset = clamp(markdownOffset - current - prefixLength, 0, textLength);
+      return findDomPointForTextOffset(line, textOffset);
+    }
+
+    current = lineEnd + 1;
+  }
+
+  const lastLine = lines[lines.length - 1];
+  return findDomPointForTextOffset(lastLine, getLineText(lastLine).length);
+}
+
+function setEditorSelection(state: LiveEditorState, start: number, end = start): void {
+  const selection = window.getSelection();
+  if (!selection) return;
+
+  const range = document.createRange();
+  const startPoint = markdownOffsetToDomPoint(state.editor, start);
+  const endPoint = markdownOffsetToDomPoint(state.editor, end);
+
+  range.setStart(startPoint.node, startPoint.offset);
+  range.setEnd(endPoint.node, endPoint.offset);
+
+  selection.removeAllRanges();
+  selection.addRange(range);
+  state.editor.focus({ preventScroll: true });
+}
+
+function renderPreview(renderer: HTMLElement): void {
   const source = renderer.querySelector<HTMLTextAreaElement>("textarea[data-markdown-source]");
   const preview = renderer.querySelector<HTMLElement>("[data-markdown-preview]");
   if (!source || !preview) return;
   preview.innerHTML = renderAdminMarkdown(source.value);
+}
+
+function renderLiveEditor(state: LiveEditorState, selection?: MarkdownSelection, shouldFocus = false): void {
+  state.isRendering = true;
+  state.editor.replaceChildren(...parseMarkdownLines(state.source.value).map(createLiveLine));
+  state.editor.classList.toggle("is-empty", state.source.value.trim().length === 0);
+  state.isRendering = false;
+
+  if (selection && shouldFocus) {
+    setEditorSelection(state, selection.start, selection.end);
+  }
+}
+
+function notifySourceInput(state: LiveEditorState): void {
+  state.source.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+function syncSourceFromEditor(state: LiveEditorState, shouldRender: boolean): void {
+  if (state.isRendering) return;
+
+  const selection = getEditorSelection(state);
+  const nextValue = serializeEditor(state.editor);
+
+  state.isSyncingFromEditor = true;
+  state.source.value = nextValue;
+  if (selection) setSourceSelection(state.source, selection.start, selection.end);
+  notifySourceInput(state);
+  state.isSyncingFromEditor = false;
+
+  if (shouldRender) {
+    renderLiveEditor(state, selection ?? getSourceSelection(state.source), true);
+  }
+}
+
+function insertMarkdownAtSelection(state: LiveEditorState, markdown: string): void {
+  const liveSelection = getEditorSelection(state);
+  const selection = liveSelection ?? getSourceSelection(state.source);
+  const nextValue =
+    state.source.value.slice(0, selection.start) + markdown + state.source.value.slice(selection.end);
+  const nextCaret = selection.start + markdown.length;
+
+  state.source.value = nextValue;
+  setSourceSelection(state.source, nextCaret);
+  notifySourceInput(state);
+  renderLiveEditor(state, { start: nextCaret, end: nextCaret }, true);
+}
+
+function maybeRemoveBlockPrefix(state: LiveEditorState, event: KeyboardEvent): void {
+  const selection = getEditorSelection(state);
+  if (!selection || selection.start !== selection.end) return;
+
+  const domSelection = window.getSelection();
+  if (!domSelection || domSelection.rangeCount === 0) return;
+
+  const range = domSelection.getRangeAt(0);
+  const line = findLineForNode(state.editor, range.startContainer);
+  if (!line) return;
+
+  const prefix = line.dataset.prefix || "";
+  if (!prefix) return;
+
+  const lineStart = getLineStartOffset(state.editor, line);
+  const textOffset = getTextOffsetWithinLine(line, range.startContainer, range.startOffset);
+  if (textOffset !== 0 || selection.start !== lineStart + prefix.length) return;
+
+  event.preventDefault();
+  const nextValue = state.source.value.slice(0, lineStart) + state.source.value.slice(lineStart + prefix.length);
+  state.source.value = nextValue;
+  setSourceSelection(state.source, lineStart);
+  notifySourceInput(state);
+  renderLiveEditor(state, { start: lineStart, end: lineStart }, true);
+}
+
+function handleSourceChanged(state: LiveEditorState): void {
+  renderPreview(state.renderer);
+  if (!state.isSyncingFromEditor) {
+    renderLiveEditor(state, getSourceSelection(state.source), document.activeElement === state.source);
+  }
+}
+
+function setupLiveEditor(renderer: HTMLElement, source: HTMLTextAreaElement): LiveEditorState {
+  const existingState = stateBySource.get(source);
+  if (existingState) return existingState;
+
+  const editor = document.createElement("div");
+  editor.className = "markdown-live-editor";
+  editor.contentEditable = "true";
+  editor.dataset.markdownLiveEditor = "true";
+  editor.dataset.placeholder = source.getAttribute("placeholder") || "";
+  editor.setAttribute("role", "textbox");
+  editor.setAttribute("aria-multiline", "true");
+  editor.setAttribute("aria-label", source.getAttribute("aria-label") || source.name || "Markdown editor");
+  editor.spellcheck = true;
+
+  source.classList.add("markdown-source-hidden");
+  source.tabIndex = -1;
+  source.after(editor);
+
+  const state: LiveEditorState = {
+    editor,
+    isComposing: false,
+    isRendering: false,
+    isSyncingFromEditor: false,
+    renderer,
+    source,
+  };
+
+  stateBySource.set(source, state);
+
+  editor.addEventListener("compositionstart", () => {
+    state.isComposing = true;
+  });
+
+  editor.addEventListener("compositionend", () => {
+    state.isComposing = false;
+    syncSourceFromEditor(state, true);
+  });
+
+  editor.addEventListener("input", () => {
+    syncSourceFromEditor(state, !state.isComposing);
+  });
+
+  editor.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      insertMarkdownAtSelection(state, "\n");
+      return;
+    }
+
+    if (event.key === "Tab") {
+      event.preventDefault();
+      insertMarkdownAtSelection(state, "  ");
+      return;
+    }
+
+    if (event.key === "Backspace") {
+      maybeRemoveBlockPrefix(state, event);
+    }
+  });
+
+  editor.addEventListener("paste", (event) => {
+    const items = Array.from(event.clipboardData?.items || []);
+    if (items.some((item) => item.type.startsWith("image/"))) return;
+
+    const text = event.clipboardData?.getData("text/plain");
+    if (text === undefined) return;
+
+    event.preventDefault();
+    insertMarkdownAtSelection(state, text.replace(/\r\n?/g, "\n"));
+  });
+
+  editor.addEventListener("keyup", () => {
+    const selection = getEditorSelection(state);
+    if (selection) setSourceSelection(source, selection.start, selection.end);
+  });
+
+  editor.addEventListener("mouseup", () => {
+    const selection = getEditorSelection(state);
+    if (selection) setSourceSelection(source, selection.start, selection.end);
+  });
+
+  source.addEventListener("focus", () => {
+    const selection = getSourceSelection(source);
+    requestAnimationFrame(() => setEditorSelection(state, selection.start, selection.end));
+  });
+
+  source.addEventListener("input", () => handleSourceChanged(state));
+  source.addEventListener("change", () => handleSourceChanged(state));
+
+  renderLiveEditor(state, getSourceSelection(source), false);
+  renderPreview(renderer);
+
+  return state;
 }
 
 function setMode(renderer: HTMLElement, mode: MarkdownMode): void {
@@ -215,12 +462,21 @@ function setMode(renderer: HTMLElement, mode: MarkdownMode): void {
 
   if (editPane) editPane.hidden = mode !== "edit";
   if (previewPane) previewPane.hidden = mode !== "preview";
-  if (mode === "preview") renderRenderer(renderer);
+  if (mode === "preview") renderPreview(renderer);
 }
 
 export function refreshMarkdownRendererFor(source: HTMLTextAreaElement | null | undefined): void {
   const renderer = source?.closest<HTMLElement>("[data-markdown-renderer]");
-  if (renderer) renderRenderer(renderer);
+  if (!source || !renderer) return;
+
+  const state = stateBySource.get(source);
+  if (state) {
+    renderPreview(renderer);
+    renderLiveEditor(state, getSourceSelection(source), document.activeElement === source);
+    return;
+  }
+
+  renderPreview(renderer);
 }
 
 export function initMarkdownRenderers(scope: ParentNode = document): void {
@@ -236,15 +492,32 @@ export function initMarkdownRenderers(scope: ParentNode = document): void {
     const source = renderer.querySelector<HTMLTextAreaElement>("textarea[data-markdown-source]");
     if (!source) return;
 
-    source.addEventListener("input", () => renderRenderer(renderer));
-    source.addEventListener("change", () => renderRenderer(renderer));
+    setupLiveEditor(renderer, source);
+
     renderer.querySelectorAll<HTMLButtonElement>("[data-markdown-mode]").forEach((button) => {
       button.addEventListener("click", () => {
         const mode = button.dataset.markdownMode === "preview" ? "preview" : "edit";
         setMode(renderer, mode);
       });
     });
-
-    renderRenderer(renderer);
   });
+
+  if (!selectionSyncReady) {
+    selectionSyncReady = true;
+    document.addEventListener("selectionchange", () => {
+      const activeSource = Array.from(
+        document.querySelectorAll<HTMLTextAreaElement>("textarea[data-markdown-source]")
+      ).find((source) => {
+        const state = stateBySource.get(source);
+        const selection = window.getSelection();
+        return Boolean(state && selection?.rangeCount && selection.anchorNode && state.editor.contains(selection.anchorNode));
+      });
+
+      if (!activeSource) return;
+
+      const state = stateBySource.get(activeSource);
+      const selection = state ? getEditorSelection(state) : null;
+      if (selection) setSourceSelection(activeSource, selection.start, selection.end);
+    });
+  }
 }

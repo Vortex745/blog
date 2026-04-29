@@ -137,7 +137,7 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
               </div>
             </div>
             <div class="markdown-renderer-pane" data-markdown-preview-pane hidden>
-              <div class="markdown-renderer-preview" data-markdown-preview></div>
+              <div class="markdown-renderer-preview prose prose-apple max-w-none" data-markdown-preview></div>
             </div>
           </div>
         </div>
@@ -576,7 +576,7 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
     }
   }
 
-  contentTextarea?.addEventListener("paste", handleClipboardPaste);
+  contentTextarea?.closest("[data-markdown-renderer]")?.addEventListener("paste", handleClipboardPaste);
   pasteArea?.addEventListener("paste", handleClipboardPaste);
   pasteArea?.addEventListener("click", () => {
     pasteArea.focus();
@@ -1346,8 +1346,8 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
     resize: vertical;
     min-height: 120px;
     line-height: 1.6;
-    font-family: var(--font-mono);
-    font-size: 13px;
+    font-family: var(--font-editor);
+    font-size: 14px;
   }
   .field-hint {
     display: block;

@@ -129,7 +129,7 @@ const projects = await getCollection("projects");
               <textarea id="p-desc" name="description" class="field-input field-textarea" rows="8" placeholder="使用 Markdown 输入项目详细介绍" required data-markdown-source></textarea>
             </div>
             <div class="markdown-renderer-pane" data-markdown-preview-pane hidden>
-              <div class="markdown-renderer-preview" data-markdown-preview></div>
+              <div class="markdown-renderer-preview prose prose-apple max-w-none" data-markdown-preview></div>
             </div>
           </div>
           <div class="polish-options hidden" id="project-polish-options">
@@ -1061,6 +1061,7 @@ const projects = await getCollection("projects");
     resize: vertical;
     min-height: 80px;
     line-height: 1.6;
+    font-family: var(--font-editor);
   }
   .field-hint {
     font-size: 12px;
