@@ -1,10 +1,11 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
-import { profile } from "../data/profile";
 import { renderMarkdown } from "../lib/markdown";
+import { normalizeAbout, readNeonAbout } from "../lib/neon-content";
 
+const about = (await readNeonAbout().catch(() => null)) ?? normalizeAbout({});
 const initialPhilosophyHtml = renderMarkdown(
-  profile.philosophy.filter(Boolean).join("\n\n"),
+  about.philosophy?.filter(Boolean).join("\n\n") ?? "",
   { emptyHtml: "" }
 );
 ---
@@ -17,17 +18,17 @@ const initialPhilosophyHtml = renderMarkdown(
         <div class="about-profile" data-animate="fade-up">
           <div class="about-photo">
             <img
-              src={profile.avatar}
+              src={about.avatar}
               alt="个人头像"
               class="photo-image"
               id="about-avatar"
             />
           </div>
           <div class="about-profile-meta">
-            <h1 class="about-profile-name" id="about-profile-name">{profile.name}</h1>
-            <p class="about-profile-role" id="about-profile-role">{profile.role}</p>
-            <p class="about-profile-bio" id="about-profile-bio">{profile.bio}</p>
-            <p class="about-profile-desc" id="about-profile-desc">{profile.description}</p>
+            <h1 class="about-profile-name" id="about-profile-name">{about.name}</h1>
+            <p class="about-profile-role" id="about-profile-role">{about.role}</p>
+            <p class="about-profile-bio" id="about-profile-bio">{about.bio}</p>
+            <p class="about-profile-desc" id="about-profile-desc">{about.description}</p>
           </div>
         </div>
 
@@ -58,7 +59,7 @@ const initialPhilosophyHtml = renderMarkdown(
         <div class="skills-section" data-animate="fade-up">
           <h3 class="skills-label" data-animate="fade-up">核心能力</h3>
           <div class="skills-list" data-animate="stagger" id="about-skills">
-            {profile.skills.map((skill) => (
+            {about.skills?.map((skill) => (
               <span class="skill-tag">{skill}</span>
             ))}
           </div>
@@ -69,65 +70,59 @@ const initialPhilosophyHtml = renderMarkdown(
 </BaseLayout>
 
 <script>
-  import { renderMarkdown } from "../lib/markdown";
+  import { escapeHtml, renderMarkdown } from "../lib/markdown";
 
-  function escapeHtml(value: unknown): string {
-    return String(value ?? "").replace(/[&<>"']/g, (char) => {
-      const entities: Record<string, string> = {
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;",
-      };
-      return entities[char] ?? char;
+  function applyAboutData(data: any) {
+    if (!data || typeof data !== "object") return;
+
+    const avatarImg = document.getElementById("about-avatar") as HTMLImageElement | null;
+    if (typeof data.avatar === "string" && data.avatar && avatarImg) {
+      avatarImg.src = data.avatar;
+    }
+
+    const profileFields = [
+      ["about-profile-name", data.name],
+      ["about-profile-role", data.role],
+      ["about-profile-bio", data.bio],
+      ["about-profile-desc", data.description],
+    ];
+    profileFields.forEach(([id, value]) => {
+      const target = document.getElementById(String(id));
+      if (target && typeof value === "string") target.textContent = value;
     });
+
+    if (Array.isArray(data.philosophy)) {
+      const philoBody = document.getElementById("about-philosophy");
+      if (philoBody) {
+        philoBody.innerHTML = renderMarkdown(data.philosophy.filter(Boolean).join("\n\n"), {
+          emptyHtml: "",
+        });
+      }
+    }
+
+    if (Array.isArray(data.skills)) {
+      const skillsList = document.getElementById("about-skills");
+      if (skillsList) {
+        skillsList.innerHTML = data.skills
+          .map((skill: string) => `<span class="skill-tag">${escapeHtml(skill)}</span>`)
+          .join("");
+      }
+    }
   }
 
-  // Load custom data from localStorage if available
-  (function() {
+  async function refreshAboutFromApi() {
     try {
-      const saved = localStorage.getItem("admin-about-data");
-      if (!saved) return;
-      const data = JSON.parse(saved);
-
-      if (data.avatar) {
-        const avatarImg = document.getElementById("about-avatar");
-        if (avatarImg) avatarImg.src = data.avatar;
-      }
-
-      const profileFields = [
-        ["about-profile-name", data.name],
-        ["about-profile-role", data.role],
-        ["about-profile-bio", data.bio],
-        ["about-profile-desc", data.description],
-      ];
-      profileFields.forEach(([id, value]) => {
-        const target = document.getElementById(id);
-        if (target && typeof value === "string") target.textContent = value;
+      const response = await fetch("/api/about", {
+        headers: { accept: "application/json" },
+        cache: "no-store",
       });
-
-      if (data.philosophy && Array.isArray(data.philosophy) && data.philosophy.length > 0) {
-        const philoBody = document.getElementById("about-philosophy");
-        if (philoBody) {
-          philoBody.innerHTML = renderMarkdown(data.philosophy.filter(Boolean).join("\n\n"), {
-            emptyHtml: "",
-          });
-        }
-      }
-
-      if (data.skills && Array.isArray(data.skills) && data.skills.length > 0) {
-        const skillsList = document.getElementById("about-skills");
-        if (skillsList) {
-          skillsList.innerHTML = data.skills.map((skill: string) =>
-            `<span class="skill-tag">${escapeHtml(skill)}</span>`
-          ).join("");
-        }
-      }
+      const result = await response.json();
+      if (response.ok && result.ok) applyAboutData(result.about);
     } catch {}
-  })();
+  }
 
-
+  refreshAboutFromApi();
+  document.addEventListener("astro:after-swap", refreshAboutFromApi);
 </script>
 
 <style>

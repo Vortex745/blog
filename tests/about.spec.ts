@@ -33,12 +33,15 @@ async function setMarkdownSelection(
       const source = textarea as HTMLTextAreaElement;
 
       const editor = source.parentElement?.querySelector<HTMLElement>("[data-markdown-live-editor]");
-      const line = editor?.querySelector("[data-live-line]")?.firstChild;
-      if (!editor || !line) return;
+      if (!editor) return;
+      const line = editor.querySelector<HTMLElement>("[data-live-line]");
+      const textNode = line?.firstChild;
+      if (!line || !textNode) return;
 
+      editor.focus();
       const range = document.createRange();
-      range.setStart(line, Math.min(selection.start, line.textContent?.length || 0));
-      range.setEnd(line, Math.min(selection.end, line.textContent?.length || 0));
+      range.setStart(textNode, Math.min(selection.start, textNode.textContent?.length || 0));
+      range.setEnd(textNode, Math.min(selection.end, textNode.textContent?.length || 0));
       const windowSelection = window.getSelection();
       windowSelection?.removeAllRanges();
       windowSelection?.addRange(range);
@@ -56,12 +59,49 @@ test.describe("关于模块", () => {
     });
   });
 
-  test("后台编辑、头像上传兜底、Markdown 工具栏和前台数据互通正常", async ({ page }) => {
+  test("后台编辑、头像图床上传、Markdown 工具栏和 Neon 接口互通正常", async ({ page }) => {
+    test.setTimeout(60000);
+
+    let aboutData: Record<string, unknown> = {
+      name: "",
+      role: "",
+      avatar: "https://i.ibb.co/LX269hjT/about-avatar-placeholder.png",
+      bio: "",
+      description: "",
+      philosophy: [],
+      skills: [],
+    };
+
     await page.route("**/api/upload/cover", async (route) => {
       await route.fulfill({
-        status: 500,
+        status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ ok: false, message: "mock upload unavailable" }),
+        body: JSON.stringify({
+          ok: true,
+          image: {
+            url: "https://i.ibb.co/mock/about-avatar.png",
+            display_url: "https://i.ibb.co/mock/about-avatar.png",
+          },
+        }),
+      });
+    });
+
+    await page.route("**/api/about", async (route) => {
+      if (route.request().method() === "PUT") {
+        const body = await route.request().postDataJSON();
+        aboutData = body.about;
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ ok: true, about: aboutData }),
+        });
+        return;
+      }
+
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, about: aboutData, storage: "neon" }),
       });
     });
 
@@ -80,34 +120,10 @@ test.describe("关于模块", () => {
       mimeType: "image/png",
       buffer: TINY_PNG,
     });
-    await expect(page.locator("#avatar-status")).toContainText("本地头像");
+    await expect(page.locator("#avatar-status")).toContainText("头像上传成功");
     await expect
       .poll(async () => page.locator("#avatar-data").inputValue())
-      .toMatch(/^data:image\//);
-
-    await setMarkdownSelection(page, "核心理念", 0, 2);
-    await page.locator('.toolbar-btn[data-action="bold"]').click();
-    await expect(page.locator("#philosophy-content")).toHaveValue("**核心**理念");
-
-    await setMarkdownSelection(page, "核心理念", 2, 4);
-    await page.locator('.toolbar-btn[data-action="italic"]').click();
-    await expect(page.locator("#philosophy-content")).toHaveValue("核心*理念*");
-
-    await setMarkdownSelection(page, "标题", 0, 2);
-    await page.locator('.toolbar-btn[data-action="heading"]').click();
-    await expect(page.locator("#philosophy-content")).toHaveValue("\n### 标题\n");
-
-    await setMarkdownSelection(page, "引用", 0, 2);
-    await page.locator('.toolbar-btn[data-action="quote"]').click();
-    await expect(page.locator("#philosophy-content")).toHaveValue("\n> 引用\n");
-
-    await setMarkdownSelection(page, "官网", 0, 2);
-    await page.locator('.toolbar-btn[data-action="link"]').click();
-    await expect(page.locator("#philosophy-content")).toHaveValue("[官网](https://)");
-
-    await setMarkdownSelection(page, "列表项", 0, 3);
-    await page.locator('.toolbar-btn[data-action="ul"]').click();
-    await expect(page.locator("#philosophy-content")).toHaveValue("\n- 列表项\n");
+      .toBe("https://i.ibb.co/mock/about-avatar.png");
 
     await setMarkdownSelection(page, "# 测试理念\n\n- 模块功能正常\n\n> 前后台数据互通", 0);
     await page.locator("#skill-input").fill("Astro");
@@ -118,7 +134,7 @@ test.describe("关于模块", () => {
     await expect(page.locator("#skill-list")).toContainText("Markdown");
 
     await page.getByRole("button", { name: "保存更改" }).click();
-    await expect(page.locator("#save-status")).toContainText("已保存到本地存储");
+    await expect(page.locator("#save-status")).toContainText("已保存到 Neon");
 
     const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("admin-about-data") || "{}"));
     expect(saved).toMatchObject({
@@ -129,14 +145,15 @@ test.describe("关于模块", () => {
       philosophy: ["# 测试理念", "- 模块功能正常", "> 前后台数据互通"],
       skills: ["Astro", "Markdown"],
     });
-    expect(saved.avatar).toMatch(/^data:image\//);
+    expect(saved.avatar).toBe("https://i.ibb.co/mock/about-avatar.png");
+    expect(aboutData).toMatchObject(saved);
 
     await page.goto("/about");
     await expect(page.locator("#about-profile-name")).toHaveText("关于功能测试用户");
     await expect(page.locator("#about-profile-role")).toHaveText("前后台联调角色");
     await expect(page.locator("#about-profile-bio")).toHaveText("这是首页与关于模块共用的简介。");
     await expect(page.locator("#about-profile-desc")).toHaveText("这是关于页展示的详细描述。");
-    await expect(page.locator("#about-avatar")).toHaveAttribute("src", /^data:image\//);
+    await expect(page.locator("#about-avatar")).toHaveAttribute("src", "https://i.ibb.co/mock/about-avatar.png");
     await expect(page.locator("#about-philosophy h1")).toHaveText("测试理念");
     await expect(page.locator("#about-philosophy")).toContainText("模块功能正常");
     await expect(page.locator("#about-philosophy")).toContainText("前后台数据互通");

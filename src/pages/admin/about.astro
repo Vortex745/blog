@@ -1,10 +1,11 @@
 ---
 import AdminLayout from "../../layouts/AdminLayout.astro";
-import { profile } from "../../data/profile";
+import { normalizeAbout, readNeonAbout } from "../../lib/neon-content";
 import { ABOUT_AVATAR_PLACEHOLDER } from "../../lib/placeholder-images";
 
 const DEFAULT_AVATAR = ABOUT_AVATAR_PLACEHOLDER;
-const initialAvatar = profile.avatar || DEFAULT_AVATAR;
+const initialAbout = (await readNeonAbout().catch(() => null)) ?? normalizeAbout({});
+const initialAvatar = initialAbout.avatar || DEFAULT_AVATAR;
 ---
 
 <AdminLayout title="关于管理" current="about">
@@ -55,22 +56,22 @@ const initialAvatar = profile.avatar || DEFAULT_AVATAR;
       <div class="field-row">
         <div class="field-group">
           <label for="about-name" class="field-label">名字</label>
-          <input id="about-name" name="name" type="text" class="field-input" value={profile.name} placeholder="显示名称" />
+          <input id="about-name" name="name" type="text" class="field-input" value={initialAbout.name} placeholder="显示名称" />
         </div>
         <div class="field-group">
           <label for="about-role" class="field-label">角色</label>
-          <input id="about-role" name="role" type="text" class="field-input" value={profile.role} placeholder="职业身份" />
+          <input id="about-role" name="role" type="text" class="field-input" value={initialAbout.role} placeholder="职业身份" />
         </div>
       </div>
 
       <div class="field-group" style="margin-top: 16px;">
         <label for="about-bio" class="field-label">简介（首页 Hero 使用）</label>
-        <textarea id="about-bio" name="bio" class="field-input field-textarea" rows="2" placeholder="简短的个人简介">{profile.bio}</textarea>
+        <textarea id="about-bio" name="bio" class="field-input field-textarea" rows="2" placeholder="简短的个人简介">{initialAbout.bio}</textarea>
       </div>
 
       <div class="field-group" style="margin-top: 16px;">
         <label for="about-desc" class="field-label">描述（关于页面使用）</label>
-        <textarea id="about-desc" name="description" class="field-input field-textarea" rows="3" placeholder="详细的个人描述">{profile.description}</textarea>
+        <textarea id="about-desc" name="description" class="field-input field-textarea" rows="3" placeholder="详细的个人描述">{initialAbout.description}</textarea>
       </div>
     </section>
 
@@ -112,7 +113,7 @@ const initialAvatar = profile.avatar || DEFAULT_AVATAR;
         </div>
         <div class="markdown-renderer" data-markdown-renderer>
           <div class="markdown-renderer-pane is-active" data-markdown-edit-pane>
-            <textarea id="philosophy-content" name="philosophy" class="field-input field-textarea editor-textarea" rows="10" placeholder="在此输入 Markdown 格式的理念内容...&#10;&#10;每段之间用空行分隔。" data-markdown-source>{profile.philosophy.join("\n\n")}</textarea>
+            <textarea id="philosophy-content" name="philosophy" class="field-input field-textarea editor-textarea" rows="10" placeholder="在此输入 Markdown 格式的理念内容...&#10;&#10;每段之间用空行分隔。" data-markdown-source>{initialAbout.philosophy?.join("\n\n")}</textarea>
           </div>
         </div>
 
@@ -167,7 +168,7 @@ const initialAvatar = profile.avatar || DEFAULT_AVATAR;
           <div id="skill-list" class="tag-list"></div>
           <input id="skill-input" type="text" class="tag-input" placeholder="输入技能后按回车添加" />
         </div>
-        <input type="hidden" id="about-skills" name="skills" value={profile.skills.join(",")} />
+        <input type="hidden" id="about-skills" name="skills" value={initialAbout.skills?.join(",")} />
       </div>
     </section>
 
@@ -189,8 +190,9 @@ const initialAvatar = profile.avatar || DEFAULT_AVATAR;
   initMarkdownRenderers();
 </script>
 
-<script define:vars={{ defaultAvatar: DEFAULT_AVATAR }}>
+<script define:vars={{ defaultAvatar: DEFAULT_AVATAR, initialAbout }}>
   const ABOUT_KEY = "admin-about-data";
+  const ABOUT_API = "/api/about";
   const DEFAULT_AVATAR = defaultAvatar;
 
   // ===== Elements =====
@@ -225,7 +227,7 @@ const initialAvatar = profile.avatar || DEFAULT_AVATAR;
   const skillList = document.getElementById("skill-list");
   const skillsHidden = document.getElementById("about-skills");
 
-  let currentSkills = [];
+  let currentSkills = Array.isArray(initialAbout.skills) ? [...initialAbout.skills] : [];
 
   function syncPhilosophyPreview() {
     philosophyInput?.dispatchEvent(new Event("input", { bubbles: true }));
@@ -248,29 +250,44 @@ const initialAvatar = profile.avatar || DEFAULT_AVATAR;
     }));
   }
 
-  // ===== Load saved data =====
-  function loadSavedData() {
+  function applyAboutData(data) {
+    if (!data || typeof data !== "object") return;
+
+    if (data.avatar && avatarPreviewImg) {
+      avatarPreviewImg.src = data.avatar;
+      if (avatarData) avatarData.value = data.avatar;
+    }
+    if (typeof data.name === "string" && nameInput) nameInput.value = data.name;
+    if (typeof data.role === "string" && roleInput) roleInput.value = data.role;
+    if (typeof data.bio === "string" && bioInput) bioInput.value = data.bio;
+    if (typeof data.description === "string" && descInput) descInput.value = data.description;
+    if (Array.isArray(data.philosophy) && philosophyInput) {
+      philosophyInput.value = data.philosophy.join("\n\n");
+      syncPhilosophyPreview();
+    }
+    if (Array.isArray(data.skills)) {
+      currentSkills = data.skills;
+      renderSkills();
+    }
+  }
+
+  async function loadSavedData() {
+    try {
+      const response = await fetch(ABOUT_API, {
+        headers: { accept: "application/json" },
+        cache: "no-store",
+      });
+      const result = await response.json().catch(() => ({}));
+      if (response.ok && result.ok && result.about) {
+        applyAboutData(result.about);
+        localStorage.setItem(ABOUT_KEY, JSON.stringify(result.about));
+        return;
+      }
+    } catch {}
+
     try {
       const raw = localStorage.getItem(ABOUT_KEY);
-      if (!raw) return;
-      const data = JSON.parse(raw);
-
-      if (data.avatar && avatarPreviewImg) {
-        avatarPreviewImg.src = data.avatar;
-        if (avatarData) avatarData.value = data.avatar;
-      }
-      if (data.name && nameInput) nameInput.value = data.name;
-      if (data.role && roleInput) roleInput.value = data.role;
-      if (data.bio && bioInput) bioInput.value = data.bio;
-      if (data.description && descInput) descInput.value = data.description;
-      if (data.philosophy && Array.isArray(data.philosophy) && philosophyInput) {
-        philosophyInput.value = data.philosophy.join("\n\n");
-        syncPhilosophyPreview();
-      }
-      if (data.skills && Array.isArray(data.skills)) {
-        currentSkills = data.skills;
-        renderSkills();
-      }
+      if (raw) applyAboutData(JSON.parse(raw));
     } catch {}
   }
 
@@ -299,39 +316,6 @@ const initialAvatar = profile.avatar || DEFAULT_AVATAR;
       return false;
     }
     return true;
-  }
-
-  function createLocalAvatarDataUrl(file) {
-    return new Promise((resolve, reject) => {
-      const image = new Image();
-      const objectUrl = URL.createObjectURL(file);
-      image.onload = () => {
-        const size = Math.min(Math.max(image.naturalWidth, image.naturalHeight), 800);
-        const canvas = document.createElement("canvas");
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          URL.revokeObjectURL(objectUrl);
-          reject(new Error("浏览器不支持图片处理"));
-          return;
-        }
-
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, size, size);
-        const scale = Math.max(size / image.naturalWidth, size / image.naturalHeight);
-        const width = image.naturalWidth * scale;
-        const height = image.naturalHeight * scale;
-        ctx.drawImage(image, (size - width) / 2, (size - height) / 2, width, height);
-        URL.revokeObjectURL(objectUrl);
-        resolve(canvas.toDataURL("image/jpeg", 0.88));
-      };
-      image.onerror = () => {
-        URL.revokeObjectURL(objectUrl);
-        reject(new Error("无法读取头像图片"));
-      };
-      image.src = objectUrl;
-    });
   }
 
   function uploadImageWithProgress(endpoint, file, onProgress) {
@@ -374,19 +358,9 @@ const initialAvatar = profile.avatar || DEFAULT_AVATAR;
       setTimeout(() => { if (avatarProgress) avatarProgress.classList.add("hidden"); }, 500);
       return image.url;
     } catch (err) {
-      try {
-        const localUrl = await createLocalAvatarDataUrl(file);
-        setAvatarProgress(100);
-        if (avatarPreviewImg) avatarPreviewImg.src = localUrl;
-        if (avatarData) avatarData.value = localUrl;
-        showAvatarStatus("图床不可用，已使用本地头像", "success");
-        setTimeout(() => { if (avatarProgress) avatarProgress.classList.add("hidden"); }, 500);
-        return localUrl;
-      } catch (fallbackErr) {
-        showAvatarStatus(fallbackErr instanceof Error ? fallbackErr.message : err instanceof Error ? err.message : "上传失败", "error");
-        if (avatarProgress) avatarProgress.classList.add("hidden");
-        return null;
-      }
+      showAvatarStatus(err instanceof Error ? err.message : "头像上传失败", "error");
+      if (avatarProgress) avatarProgress.classList.add("hidden");
+      return null;
     }
   }
 
@@ -597,7 +571,37 @@ const initialAvatar = profile.avatar || DEFAULT_AVATAR;
   });
 
   // ===== Save / Reset =====
-  form?.addEventListener("submit", (e) => {
+  async function saveAbout(data) {
+    localStorage.setItem(ABOUT_KEY, JSON.stringify(data));
+    notifyContentChanged();
+
+    try {
+      const response = await fetch(ABOUT_API, {
+        method: "PUT",
+        headers: {
+          "content-type": "application/json",
+          "x-admin-auth": localStorage.getItem("admin-auth") || "",
+        },
+        body: JSON.stringify({ about: data }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.ok) {
+        throw new Error(result.message || "云端同步失败");
+      }
+
+      if (result.about) {
+        localStorage.setItem(ABOUT_KEY, JSON.stringify(result.about));
+        notifyContentChanged();
+      }
+      showStatus("已保存到 Neon", "success");
+      return true;
+    } catch (err) {
+      showStatus(err instanceof Error ? `云端同步失败：${err.message}` : "云端同步失败", "error");
+      return false;
+    }
+  }
+
+  form?.addEventListener("submit", async (e) => {
     e.preventDefault();
 
     const philosophyText = philosophyInput?.value || "";
@@ -616,9 +620,7 @@ const initialAvatar = profile.avatar || DEFAULT_AVATAR;
       skills: currentSkills,
     };
 
-    localStorage.setItem(ABOUT_KEY, JSON.stringify(data));
-    notifyContentChanged();
-    showStatus("已保存到本地存储", "success");
+    await saveAbout(data);
   });
 
   document.getElementById("btn-reset")?.addEventListener("click", async () => {
@@ -629,7 +631,7 @@ const initialAvatar = profile.avatar || DEFAULT_AVATAR;
   });
 
   // Init
-  loadSavedData();
+  void loadSavedData();
   renderSkills();
 
   // ===== AI Polish =====

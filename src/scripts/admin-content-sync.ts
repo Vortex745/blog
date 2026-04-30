@@ -11,19 +11,6 @@ type AdminArticle = {
   updatedAt?: string;
 };
 
-type AdminProject = {
-  id?: string;
-  title?: string;
-  category?: string;
-  tech?: string;
-  url?: string;
-  description?: string;
-  coverImage?: string;
-  imageData?: string;
-  date?: string;
-  updatedAt?: string;
-};
-
 type AdminHome = {
   generatedDate?: string;
   guidance?: string;
@@ -33,15 +20,7 @@ type AdminHome = {
   quoteAuthor?: string;
 };
 
-type AdminAbout = {
-  name?: string;
-  role?: string;
-  avatar?: string;
-  bio?: string;
-};
-
 const ARTICLE_KEY = "admin-articles-data";
-const PROJECT_KEY = "admin-projects-data";
 const HOME_KEY = "admin-home-data";
 const ABOUT_KEY = "admin-about-data";
 const ARTICLE_API = "/api/articles";
@@ -65,17 +44,6 @@ function readList<T>(key: string): T[] {
 function readHomeData(): AdminHome | null {
   try {
     const raw = localStorage.getItem(HOME_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-function readAboutData(): AdminAbout | null {
-  try {
-    const raw = localStorage.getItem(ABOUT_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     return parsed && typeof parsed === "object" ? parsed : null;
@@ -149,10 +117,6 @@ function stripMarkdown(value: string): string {
 function articleSummary(article: AdminArticle): string {
   const source = article.description || stripMarkdown(article.content || "");
   return source.length > 110 ? `${source.slice(0, 110)}...` : source;
-}
-
-function projectTags(project: AdminProject): string[] {
-  return unique([project.category || "", ...splitTags(project.tech)]);
 }
 
 function sortByDateDesc<T extends { date?: string; updatedAt?: string }>(items: T[]): T[] {
@@ -288,10 +252,6 @@ function articleCover(article: AdminArticle): string {
   return String(article.coverImage || COVER_PLACEHOLDER);
 }
 
-function projectCover(project: AdminProject): string {
-  return String(project.imageData || project.coverImage || COVER_PLACEHOLDER);
-}
-
 function localItemKey(
   item: { id?: string; title?: string },
   index: number
@@ -302,16 +262,6 @@ function localItemKey(
 
 function localArticleHref(article: AdminArticle, index: number): string {
   return `/articles/local-${localItemKey(article, index)}`;
-}
-
-function localProjectHref(project: AdminProject, index: number): string {
-  return `/projects/local-${localItemKey(project, index)}`;
-}
-
-function itemYear(item: { date?: string; updatedAt?: string }): string {
-  const date = item.date ? new Date(item.date) : item.updatedAt ? new Date(item.updatedAt) : new Date();
-  const validDate = Number.isNaN(date.getTime()) ? new Date() : date;
-  return String(validDate.getFullYear());
 }
 
 function renderArticleRow(article: AdminArticle, index: number): string {
@@ -342,48 +292,12 @@ function renderArticleRow(article: AdminArticle, index: number): string {
   `;
 }
 
-function renderProjectItem(project: AdminProject, index: number): string {
-  const tags = projectTags(project);
-  const projectUrl = String(project.url || "").trim();
-  const safeUrl = projectUrl && /^https?:\/\//.test(projectUrl) ? projectUrl : "";
-  const detailHref = localProjectHref(project, index);
-  return `
-    <div class="project-item admin-local-row" ${SYNCED_ATTR}="project" data-tags="${escapeHtml(JSON.stringify(tags))}">
-      <a href="${escapeHtml(detailHref)}" class="project-card">
-        <div class="front-cover front-cover--card">
-          <img src="${escapeHtml(projectCover(project))}" alt="" loading="lazy" />
-        </div>
-        <div class="project-card-header">
-          <div class="project-card-num">${String(index + 1).padStart(2, "0")}</div>
-          <div class="project-card-meta">
-            <span class="project-card-date">${formatDate(project.date || project.updatedAt)}</span>
-            <div class="project-card-tags">
-              ${tags.slice(0, 3).map((tag) => `<span class="project-card-tag">${escapeHtml(tag)}</span>`).join("")}
-            </div>
-          </div>
-        </div>
-        <h3 class="project-card-title">${escapeHtml(project.title || "未命名项目")}</h3>
-        <p class="project-card-desc">${escapeHtml(project.description || "")}</p>
-      </a>
-      <div class="project-card-links">
-        ${
-          safeUrl
-            ? `<a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer" class="project-link">访问<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>`
-            : ""
-        }
-        <a href="${escapeHtml(detailHref)}" class="project-link project-link-primary">详情<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>
-      </div>
-    </div>
-  `;
-}
-
 function renderArchiveItem(
   item: { title?: string; date?: string; updatedAt?: string },
-  href: string,
-  syncType: "archive-article" | "archive-project"
+  href: string
 ): string {
   return `
-    <a href="${escapeHtml(href)}" class="archive-item admin-local-row" ${SYNCED_ATTR}="${syncType}">
+    <a href="${escapeHtml(href)}" class="archive-item admin-local-row" ${SYNCED_ATTR}="archive-article">
       <span class="archive-date">${formatDate(item.date || item.updatedAt)}</span>
       <span class="archive-title">${escapeHtml(item.title || "未命名内容")}</span>
       <span class="archive-arrow">→</span>
@@ -391,18 +305,12 @@ function renderArchiveItem(
   `;
 }
 
-function renderArchiveGroup(
-  year: string,
-  items: string,
-  count: number,
-  unit: "篇" | "个",
-  syncType: "archive-article" | "archive-project"
-): string {
+function renderArchiveGroup(year: string, items: string, count: number): string {
   return `
-    <div class="archive-year-group admin-local-row" ${SYNCED_ATTR}="${syncType}-group" data-archive-year="${escapeHtml(year)}" data-static-count="0">
+    <div class="archive-year-group admin-local-row" ${SYNCED_ATTR}="archive-article-group" data-archive-year="${escapeHtml(year)}" data-static-count="0">
       <div class="year-marker">
         <span class="year-number">${escapeHtml(year)}</span>
-        <span class="year-count" data-archive-year-count>${count} ${unit}</span>
+        <span class="year-count" data-archive-year-count>${count} 篇</span>
       </div>
       <div class="year-items">${items}</div>
     </div>
@@ -427,29 +335,6 @@ function renderHomeArticleCard(article: AdminArticle, index: number): string {
       <p class="article-card-desc">${escapeHtml(articleSummary(article))}</p>
     </a>
   `;
-}
-
-function renderHomeProjectCard(project: AdminProject, index: number): string {
-  const tags = projectTags(project);
-  const href = localProjectHref(project, index);
-  const tagMarkup = tags
-    .slice(0, 2)
-    .map((tag) => `<span class="project-dense-tag">${escapeHtml(tag)}</span>`)
-    .join("");
-  const inner = `
-    <div class="front-cover front-cover--card">
-      <img src="${escapeHtml(projectCover(project))}" alt="" loading="lazy" />
-    </div>
-    <div class="project-dense-top">
-      <div class="project-dense-tags">${tagMarkup}</div>
-      <span class="project-dense-date">${formatDate(project.date || project.updatedAt)}</span>
-    </div>
-    <h3 class="project-dense-title">${escapeHtml(project.title || "未命名项目")}</h3>
-    <p class="project-dense-desc">${escapeHtml(project.description || "")}</p>
-    <div class="project-dense-links"><span class="project-dense-link">详情</span></div>
-  `;
-
-  return `<a href="${escapeHtml(href)}" class="project-dense-card admin-local-row" ${SYNCED_ATTR}="home-project">${inner}</a>`;
 }
 
 function removeSynced(type: string): void {
@@ -495,45 +380,6 @@ function syncArticlesPage(articles: AdminArticle[]): void {
   if (stats[1]) stats[1].textContent = `${unique(tags).length} 个标签`;
 }
 
-function syncProjectsPage(projects: AdminProject[]): void {
-  if (!hasPage(window.location.pathname, "/projects")) return;
-
-  const list = ensureList(
-    "projects-list",
-    "projects-dense-grid",
-    ".projects-content .editorial-container",
-    "#tag-filters"
-  );
-  if (!list) return;
-
-  removeSynced("project");
-
-  const sorted = sortByDateDesc(projects).filter((project) => project.title);
-  if (sorted.length > 0) {
-    const markup = sorted.map(renderProjectItem).join("");
-    list.insertAdjacentHTML("afterbegin", markup);
-  }
-
-  const allItems = Array.from(list.querySelectorAll<HTMLElement>(".project-item"));
-  const tags = allItems.flatMap(splitTagsFromDataset);
-  updateFilterBar(
-    document.getElementById("tag-filters"),
-    tags,
-    "#projects-list .project-item",
-    document.getElementById("empty-state"),
-    (visibleItems) => {
-      visibleItems.forEach((item, index) => {
-        const num = item.querySelector<HTMLElement>(".project-card-num");
-        if (num) num.textContent = String(index + 1).padStart(2, "0");
-      });
-    }
-  );
-
-  const stats = document.querySelectorAll<HTMLElement>(".projects-stats .projects-stat");
-  if (stats[0]) stats[0].textContent = `${allItems.length} 个项目`;
-  if (stats[1]) stats[1].textContent = `${unique(tags).length} 个技术标签`;
-}
-
 function parseCount(value: string | undefined): number {
   const count = Number.parseInt(value || "0", 10);
   return Number.isNaN(count) ? 0 : count;
@@ -546,10 +392,10 @@ function readStaticArchiveCount(list: HTMLElement): number {
   );
 }
 
-function resetArchiveYearCounts(list: HTMLElement, unit: "篇" | "个"): void {
+function resetArchiveYearCounts(list: HTMLElement): void {
   list.querySelectorAll<HTMLElement>(".archive-year-group").forEach((group) => {
     const count = group.querySelector<HTMLElement>("[data-archive-year-count]");
-    if (count) count.textContent = `${parseCount(group.dataset.staticCount)} ${unit}`;
+    if (count) count.textContent = `${parseCount(group.dataset.staticCount)} 篇`;
   });
 }
 
@@ -577,15 +423,13 @@ function syncArchiveSection<T extends { id?: string; title?: string; date?: stri
   list: HTMLElement | null,
   empty: HTMLElement | null,
   items: T[],
-  syncType: "archive-article" | "archive-project",
-  unit: "篇" | "个",
   hrefForItem: (item: T, index: number) => string
 ): { count: number; years: string[] } {
   if (!list) return { count: 0, years: [] };
 
-  removeSynced(`${syncType}-group`);
-  removeSynced(syncType);
-  resetArchiveYearCounts(list, unit);
+  removeSynced("archive-article-group");
+  removeSynced("archive-article");
+  resetArchiveYearCounts(list);
 
   const sorted = sortByDateDesc(items).filter((item) => item.title);
   const grouped = new Map<string, Array<{ item: T; index: number }>>();
@@ -598,21 +442,21 @@ function syncArchiveSection<T extends { id?: string; title?: string; date?: stri
     .sort((a, b) => parseCount(b[0]) - parseCount(a[0]))
     .forEach(([year, entries]) => {
       const markup = entries
-        .map(({ item, index }) => renderArchiveItem(item, hrefForItem(item, index), syncType))
+        .map(({ item, index }) => renderArchiveItem(item, hrefForItem(item, index)))
         .join("");
       const existing = Array.from(list.querySelectorAll<HTMLElement>(".archive-year-group")).find(
-        (group) => group.dataset.archiveYear === year && group.getAttribute(SYNCED_ATTR) !== `${syncType}-group`
+        (group) => group.dataset.archiveYear === year && group.getAttribute(SYNCED_ATTR) !== "archive-article-group"
       );
 
       if (existing) {
         existing.querySelector<HTMLElement>(".year-items")?.insertAdjacentHTML("afterbegin", markup);
         const count = existing.querySelector<HTMLElement>("[data-archive-year-count]");
-        if (count) count.textContent = `${parseCount(existing.dataset.staticCount) + entries.length} ${unit}`;
+        if (count) count.textContent = `${parseCount(existing.dataset.staticCount) + entries.length} 篇`;
         return;
       }
 
       const template = document.createElement("template");
-      template.innerHTML = renderArchiveGroup(year, markup, entries.length, unit, syncType).trim();
+      template.innerHTML = renderArchiveGroup(year, markup, entries.length).trim();
       const group = template.content.firstElementChild;
       if (group instanceof HTMLElement) insertArchiveGroup(list, group, year);
     });
@@ -624,38 +468,36 @@ function syncArchiveSection<T extends { id?: string; title?: string; date?: stri
   return { count, years: getArchiveYears(list) };
 }
 
-function syncArchivePage(articles: AdminArticle[], projects: AdminProject[]): void {
+function syncArchivePage(articles: AdminArticle[]): void {
   if (!hasPage(window.location.pathname, "/archive")) return;
 
   const articleResult = syncArchiveSection(
     document.querySelector<HTMLElement>('[data-archive-list="articles"]'),
     document.querySelector<HTMLElement>('[data-archive-empty="articles"]'),
     articles,
-    "archive-article",
-    "篇",
     localArticleHref
   );
-  const projectResult = syncArchiveSection(
-    document.querySelector<HTMLElement>('[data-archive-list="projects"]'),
-    document.querySelector<HTMLElement>('[data-archive-empty="projects"]'),
-    projects,
-    "archive-project",
-    "个",
-    localProjectHref
+  const projectYears = Array.from(
+    document.querySelectorAll<HTMLElement>('[data-archive-list="projects"] .archive-year-group')
+  )
+    .map((group) => group.dataset.archiveYear || "")
+    .filter(Boolean);
+  const projectCount = readStaticArchiveCount(
+    document.querySelector<HTMLElement>('[data-archive-list="projects"]') ?? document.createElement("div")
   );
-  const yearCount = unique([...articleResult.years, ...projectResult.years]).length;
+  const yearCount = unique([...articleResult.years, ...projectYears]).length;
 
   const summary = document.querySelector<HTMLElement>("[data-archive-summary]");
   if (summary) {
-    const total = articleResult.count + projectResult.count;
-    summary.textContent = `所有内容的完整记录。截至目前，共收录 ${total} 条内容，包括 ${articleResult.count} 篇文章和 ${projectResult.count} 个项目。`;
+    const total = articleResult.count + projectCount;
+    summary.textContent = `所有内容的完整记录。截至目前，共收录 ${total} 条内容，包括 ${articleResult.count} 篇文章和 ${projectCount} 个项目。`;
   }
 
   const articleStat = document.querySelector<HTMLElement>('[data-archive-stat="articles"]');
   const projectStat = document.querySelector<HTMLElement>('[data-archive-stat="projects"]');
   const yearStat = document.querySelector<HTMLElement>('[data-archive-stat="years"]');
   if (articleStat) articleStat.textContent = String(articleResult.count);
-  if (projectStat) projectStat.textContent = String(projectResult.count);
+  if (projectStat) projectStat.textContent = String(projectCount);
   if (yearStat) yearStat.textContent = String(yearCount);
 }
 
@@ -677,21 +519,8 @@ function ensureHomeGrid(selector: string, className: string): HTMLElement | null
   return grid;
 }
 
-function syncHome(articles: AdminArticle[], projects: AdminProject[]): void {
+function syncHome(articles: AdminArticle[]): void {
   if (!hasPage(window.location.pathname, "/")) return;
-
-  const aboutData = readAboutData();
-  if (aboutData) {
-    const profileAvatar = document.querySelector<HTMLImageElement>(".profile-avatar");
-    const profileName = document.querySelector<HTMLElement>(".profile-name");
-    const profileRole = document.querySelector<HTMLElement>(".profile-role");
-    const heroLead = document.querySelector<HTMLElement>(".hero-desc");
-
-    if (aboutData.avatar && profileAvatar) profileAvatar.src = aboutData.avatar;
-    if (typeof aboutData.name === "string" && profileName) profileName.textContent = aboutData.name;
-    if (typeof aboutData.role === "string" && profileRole) profileRole.textContent = aboutData.role;
-    if (typeof aboutData.bio === "string" && heroLead) heroLead.textContent = aboutData.bio;
-  }
 
   const homeData = readHomeData();
   if (homeData) {
@@ -723,35 +552,21 @@ function syncHome(articles: AdminArticle[], projects: AdminProject[]): void {
       card.classList.toggle("article-card-featured", index === 0);
     });
   }
-
-  const projectGrid = ensureHomeGrid(".projects-dense-grid", "projects-dense-grid");
-  if (projectGrid) {
-    removeSynced("home-project");
-    const sortedProjects = sortByDateDesc(projects).filter((project) => project.title).slice(0, 3);
-    if (sortedProjects.length > 0) {
-      projectGrid.insertAdjacentHTML(
-        "afterbegin",
-        sortedProjects.map(renderHomeProjectCard).join("")
-      );
-    }
-  }
 }
 
 async function syncCurrentPage(): Promise<void> {
   const localArticles = readList<AdminArticle>(ARTICLE_KEY);
-  const projects = readList<AdminProject>(PROJECT_KEY);
-  syncHome(localArticles, projects);
+  syncHome(localArticles);
   syncArticlesPage(localArticles);
-  syncProjectsPage(projects);
-  syncArchivePage(localArticles, projects);
+  syncArchivePage(localArticles);
 
   const remoteArticles = await readRemoteArticles();
   if (remoteArticles.length === 0) return;
 
   const articles = mergeArticles(localArticles, remoteArticles);
-  syncHome(articles, projects);
+  syncHome(articles);
   syncArticlesPage(articles);
-  syncArchivePage(articles, projects);
+  syncArchivePage(articles);
 }
 
 function queueSync(): void {
@@ -765,7 +580,7 @@ export function initAdminContentSync(): void {
   listenersBound = true;
 
   window.addEventListener("storage", (event) => {
-    if (event.key === ARTICLE_KEY || event.key === PROJECT_KEY || event.key === HOME_KEY || event.key === ABOUT_KEY) queueSync();
+    if (event.key === ARTICLE_KEY || event.key === HOME_KEY || event.key === ABOUT_KEY) queueSync();
   });
   window.addEventListener(SYNC_EVENT, queueSync);
   document.addEventListener("astro:after-swap", queueSync);

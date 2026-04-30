@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { getCollection } from "astro:content";
+import { projectDate, readNeonProjects } from "../lib/neon-content";
 
 const allArticles = (await getCollection("articles"))
   .filter((a) => !a.data.draft)
@@ -8,6 +9,19 @@ const allArticles = (await getCollection("articles"))
 
 const allProjects = (await getCollection("projects"))
   .sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
+const neonProjects = await readNeonProjects().catch(() => []);
+const projectItems = [
+  ...neonProjects.map((project, index) => ({
+    title: project.title || "未命名项目",
+    date: projectDate(project),
+    href: `/projects/local-${encodeURIComponent(project.id || project.title || String(index))}`,
+  })),
+  ...allProjects.map((project) => ({
+    title: project.data.title,
+    date: project.data.date,
+    href: `/projects/${project.id.replace(/\.mdx?$/, "")}`,
+  })),
+].sort((a, b) => b.date.getTime() - a.date.getTime());
 
 // Group by year
 function groupByYear<T extends { data: { date: Date } }>(items: T[]) {
@@ -21,16 +35,26 @@ function groupByYear<T extends { data: { date: Date } }>(items: T[]) {
 }
 
 const articleGroups = groupByYear(allArticles);
-const projectGroups = groupByYear(allProjects);
+function groupPlainProjects(items: typeof projectItems) {
+  const groups: Record<string, typeof projectItems> = {};
+  items.forEach((item) => {
+    const year = item.date.getFullYear().toString();
+    if (!groups[year]) groups[year] = [];
+    groups[year].push(item);
+  });
+  return Object.entries(groups).sort((a, b) => parseInt(b[0]) - parseInt(a[0]));
+}
+
+const projectGroups = groupPlainProjects(projectItems);
 const archiveYearCount = new Set(
-  [...allArticles, ...allProjects].map((item) => item.data.date.getFullYear().toString())
+  [...allArticles.map((item) => item.data.date), ...projectItems.map((item) => item.date)].map((date) => date.getFullYear().toString())
 ).size;
 
 function formatDate(date: Date): string {
   return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
 }
 
-const totalCount = allArticles.length + allProjects.length;
+const totalCount = allArticles.length + projectItems.length;
 ---
 
 <BaseLayout title="子衿的个人博客网站" description="所有内容的归档记录，按时间顺序排列。">
@@ -42,7 +66,7 @@ const totalCount = allArticles.length + allProjects.length;
         data-animate="hero-item"
         data-archive-summary
       >
-        所有内容的完整记录。截至目前，共收录 {totalCount} 条内容，包括 {allArticles.length} 篇文章和 {allProjects.length} 个项目。
+        所有内容的完整记录。截至目前，共收录 {totalCount} 条内容，包括 {allArticles.length} 篇文章和 {projectItems.length} 个项目。
       </p>
     </div>
   </section>
@@ -56,7 +80,7 @@ const totalCount = allArticles.length + allProjects.length;
           <span class="stat-label">文章</span>
         </div>
         <div class="stat-card">
-          <span class="stat-number" data-animate="counter" data-archive-stat="projects">{allProjects.length}</span>
+          <span class="stat-number" data-animate="counter" data-archive-stat="projects">{projectItems.length}</span>
           <span class="stat-label">项目</span>
         </div>
         <div class="stat-card">
@@ -104,7 +128,7 @@ const totalCount = allArticles.length + allProjects.length;
           class="archive-list"
           data-animate="stagger"
           data-archive-list="projects"
-          data-static-count={allProjects.length}
+          data-static-count={projectItems.length}
           hidden={projectGroups.length === 0}
         >
           {projectGroups.map(([year, projects]) => (
@@ -115,9 +139,9 @@ const totalCount = allArticles.length + allProjects.length;
               </div>
               <div class="year-items">
                 {projects.map((project) => (
-                  <a href={`/projects/${project.id.replace(/\.mdx?$/, "")}`} class="archive-item">
-                    <span class="archive-date">{formatDate(project.data.date)}</span>
-                    <span class="archive-title">{project.data.title}</span>
+                  <a href={project.href} class="archive-item">
+                    <span class="archive-date">{formatDate(project.date)}</span>
+                    <span class="archive-title">{project.title}</span>
                     <span class="archive-arrow">→</span>
                   </a>
                 ))}

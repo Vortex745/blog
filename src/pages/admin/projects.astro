@@ -1,9 +1,9 @@
 ---
 import AdminLayout from "../../layouts/AdminLayout.astro";
-import { getCollection } from "astro:content";
+import { projectTags, readNeonProjects } from "../../lib/neon-content";
 import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
 
-const projects = await getCollection("projects");
+const projects = await readNeonProjects().catch(() => []);
 ---
 
 <AdminLayout title="项目管理" current="projects">
@@ -29,15 +29,15 @@ const projects = await getCollection("projects");
     </div>
     <div id="project-list" class="article-list">
       {projects.map((p, idx) => {
-        const allTags = [...(p.data.tags || [])];
+        const allTags = projectTags(p);
         return (
           <div class="admin-list-card" data-id={p.id} data-index={idx}>
             <div class="admin-list-card-main">
               <div class="admin-list-card-meta">
                 <span class="admin-info-row">
                   <span class="admin-field-label">创建时间</span>
-                  <time class="admin-list-card-date admin-field-value" datetime={p.data.date || ""}>
-                    {p.data.date ? new Date(p.data.date).toISOString().slice(0,10) : "-"}
+                  <time class="admin-list-card-date admin-field-value" datetime={p.date || ""}>
+                    {p.date ? new Date(p.date).toISOString().slice(0,10) : "-"}
                   </time>
                 </span>
                 {allTags.length ? (
@@ -51,11 +51,11 @@ const projects = await getCollection("projects");
               </div>
               <div class="admin-list-card-title admin-info-row">
                 <span class="admin-field-label">项目名称</span>
-                <span class="admin-field-value">{p.data.title}</span>
+                <span class="admin-field-value">{p.title}</span>
               </div>
               <div class="admin-list-card-desc admin-info-row">
                 <span class="admin-field-label">简介</span>
-                <span class="admin-field-value">{(p.data.description || "").substring(0,120)}...</span>
+                <span class="admin-field-value">{(p.description || "").substring(0,120)}...</span>
               </div>
             </div>
             <div class="admin-list-card-actions">
@@ -190,6 +190,7 @@ const projects = await getCollection("projects");
 
   // LocalStorage key
   const STORAGE_KEY = "admin-projects-data";
+  const PROJECTS_API = "/api/projects";
 
   // Elements
   const modal = document.getElementById("project-modal");
@@ -242,15 +243,69 @@ const projects = await getCollection("projects");
     return [];
   }
 
+  async function loadRemoteProjects() {
+    try {
+      const response = await fetch(PROJECTS_API, {
+        headers: { accept: "application/json" },
+        cache: "no-store",
+      });
+      if (!response.ok) return [];
+
+      const result = await response.json();
+      return Array.isArray(result?.projects) ? result.projects : [];
+    } catch {
+      return [];
+    }
+  }
+
   function notifyContentChanged() {
     window.dispatchEvent(new CustomEvent("admin-content:changed", {
       detail: { key: STORAGE_KEY, module: "projects" },
     }));
   }
 
-  function saveProjects(list) {
+  function persistProjects(list) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
     notifyContentChanged();
+  }
+
+  async function saveProjects(list) {
+    persistProjects(list);
+
+    try {
+      const response = await fetch(PROJECTS_API, {
+        method: "PUT",
+        headers: {
+          "content-type": "application/json",
+          "x-admin-auth": localStorage.getItem("admin-auth") || "",
+        },
+        body: JSON.stringify({ projects: list }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.ok) {
+        throw new Error(result.message || "云端同步失败");
+      }
+
+      if (Array.isArray(result.projects)) {
+        projects = result.projects;
+        persistProjects(projects);
+      }
+      return true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "云端同步失败";
+      showToast(`已保存在本机，云端同步失败：${message}`, "error");
+      showStatus("云端同步失败，手机端暂时不可见", "error");
+      return false;
+    }
+  }
+
+  async function hydrateProjectsFromCloud() {
+    const remoteProjects = await loadRemoteProjects();
+    if (remoteProjects.length === 0) return;
+
+    projects = remoteProjects;
+    persistProjects(projects);
+    renderList();
   }
 
   let projects = loadProjects();
@@ -670,7 +725,7 @@ const projects = await getCollection("projects");
     if (btn.dataset.action === "delete") {
       if (await (window as any).showConfirmDialog(`确定要删除项目 "${projects[idx].title}" 吗？`)) {
         projects.splice(idx, 1);
-        saveProjects(projects);
+        await saveProjects(projects);
         renderList();
         showStatus("已删除", "success");
       }
@@ -698,7 +753,7 @@ const projects = await getCollection("projects");
   });
 
   // Form submit
-  form?.addEventListener("submit", (e) => {
+  form?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const fd = new FormData(form);
     const idxRaw = (fd.get("id") || "").toString().trim();
@@ -748,9 +803,10 @@ const projects = await getCollection("projects");
       showStatus("已添加项目", "success");
     }
 
-    saveProjects(projects);
+    const synced = await saveProjects(projects);
     renderList();
     closeModal();
+    if (synced) showStatus("已保存到 Neon", "success");
   });
 
   function showStatus(text, type) {
@@ -766,6 +822,7 @@ const projects = await getCollection("projects");
   // Init
   renderProjectTags();
   renderList();
+  void hydrateProjectsFromCloud();
 </script>
 
 <style>
