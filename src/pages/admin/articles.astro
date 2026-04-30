@@ -1,6 +1,37 @@
 ---
 import AdminLayout from "../../layouts/AdminLayout.astro";
+import { neonArticlesStorageConfigured, readNeonArticles } from "../../lib/neon-articles";
 import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
+
+const articlesStorageConfigured = neonArticlesStorageConfigured();
+let articlesReadFailed = false;
+const articles = await readNeonArticles().catch(() => {
+  articlesReadFailed = true;
+  return [];
+});
+const initialArticlesPayload = JSON.stringify({
+  articles,
+  storageConfigured: articlesStorageConfigured,
+  readFailed: articlesReadFailed,
+}).replace(/</g, "\\u003c");
+
+function splitArticleTags(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean);
+  }
+
+  return String(value ?? "")
+    .split(/[,，]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function formatArticleDate(value: unknown): string {
+  if (!value) return "-";
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) return "-";
+  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
+}
 ---
 
 <AdminLayout title="文章管理" current="articles">
@@ -22,10 +53,52 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
   <section class="form-section">
     <div class="section-header">
       <h2 class="section-title">文章列表</h2>
-      <span id="article-count" class="section-badge">0 篇文章</span>
+      <span id="article-count" class="section-badge">{articles.length} 篇文章</span>
     </div>
     <div id="article-list" class="article-list">
-      <div class="empty-state">暂无文章，点击上方按钮添加。</div>
+      {articles.length > 0 ? (
+        articles.map((a, idx) => {
+          const tags = splitArticleTags(a.tags);
+          return (
+            <div class="admin-list-card" data-index={idx}>
+              <div class="admin-list-card-main">
+                <div class="admin-list-card-meta">
+                  <span class="admin-info-row">
+                    <span class="admin-field-label">发布时间</span>
+                    <time class="admin-list-card-date admin-field-value" datetime={a.date || ""}>{formatArticleDate(a.date)}</time>
+                  </span>
+                  {tags.length ? (
+                    <div class="admin-info-row">
+                      <span class="admin-field-label">标签</span>
+                      <span class="admin-tag-list">
+                        {tags.map((tag) => <span class="admin-tag">{tag}</span>)}
+                      </span>
+                    </div>
+                  ) : null}
+                </div>
+                <div class="admin-list-card-title admin-info-row">
+                  <span class="admin-field-label">标题</span>
+                  <span class="admin-field-value">{a.title}</span>
+                </div>
+                <div class="admin-list-card-desc admin-info-row">
+                  <span class="admin-field-label">摘要</span>
+                  <span class="admin-field-value">{String(a.content || "").substring(0, 120).replace(/\n/g, " ")}...</span>
+                </div>
+              </div>
+              <div class="admin-list-card-actions">
+                <button type="button" class="btn-icon btn-edit" data-action="edit" title="编辑">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                </button>
+                <button type="button" class="btn-icon btn-delete" data-action="delete" title="删除">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                </button>
+              </div>
+            </div>
+          );
+        })
+      ) : (
+        <div class="empty-state">暂无文章，点击上方按钮添加。</div>
+      )}
     </div>
   </section>
 
@@ -233,6 +306,8 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
   </div>
 </AdminLayout>
 
+<script type="application/json" id="initial-articles-data" set:html={initialArticlesPayload}></script>
+
 <script>
   import { initMarkdownRenderers, refreshMarkdownRendererFor } from "../../scripts/admin-markdown-renderer";
   import { getLlmSettings, requestLlmChat } from "../../scripts/admin-llm";
@@ -262,6 +337,25 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
   initMarkdownRenderers();
 
   // ===== Data =====
+  function readInitialArticles() {
+    const source = document.getElementById("initial-articles-data")?.textContent;
+    if (!source) return { articles: [], storageConfigured: false, readFailed: true };
+
+    try {
+      const parsed = JSON.parse(source);
+      return {
+        articles: Array.isArray(parsed?.articles) ? parsed.articles : [],
+        storageConfigured: parsed?.storageConfigured === true,
+        readFailed: parsed?.readFailed === true,
+      };
+    } catch {
+      return { articles: [], storageConfigured: false, readFailed: true };
+    }
+  }
+
+  const initialArticlesState = readInitialArticles();
+  const useServerArticles = initialArticlesState.storageConfigured && !initialArticlesState.readFailed;
+
   function loadArticles() {
     try {
       const raw = localStorage.getItem(ARTICLES_KEY);
@@ -279,24 +373,13 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
       if (!response.ok) return [];
 
       const data = await response.json();
-      return Array.isArray(data?.articles) ? data.articles : [];
+      return {
+        articles: Array.isArray(data?.articles) ? data.articles : [],
+        storage: typeof data?.storage === "string" ? data.storage : "",
+      };
     } catch {
-      return [];
+      return null;
     }
-  }
-
-  function mergeArticles(localList, remoteList) {
-    const seen = new Set();
-    const merged = [];
-
-    [...localList, ...remoteList].forEach((article, index) => {
-      const key = String(article?.id || article?.title || index).trim();
-      if (!key || seen.has(key)) return;
-      seen.add(key);
-      merged.push(article);
-    });
-
-    return merged;
   }
 
   function notifyContentChanged() {
@@ -305,8 +388,12 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
     }));
   }
 
-  function persistArticles(list) {
+  function cacheArticles(list) {
     localStorage.setItem(ARTICLES_KEY, JSON.stringify(list));
+  }
+
+  function persistArticles(list) {
+    cacheArticles(list);
     notifyContentChanged();
   }
 
@@ -341,21 +428,21 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
   }
 
   async function hydrateArticlesFromCloud() {
-    const localArticles = loadArticles();
-    const remoteArticles = await loadRemoteArticles();
-    if (remoteArticles.length === 0) {
-      if (localArticles.length > 0 && await saveArticles(localArticles)) {
-        showStatus("本机文章已同步到云端", "success");
-      }
+    const remote = await loadRemoteArticles();
+    if (!remote || remote.storage !== "neon") return;
+
+    if (JSON.stringify(articles) === JSON.stringify(remote.articles)) {
+      cacheArticles(remote.articles);
       return;
     }
 
-    articles = mergeArticles(localArticles, remoteArticles);
-    persistArticles(articles);
+    articles = remote.articles;
+    cacheArticles(articles);
     renderList();
   }
 
-  let articles = loadArticles();
+  let articles = useServerArticles ? initialArticlesState.articles : loadArticles();
+  if (useServerArticles) cacheArticles(articles);
 
   // ===== Helpers =====
   function escapeHtml(str) {
@@ -1028,7 +1115,6 @@ import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
   // ===== Article List =====
   function renderList() {
     if (!listEl) return;
-    articles = loadArticles();
     if (countEl) countEl.textContent = `${articles.length} 篇文章`;
     if (articles.length === 0) {
       listEl.innerHTML = '<div class="empty-state">暂无文章，点击上方按钮添加。</div>';

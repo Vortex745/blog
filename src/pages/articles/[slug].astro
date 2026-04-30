@@ -1,6 +1,14 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { getCollection, render } from "astro:content";
+import {
+  articleCover as getArticleCover,
+  articleDate,
+  articleSummary,
+  articleTags,
+  readNeonArticles,
+} from "../../lib/neon-articles";
+import { renderMarkdownDocument, stripMarkdown } from "../../lib/markdown";
 
 const { slug = "" } = Astro.params;
 
@@ -14,6 +22,24 @@ if (!article && !isLocalArticle) {
   return Astro.redirect("/404");
 }
 
+function localSlugToken(value: string): { decoded: string; encoded: string } {
+  const encoded = value.slice("local-".length);
+  try {
+    return { decoded: decodeURIComponent(encoded), encoded };
+  } catch {
+    return { decoded: encoded, encoded };
+  }
+}
+
+const neonArticles = isLocalArticle ? await readNeonArticles().catch(() => []) : [];
+const localToken = isLocalArticle ? localSlugToken(slug) : null;
+const neonArticle = localToken
+  ? neonArticles.find((item, index) => {
+      const keys = [item.id, item.title, String(index)].map((key) => String(key || "").trim());
+      return keys.some((key) => key === localToken.decoded || encodeURIComponent(key) === localToken.encoded);
+    })
+  : null;
+
 let Content: any = null;
 let headings: { depth: number; slug: string; text: string }[] = [];
 
@@ -23,8 +49,21 @@ if (article) {
   headings = rendered.headings as typeof headings;
 }
 
-const tags = article?.data.tags ?? [];
-const articleCover = article?.data.coverImage || "";
+const tags = article?.data.tags ?? (neonArticle ? articleTags(neonArticle) : []);
+const articleCover = article?.data.coverImage || (neonArticle ? getArticleCover(neonArticle) : "");
+const neonTitle = neonArticle?.title || "未命名文章";
+const neonContent = neonArticle?.content || (neonArticle ? articleSummary(neonArticle) : "");
+const neonDate = neonArticle ? articleDate(neonArticle) : null;
+const neonRendered = neonArticle
+  ? renderMarkdownDocument(neonContent, {
+      emptyHtml: "<p>暂无正文内容。</p>",
+      includeToc: true,
+      headingIdPrefix: "neon-heading",
+    })
+  : null;
+const neonReadingMinutes = neonArticle
+  ? Math.max(1, Math.ceil(stripMarkdown(neonContent).split(/\s+/).length / 240))
+  : 1;
 
 const sortedArticles = allArticles.sort(
   (a, b) => b.data.date.getTime() - a.data.date.getTime()
@@ -44,14 +83,15 @@ const readingMinutes = article
 const toc = headings.filter(
   (heading) => heading.depth > 1 && heading.depth < 4
 );
+const neonToc = neonRendered?.toc.filter((heading) => heading.depth > 1 && heading.depth < 4) ?? [];
 ---
 
 <BaseLayout
   title="子衿的个人博客网站"
-  description={article?.data.description ?? "后台本地文章详情"}
+  description={article?.data.description ?? (neonArticle ? articleSummary(neonArticle) : "后台本地文章详情")}
   image={articleCover}
   type="article"
-  publishedTime={article ? article.data.date.toISOString() : undefined}
+  publishedTime={article ? article.data.date.toISOString() : neonDate?.toISOString()}
   tags={tags}
   url={`/articles/${slug}/`}
 >
@@ -182,6 +222,88 @@ const toc = headings.filter(
               </div>
             )}
           </nav>
+        </div>
+      </section>
+    ) : neonArticle && neonRendered && neonDate ? (
+      <section class="article-detail-section section-light min-h-[100dvh]">
+        <div class="article-detail-shell">
+          <a
+            href="/articles"
+            class="article-detail-back link-text text-[var(--color-link-blue)] no-underline hover:underline"
+            >← 返回文章列表</a
+          >
+
+          {articleCover && (
+            <figure class="front-cover front-cover--article-detail" data-animate="fade-up">
+              <img
+                src={articleCover}
+                alt={neonArticle.coverImage ? `${neonTitle} 封面` : ""}
+              />
+            </figure>
+          )}
+
+          <header class="article-detail-header" data-animate="hero">
+            <h1 class="article-detail-title text-[var(--color-near-black)]" data-animate="hero-item">
+              {neonTitle}
+            </h1>
+            <div class="article-detail-tags" data-animate="hero-item">
+              {tags.map((tag: string) => (
+                <a
+                  href={`/articles?tag=${encodeURIComponent(tag)}`}
+                  class="apple-badge no-underline"
+                >
+                  {tag}
+                </a>
+              ))}
+            </div>
+            <div class="article-detail-meta caption-text text-[var(--color-text-secondary)]" data-animate="hero-item">
+              <time>{neonDate.toLocaleDateString("zh-CN")}</time>
+              {neonArticle.updatedAt && (
+                <span>
+                  更新于 {new Date(neonArticle.updatedAt).toLocaleDateString("zh-CN")}
+                </span>
+              )}
+              <span>{neonReadingMinutes} 分钟阅读</span>
+            </div>
+          </header>
+
+          <div class="article-detail-layout">
+            <main class="article-detail-main">
+              <article
+                id="article-content"
+                class="article-detail-prose prose prose-apple max-w-none"
+                data-animate="fade-up"
+                set:html={neonRendered.html}
+              />
+            </main>
+
+            <aside class="article-detail-aside" data-animate="fade-up">
+              <div class="article-toc-panel">
+                <p class="article-toc-label">
+                  目录
+                </p>
+                {neonToc.length > 0 ? (
+                  <nav class="article-toc-nav">
+                    {neonToc.map((heading) => (
+                      <a
+                        href={`#${heading.id}`}
+                        class:list={[
+                          "article-toc-link",
+                          heading.depth === 3 && "is-depth-3",
+                        ]}
+                      >
+                        {heading.text}
+                      </a>
+                    ))}
+                  </nav>
+                ) : (
+                  <nav class="article-toc-nav">
+                    <a href="#article-content" class="article-toc-link">正文</a>
+                  </nav>
+                )}
+              </div>
+            </aside>
+          </div>
         </div>
       </section>
     ) : (

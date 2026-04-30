@@ -20,26 +20,12 @@ type AdminHome = {
   quoteAuthor?: string;
 };
 
-const ARTICLE_KEY = "admin-articles-data";
 const HOME_KEY = "admin-home-data";
-const ABOUT_KEY = "admin-about-data";
-const ARTICLE_API = "/api/articles";
 const COVER_PLACEHOLDER = COVER_IMAGE_PLACEHOLDER;
 const SYNC_EVENT = "admin-content:changed";
 const SYNCED_ATTR = "data-admin-synced";
 
 let listenersBound = false;
-
-function readList<T>(key: string): T[] {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
 
 function readHomeData(): AdminHome | null {
   try {
@@ -49,21 +35,6 @@ function readHomeData(): AdminHome | null {
     return parsed && typeof parsed === "object" ? parsed : null;
   } catch {
     return null;
-  }
-}
-
-async function readRemoteArticles(): Promise<AdminArticle[]> {
-  try {
-    const response = await fetch(ARTICLE_API, {
-      headers: { accept: "application/json" },
-      cache: "no-store",
-    });
-    if (!response.ok) return [];
-
-    const data = await response.json();
-    return Array.isArray(data?.articles) ? data.articles : [];
-  } catch {
-    return [];
   }
 }
 
@@ -232,20 +203,6 @@ function splitTagsFromDataset(item: HTMLElement): string[] {
 
 function articleTags(article: AdminArticle): string[] {
   return splitTags(article.tags);
-}
-
-function mergeArticles(localArticles: AdminArticle[], remoteArticles: AdminArticle[]): AdminArticle[] {
-  const seen = new Set<string>();
-  const merged: AdminArticle[] = [];
-
-  [...localArticles, ...remoteArticles].forEach((article, index) => {
-    const key = String(article.id || article.title || index).trim();
-    if (!key || seen.has(key)) return;
-    seen.add(key);
-    merged.push(article);
-  });
-
-  return merged;
 }
 
 function articleCover(article: AdminArticle): string {
@@ -519,7 +476,7 @@ function ensureHomeGrid(selector: string, className: string): HTMLElement | null
   return grid;
 }
 
-function syncHome(articles: AdminArticle[]): void {
+function syncHome(): void {
   if (!hasPage(window.location.pathname, "/")) return;
 
   const homeData = readHomeData();
@@ -537,36 +494,10 @@ function syncHome(articles: AdminArticle[]): void {
     if (homeData.quoteText && quoteText) quoteText.textContent = homeData.quoteText;
     if (homeData.quoteAuthor && quoteAuthor) quoteAuthor.textContent = homeData.quoteAuthor;
   }
-
-  const articleGrid = ensureHomeGrid(".articles-dense-grid", "articles-dense-grid");
-  if (articleGrid) {
-    removeSynced("home-article");
-    const sortedArticles = sortByDateDesc(articles).filter((article) => article.title).slice(0, 4);
-    if (sortedArticles.length > 0) {
-      articleGrid.insertAdjacentHTML(
-        "afterbegin",
-        sortedArticles.map(renderHomeArticleCard).join("")
-      );
-    }
-    articleGrid.querySelectorAll(".article-card").forEach((card, index) => {
-      card.classList.toggle("article-card-featured", index === 0);
-    });
-  }
 }
 
-async function syncCurrentPage(): Promise<void> {
-  const localArticles = readList<AdminArticle>(ARTICLE_KEY);
-  syncHome(localArticles);
-  syncArticlesPage(localArticles);
-  syncArchivePage(localArticles);
-
-  const remoteArticles = await readRemoteArticles();
-  if (remoteArticles.length === 0) return;
-
-  const articles = mergeArticles(localArticles, remoteArticles);
-  syncHome(articles);
-  syncArticlesPage(articles);
-  syncArchivePage(articles);
+function syncCurrentPage(): void {
+  syncHome();
 }
 
 function queueSync(): void {
@@ -580,7 +511,7 @@ export function initAdminContentSync(): void {
   listenersBound = true;
 
   window.addEventListener("storage", (event) => {
-    if (event.key === ARTICLE_KEY || event.key === HOME_KEY || event.key === ABOUT_KEY) queueSync();
+    if (event.key === HOME_KEY) queueSync();
   });
   window.addEventListener(SYNC_EVENT, queueSync);
   document.addEventListener("astro:after-swap", queueSync);

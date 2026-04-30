@@ -1,9 +1,19 @@
 ---
 import AdminLayout from "../../layouts/AdminLayout.astro";
-import { projectTags, readNeonProjects } from "../../lib/neon-content";
+import { neonContentStorageConfigured, projectTags, readNeonProjects } from "../../lib/neon-content";
 import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
 
-const projects = await readNeonProjects().catch(() => []);
+const projectsStorageConfigured = neonContentStorageConfigured();
+let projectsReadFailed = false;
+const projects = await readNeonProjects().catch(() => {
+  projectsReadFailed = true;
+  return [];
+});
+const initialProjectsPayload = JSON.stringify({
+  projects,
+  storageConfigured: projectsStorageConfigured,
+  readFailed: projectsReadFailed,
+}).replace(/</g, "\\u003c");
 ---
 
 <AdminLayout title="项目管理" current="projects">
@@ -184,6 +194,8 @@ const projects = await readNeonProjects().catch(() => []);
   </div>
 </AdminLayout>
 
+<script type="application/json" id="initial-projects-data" set:html={initialProjectsPayload}></script>
+
 <script>
   import { initMarkdownRenderers, refreshMarkdownRendererFor } from "../../scripts/admin-markdown-renderer";
   import { getLlmSettings, requestLlmChat } from "../../scripts/admin-llm";
@@ -234,6 +246,25 @@ const projects = await readNeonProjects().catch(() => []);
     expand: "请扩写以下项目介绍，在保留事实的基础上补充价值、场景和亮点，使其更适合作品集展示。只输出扩写后的项目介绍，不要解释。",
   };
 
+  function readInitialProjects() {
+    const source = document.getElementById("initial-projects-data")?.textContent;
+    if (!source) return { projects: [], storageConfigured: false, readFailed: true };
+
+    try {
+      const parsed = JSON.parse(source);
+      return {
+        projects: Array.isArray(parsed?.projects) ? parsed.projects : [],
+        storageConfigured: parsed?.storageConfigured === true,
+        readFailed: parsed?.readFailed === true,
+      };
+    } catch {
+      return { projects: [], storageConfigured: false, readFailed: true };
+    }
+  }
+
+  const initialProjectsState = readInitialProjects();
+  const useServerProjects = initialProjectsState.storageConfigured && !initialProjectsState.readFailed;
+
   // Load from localStorage or default
   function loadProjects() {
     try {
@@ -252,9 +283,12 @@ const projects = await readNeonProjects().catch(() => []);
       if (!response.ok) return [];
 
       const result = await response.json();
-      return Array.isArray(result?.projects) ? result.projects : [];
+      return {
+        projects: Array.isArray(result?.projects) ? result.projects : [],
+        storage: typeof result?.storage === "string" ? result.storage : "",
+      };
     } catch {
-      return [];
+      return null;
     }
   }
 
@@ -264,8 +298,12 @@ const projects = await readNeonProjects().catch(() => []);
     }));
   }
 
-  function persistProjects(list) {
+  function cacheProjects(list) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  }
+
+  function persistProjects(list) {
+    cacheProjects(list);
     notifyContentChanged();
   }
 
@@ -300,15 +338,21 @@ const projects = await readNeonProjects().catch(() => []);
   }
 
   async function hydrateProjectsFromCloud() {
-    const remoteProjects = await loadRemoteProjects();
-    if (remoteProjects.length === 0) return;
+    const remote = await loadRemoteProjects();
+    if (!remote || remote.storage !== "neon") return;
 
-    projects = remoteProjects;
-    persistProjects(projects);
+    if (JSON.stringify(projects) === JSON.stringify(remote.projects)) {
+      cacheProjects(remote.projects);
+      return;
+    }
+
+    projects = remote.projects;
+    cacheProjects(projects);
     renderList();
   }
 
-  let projects = loadProjects();
+  let projects = useServerProjects ? initialProjectsState.projects : loadProjects();
+  if (useServerProjects) cacheProjects(projects);
 
   function formatDate(dateStr) {
     const d = new Date(dateStr);

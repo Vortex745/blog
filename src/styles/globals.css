@@ -971,9 +971,11 @@ body {
 .article-toc-link {
   display: block;
   border-radius: 8px;
+  padding: 1px 0;
   color: var(--color-text-secondary);
   font-family: var(--font-body);
   font-size: 0.82rem;
+  font-weight: 560;
   line-height: 1.42;
   text-decoration: none;
   transition:
@@ -998,6 +1000,19 @@ body {
   margin-top: 30px;
 }
 
+.dark .article-toc-panel {
+  border-left-color: rgba(255, 255, 255, 0.18);
+}
+
+.dark .article-toc-label {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.dark .article-toc-link,
+.dark .article-toc-empty {
+  color: rgba(255, 255, 255, 0.56);
+}
+
 @media (hover: hover) and (pointer: fine) {
   .article-toc-link:hover {
     color: var(--color-link-blue);
@@ -1014,6 +1029,84 @@ body {
 
   .article-detail-aside {
     display: block;
+  }
+}
+
+@media (width >= 1280px) {
+  .article-detail-section {
+    --article-toc-width: clamp(240px, 18vw, 310px);
+    --article-toc-gap: clamp(52px, 4.2vw, 82px);
+    --article-toc-right: max(32px, calc((100vw - 1600px) / 2 + 52px));
+  }
+
+  .article-detail-shell {
+    max-width: min(
+      1160px,
+      calc(
+        100vw - var(--article-toc-width) - var(--article-toc-right) -
+          var(--article-toc-gap) - 40px
+      )
+    );
+    margin-left: max(
+      20px,
+      calc((100vw - 1160px - var(--article-toc-width) - var(--article-toc-gap)) / 2)
+    );
+    margin-right: auto;
+  }
+
+  .article-detail-layout {
+    display: block;
+  }
+
+  .article-detail-aside {
+    position: fixed;
+    top: clamp(132px, 18vh, 176px);
+    right: var(--article-toc-right);
+    z-index: 20;
+    width: var(--article-toc-width);
+    max-height: min(60vh, 560px);
+  }
+
+  .article-toc-panel {
+    position: static;
+    top: auto;
+    max-height: inherit;
+    overflow-y: auto;
+    border-left-width: 2px;
+    padding: 4px 0 4px 18px;
+  }
+
+  .article-toc-label {
+    margin-bottom: 12px;
+    font-size: 0.88rem;
+    font-weight: 500;
+  }
+
+  .article-toc-nav {
+    gap: 11px;
+  }
+
+  .article-toc-link {
+    max-width: 100%;
+    color: color-mix(in srgb, var(--color-near-black) 62%, transparent);
+    font-size: 1rem;
+    font-weight: 650;
+    line-height: 1.42;
+  }
+
+  .article-toc-link.is-depth-3 {
+    padding-left: 14px;
+    color: var(--color-text-secondary);
+    font-size: 0.9rem;
+    font-weight: 540;
+  }
+
+  .dark .article-toc-link {
+    color: rgba(255, 255, 255, 0.78);
+  }
+
+  .dark .article-toc-link.is-depth-3 {
+    color: rgba(255, 255, 255, 0.54);
   }
 }
 

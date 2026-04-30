@@ -1,16 +1,37 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { getCollection } from "astro:content";
+import { articleCover, articleDate, articleSummary, articleTags, readNeonArticles } from "../../lib/neon-articles";
 import { COVER_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
 
-const articles = await getCollection("articles");
+const [contentArticles, neonArticles] = await Promise.all([
+  getCollection("articles"),
+  readNeonArticles().catch(() => []),
+]);
 
-const sortedArticles = articles.sort(
-  (a, b) => new Date(b.data.date).getTime() - new Date(a.data.date).getTime()
-);
+const sortedContentArticles = contentArticles.sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
 
-const allTags = [...new Set(sortedArticles.flatMap((a) => a.data.tags))];
 const COVER_PLACEHOLDER = COVER_IMAGE_PLACEHOLDER;
+const articleItems = [
+  ...neonArticles.map((article, index) => ({
+    title: article.title || "未命名文章",
+    description: articleSummary(article),
+    date: articleDate(article),
+    tags: articleTags(article),
+    coverImage: articleCover(article),
+    href: `/articles/local-${encodeURIComponent(article.id || article.title || String(index))}`,
+  })),
+  ...sortedContentArticles.map((article) => ({
+    title: article.data.title,
+    description: article.data.description,
+    date: article.data.date,
+    tags: article.data.tags,
+    coverImage: article.data.coverImage || "",
+    href: `/articles/${article.id.replace(/\.mdx?$/, "")}`,
+  })),
+].sort((a, b) => b.date.getTime() - a.date.getTime());
+
+const allTags = [...new Set(articleItems.flatMap((a) => a.tags))];
 
 const formatDate = (date: Date) =>
   new Date(date).toLocaleDateString("zh-CN", {
@@ -28,7 +49,7 @@ const formatDate = (date: Date) =>
 
       {/* Stats */}
       <div class="articles-stats" data-animate="hero-item">
-        <span class="articles-stat">{sortedArticles.length} 篇文章</span>
+        <span class="articles-stat">{articleItems.length} 篇文章</span>
         <span class="articles-stat-sep">·</span>
         <span class="articles-stat">{allTags.length} 个标签</span>
       </div>
@@ -46,32 +67,32 @@ const formatDate = (date: Date) =>
       </div>
 
       {/* Dense Article List */}
-      {sortedArticles.length > 0 ? (
+      {articleItems.length > 0 ? (
         <div class="articles-dense-list" data-animate="stagger" id="articles-list">
-          {sortedArticles.map((article, idx) => (
+          {articleItems.map((article, idx) => (
             <a
-              href={`/articles/${article.id.replace(/\.mdx?$/, "")}`}
+              href={article.href}
               class="article-row"
-              data-tags={JSON.stringify(article.data.tags)}
+              data-tags={JSON.stringify(article.tags)}
               data-index={idx}
             >
               <div class="article-row-num">{String(idx + 1).padStart(2, "0")}</div>
               <div class="front-cover front-cover--row">
                 <img
-                  src={article.data.coverImage || COVER_PLACEHOLDER}
-                  alt={article.data.coverImage ? `${article.data.title} 封面` : ""}
+                  src={article.coverImage || COVER_PLACEHOLDER}
+                  alt={article.coverImage ? `${article.title} 封面` : ""}
                   loading="lazy"
                 />
               </div>
               <div class="article-row-main">
                 <div class="article-row-top">
-                  <h3 class="article-row-title">{article.data.title}</h3>
-                  <span class="article-row-date">{formatDate(article.data.date)}</span>
+                  <h3 class="article-row-title">{article.title}</h3>
+                  <span class="article-row-date">{formatDate(article.date)}</span>
                 </div>
-                <p class="article-row-desc">{article.data.description}</p>
+                <p class="article-row-desc">{article.description}</p>
                 <div class="article-row-bottom">
                   <div class="article-row-tags">
-                    {article.data.tags.map((tag) => (
+                    {article.tags.map((tag) => (
                       <span class="article-row-tag">{tag}</span>
                     ))}
                   </div>

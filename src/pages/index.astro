@@ -1,22 +1,40 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { getCollection } from "astro:content";
+import { articleCover, articleDate, articleSummary, articleTags, readNeonArticles } from "../lib/neon-articles";
 import { COVER_IMAGE_PLACEHOLDER } from "../lib/placeholder-images";
 import { normalizeAbout, projectCover, projectDate, projectTags, readNeonAbout, readNeonProjects } from "../lib/neon-content";
 
 const articles = await getCollection("articles");
 const projects = await getCollection("projects");
-const [about, neonProjects] = await Promise.all([
+const [about, neonProjects, neonArticles] = await Promise.all([
   readNeonAbout().catch(() => null),
   readNeonProjects().catch(() => []),
+  readNeonArticles().catch(() => []),
 ]);
 const profile = about ?? normalizeAbout({});
 
-const sortedArticles = articles
-  .sort((a, b) => new Date(b.data.date).getTime() - new Date(a.data.date).getTime())
-  .slice(0, 4);
-
 const COVER_PLACEHOLDER = COVER_IMAGE_PLACEHOLDER;
+const articleItems = [
+  ...neonArticles.map((article, index) => ({
+    title: article.title || "未命名文章",
+    description: articleSummary(article),
+    date: articleDate(article),
+    tags: articleTags(article),
+    coverImage: articleCover(article),
+    href: `/articles/local-${encodeURIComponent(article.id || article.title || String(index))}`,
+  })),
+  ...articles.map((article) => ({
+    title: article.data.title,
+    description: article.data.description,
+    date: article.data.date,
+    tags: article.data.tags,
+    coverImage: article.data.coverImage || "",
+    href: `/articles/${article.id.replace(/\.mdx?$/, "")}`,
+  })),
+].sort((a, b) => b.date.getTime() - a.date.getTime());
+const sortedArticles = articleItems.slice(0, 4);
+
 const projectItems = [
   ...neonProjects.map((project, index) => ({
     title: project.title || "未命名项目",
@@ -112,24 +130,24 @@ const quote = quotes[Math.floor(Math.random() * quotes.length)];
       {sortedArticles.length > 0 ? (
         <div class="articles-dense-grid" data-animate="stagger">
           {sortedArticles.map((article, idx) => (
-            <a href={`/articles/${article.id.replace(/\.mdx?$/, "")}`} class={`article-card ${idx === 0 ? "article-card-featured" : ""}`}>
+            <a href={article.href} class={`article-card ${idx === 0 ? "article-card-featured" : ""}`}>
               <div class="front-cover front-cover--card">
                 <img
-                  src={article.data.coverImage || COVER_PLACEHOLDER}
-                  alt={article.data.coverImage ? `${article.data.title} 封面` : ""}
+                  src={article.coverImage || COVER_PLACEHOLDER}
+                  alt={article.coverImage ? `${article.title} 封面` : ""}
                   loading="lazy"
                 />
               </div>
               <div class="article-card-meta">
-                <span class="article-date">{formatDate(article.data.date)}</span>
+                <span class="article-date">{formatDate(article.date)}</span>
                 <div class="article-tags-row">
-                  {article.data.tags.slice(0, 3).map((tag) => (
+                  {article.tags.slice(0, 3).map((tag) => (
                     <span class="article-tag">{tag}</span>
                   ))}
                 </div>
               </div>
-              <h3 class="article-card-title">{article.data.title}</h3>
-              <p class="article-card-desc">{article.data.description}</p>
+              <h3 class="article-card-title">{article.title}</h3>
+              <p class="article-card-desc">{article.description}</p>
               {idx === 0 && (
                 <span class="article-read-more">
                   阅读全文

@@ -56,6 +56,31 @@ function stripMarkdown(value: string): string {
     .trim();
 }
 
+function imageUrl(value: unknown): string {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  if (raw.startsWith("/") || /^https?:\/\//i.test(raw)) return raw;
+  return "";
+}
+
+export function articleTags(article: NeonArticle): string[] {
+  return splitTags(article.tags);
+}
+
+export function articleCover(article: NeonArticle): string {
+  return imageUrl(article.coverImage);
+}
+
+export function articleDate(article: NeonArticle): Date {
+  const date = article.date ? new Date(article.date) : new Date(article.updatedAt || Date.now());
+  return Number.isNaN(date.getTime()) ? new Date() : date;
+}
+
+export function articleSummary(article: NeonArticle): string {
+  const source = String(article.description || "").trim() || stripMarkdown(String(article.content || ""));
+  return source.length > 140 ? `${source.slice(0, 140)}...` : source;
+}
+
 function normalizeArticle(article: NeonArticle, index: number): NeonArticle | null {
   const title = String(article.title || "").trim();
   const content = String(article.content || "").trim();
