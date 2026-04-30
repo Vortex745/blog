@@ -149,6 +149,14 @@ function hasPage(pathname: string, expected: string): boolean {
   return normalized === expected;
 }
 
+function requestedTagFromUrl(): string {
+  try {
+    return new URLSearchParams(window.location.search).get("tag")?.trim() || "";
+  } catch {
+    return "";
+  }
+}
+
 function ensureList(
   id: string,
   className: string,
@@ -182,9 +190,11 @@ function updateFilterBar(
   if (!filterBar) return;
 
   const nextTags = unique(tags).sort((a, b) => a.localeCompare(b, "zh-CN"));
-  const requestedTag = filterBar.dataset.currentTag || "all";
+  const requestedTag = requestedTagFromUrl() || filterBar.dataset.currentTag || "all";
   const currentTag =
-    requestedTag === "all" || nextTags.includes(requestedTag) ? requestedTag : "all";
+    requestedTag === "all" || nextTags.includes(requestedTag) || nextTags.length === 0
+      ? requestedTag
+      : "all";
   filterBar.dataset.currentTag = currentTag;
   filterBar.innerHTML = [
     `<button class="filter-chip ${currentTag === "all" ? "active" : ""}" data-tag="all">全部</button>`,

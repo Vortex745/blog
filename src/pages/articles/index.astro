@@ -100,46 +100,97 @@ const formatDate = (date: Date) =>
 </BaseLayout>
 
 <script>
-  const filters = document.querySelectorAll(".filter-chip");
-  const items = document.querySelectorAll(".article-row");
+  const filterBar = document.getElementById("tag-filters");
   const empty = document.getElementById("empty-state");
-  let currentTag = "all";
+  const articlesContainer = document.querySelector(".articles-content .editorial-container");
 
-  function getFilteredItems() {
-    return Array.from(items).filter((item) => {
-      if (currentTag === "all") return true;
-      const tags = JSON.parse(item.dataset.tags || "[]");
-      return tags.includes(currentTag);
-    });
+  function splitTags(value) {
+    if (Array.isArray(value)) {
+      return value.map((item) => String(item).trim()).filter(Boolean);
+    }
+
+    return String(value ?? "")
+      .split(/[,，]/)
+      .map((item) => item.trim())
+      .filter(Boolean);
   }
 
-  function setActiveFilter() {
-    filters.forEach((filter) => {
-      const active = filter.dataset.tag === currentTag;
-      filter.classList.toggle("active", active);
-    });
+  function readItemTags(item) {
+    try {
+      return splitTags(JSON.parse(item.dataset.tags || "[]"));
+    } catch {
+      return [];
+    }
   }
 
-  function render() {
-    const filtered = getFilteredItems();
-    items.forEach((item) => item.classList.add("hidden"));
-    filtered.forEach((item, idx) => {
-      item.classList.remove("hidden");
+  function readRequestedTag() {
+    const queryTag = new URLSearchParams(window.location.search).get("tag")?.trim();
+    if (queryTag) return queryTag;
+
+    return filterBar?.dataset.currentTag || "all";
+  }
+
+  function syncTagToUrl(tag) {
+    const url = new URL(window.location.href);
+    if (tag === "all") {
+      url.searchParams.delete("tag");
+    } else {
+      url.searchParams.set("tag", tag);
+    }
+    window.history.replaceState({}, "", url);
+  }
+
+  function renderArticleFilters() {
+    if (!filterBar) return;
+
+    const items = Array.from(document.querySelectorAll("#articles-list .article-row"));
+    const availableTags = new Set(items.flatMap(readItemTags));
+    const requestedTag = readRequestedTag();
+    const currentTag =
+      requestedTag === "all" || availableTags.has(requestedTag) || items.length === 0
+        ? requestedTag
+        : "all";
+    const visibleItems = [];
+
+    filterBar.dataset.currentTag = currentTag;
+
+    items.forEach((item) => {
+      const visible = currentTag === "all" || readItemTags(item).includes(currentTag);
+      item.classList.toggle("hidden", !visible);
+      if (visible) visibleItems.push(item);
+    });
+
+    visibleItems.forEach((item, idx) => {
       const numEl = item.querySelector(".article-row-num");
-      if (numEl) numEl.textContent = String(idx + 1).padStart(2, "0");
+      const nextNum = String(idx + 1).padStart(2, "0");
+      if (numEl && numEl.textContent !== nextNum) numEl.textContent = nextNum;
     });
-    empty?.classList.toggle("hidden", filtered.length > 0);
-    setActiveFilter();
+
+    empty?.classList.toggle("hidden", currentTag === "all" || visibleItems.length > 0);
+    filterBar.querySelectorAll(".filter-chip").forEach((filter) => {
+      filter.classList.toggle("active", filter.dataset.tag === currentTag);
+    });
   }
 
-  filters.forEach((filter) => {
-    filter.addEventListener("click", () => {
-      currentTag = filter.dataset.tag || "all";
-      render();
-    });
-  });
+  if (filterBar && !filterBar.dataset.articleFilterBound) {
+    filterBar.dataset.articleFilterBound = "true";
+    filterBar.addEventListener("click", (event) => {
+      const filter = event.target.closest(".filter-chip");
+      if (!filter || !filterBar.contains(filter)) return;
 
-  render();
+      const nextTag = filter.dataset.tag || "all";
+      filterBar.dataset.currentTag = nextTag;
+      syncTagToUrl(nextTag);
+      renderArticleFilters();
+    });
+
+    if (articlesContainer) {
+      const observer = new MutationObserver(() => window.requestAnimationFrame(renderArticleFilters));
+      observer.observe(articlesContainer, { childList: true, subtree: true });
+    }
+  }
+
+  renderArticleFilters();
 </script>
 
 <style>

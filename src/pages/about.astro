@@ -13,14 +13,22 @@ const initialPhilosophyHtml = renderMarkdown(
   <section class="about-section">
     <div class="editorial-container">
       <div class="about-grid">
-        {/* Photo */}
-        <div class="about-photo" data-animate="fade-up">
-          <img
-            src={profile.avatar}
-            alt="个人头像"
-            class="photo-image"
-            id="about-avatar"
-          />
+        {/* Profile */}
+        <div class="about-profile" data-animate="fade-up">
+          <div class="about-photo">
+            <img
+              src={profile.avatar}
+              alt="个人头像"
+              class="photo-image"
+              id="about-avatar"
+            />
+          </div>
+          <div class="about-profile-meta">
+            <h1 class="about-profile-name" id="about-profile-name">{profile.name}</h1>
+            <p class="about-profile-role" id="about-profile-role">{profile.role}</p>
+            <p class="about-profile-bio" id="about-profile-bio">{profile.bio}</p>
+            <p class="about-profile-desc" id="about-profile-desc">{profile.description}</p>
+          </div>
         </div>
 
         {/* Philosophy */}
@@ -88,6 +96,17 @@ const initialPhilosophyHtml = renderMarkdown(
         if (avatarImg) avatarImg.src = data.avatar;
       }
 
+      const profileFields = [
+        ["about-profile-name", data.name],
+        ["about-profile-role", data.role],
+        ["about-profile-bio", data.bio],
+        ["about-profile-desc", data.description],
+      ];
+      profileFields.forEach(([id, value]) => {
+        const target = document.getElementById(id);
+        if (target && typeof value === "string") target.textContent = value;
+      });
+
       if (data.philosophy && Array.isArray(data.philosophy) && data.philosophy.length > 0) {
         const philoBody = document.getElementById("about-philosophy");
         if (philoBody) {
@@ -143,13 +162,18 @@ const initialPhilosophyHtml = renderMarkdown(
     }
   }
 
-  /* Photo */
-  .about-photo {
+  /* Profile */
+  .about-profile {
     grid-area: photo;
+    display: grid;
+    gap: 16px;
+    max-width: 280px;
+  }
+
+  .about-photo {
     border-radius: 20px;
     overflow: hidden;
     aspect-ratio: 1 / 1;
-    max-width: 280px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
     transform: translateY(0);
     transition: transform 0.3s ease, box-shadow 0.3s ease;
@@ -167,6 +191,40 @@ const initialPhilosophyHtml = renderMarkdown(
     height: 100%;
     object-fit: cover;
     display: block;
+  }
+
+  .about-profile-meta {
+    display: grid;
+    gap: 6px;
+  }
+
+  .about-profile-name {
+    margin: 0;
+    color: #181c23;
+    font-family: var(--font-display);
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  .about-profile-role {
+    margin: 0;
+    color: #0059b5;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  .about-profile-bio,
+  .about-profile-desc {
+    margin: 0;
+    color: #717785;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .about-profile-desc {
+    color: #414753;
   }
 
   /* Philosophy Card */
@@ -278,8 +336,11 @@ const initialPhilosophyHtml = renderMarkdown(
       gap: 20px;
     }
 
-    .about-photo {
+    .about-profile {
       max-width: none;
+    }
+
+    .about-photo {
       aspect-ratio: 1 / 1;
     }
 
