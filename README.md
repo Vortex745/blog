@@ -86,6 +86,14 @@ IMGBB_API_KEY="your-api-key"
 
 支持的格式：JPG、PNG、GIF、WebP、BMP、TIFF，单张最大 32MB。
 
+## 数据库配置
+
+后台文章同步使用 Neon Postgres，通过环境变量配置：
+
+```bash
+DATABASE_URL="your-neon-postgres-url"
+```
+
 ## 后台登录
 
 | 字段 | 值 |

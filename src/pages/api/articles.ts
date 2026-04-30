@@ -1,9 +1,9 @@
 import type { APIRoute } from "astro";
 import {
-  blobArticlesStorageConfigured,
-  readBlobArticles,
-  writeBlobArticles,
-} from "../../lib/blob-articles";
+  neonArticlesStorageConfigured,
+  readNeonArticles,
+  writeNeonArticles,
+} from "../../lib/neon-articles";
 import { jsonResponse } from "./upload/_shared";
 
 function hasAdminWriteAccess(request: Request): boolean {
@@ -14,11 +14,11 @@ function hasAdminWriteAccess(request: Request): boolean {
 
 export const GET: APIRoute = async () => {
   try {
-    const articles = await readBlobArticles();
+    const articles = await readNeonArticles();
     return jsonResponse({
       ok: true,
       articles,
-      storage: blobArticlesStorageConfigured() ? "blob" : "unconfigured",
+      storage: neonArticlesStorageConfigured() ? "neon" : "unconfigured",
     });
   } catch (error) {
     return jsonResponse(
@@ -37,16 +37,16 @@ export const PUT: APIRoute = async ({ request }) => {
     return jsonResponse({ ok: false, message: "请先登录后台" }, 401);
   }
 
-  if (!blobArticlesStorageConfigured()) {
+  if (!neonArticlesStorageConfigured()) {
     return jsonResponse(
-      { ok: false, message: "缺少 BLOB_READ_WRITE_TOKEN，无法同步到 Vercel Blob" },
+      { ok: false, message: "缺少 DATABASE_URL，无法同步到 Neon 数据库" },
       503,
     );
   }
 
   try {
     const body = await request.json();
-    const articles = await writeBlobArticles(
+    const articles = await writeNeonArticles(
       Array.isArray(body) ? body : (body as { articles?: unknown }).articles,
     );
 
