@@ -232,6 +232,7 @@ function updateFilterBar(
       const itemTags = splitTagsFromDataset(item);
       const visible = activeTag === "all" || itemTags.includes(activeTag);
       item.classList.toggle("hidden", !visible);
+      item.hidden = !visible;
       if (visible) visibleItems.push(item);
     });
 

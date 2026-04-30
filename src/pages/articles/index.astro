@@ -157,6 +157,7 @@ const formatDate = (date: Date) =>
     items.forEach((item) => {
       const visible = currentTag === "all" || readItemTags(item).includes(currentTag);
       item.classList.toggle("hidden", !visible);
+      item.hidden = !visible;
       if (visible) visibleItems.push(item);
     });
 
