@@ -33,9 +33,17 @@ type AdminHome = {
   quoteAuthor?: string;
 };
 
+type AdminAbout = {
+  name?: string;
+  role?: string;
+  avatar?: string;
+  bio?: string;
+};
+
 const ARTICLE_KEY = "admin-articles-data";
 const PROJECT_KEY = "admin-projects-data";
 const HOME_KEY = "admin-home-data";
+const ABOUT_KEY = "admin-about-data";
 const ARTICLE_API = "/api/articles";
 const COVER_PLACEHOLDER = COVER_IMAGE_PLACEHOLDER;
 const SYNC_EVENT = "admin-content:changed";
@@ -57,6 +65,17 @@ function readList<T>(key: string): T[] {
 function readHomeData(): AdminHome | null {
   try {
     const raw = localStorage.getItem(HOME_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function readAboutData(): AdminAbout | null {
+  try {
+    const raw = localStorage.getItem(ABOUT_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     return parsed && typeof parsed === "object" ? parsed : null;
@@ -660,6 +679,19 @@ function ensureHomeGrid(selector: string, className: string): HTMLElement | null
 function syncHome(articles: AdminArticle[], projects: AdminProject[]): void {
   if (!hasPage(window.location.pathname, "/")) return;
 
+  const aboutData = readAboutData();
+  if (aboutData) {
+    const profileAvatar = document.querySelector<HTMLImageElement>(".profile-avatar");
+    const profileName = document.querySelector<HTMLElement>(".profile-name");
+    const profileRole = document.querySelector<HTMLElement>(".profile-role");
+    const heroLead = document.querySelector<HTMLElement>(".hero-desc");
+
+    if (aboutData.avatar && profileAvatar) profileAvatar.src = aboutData.avatar;
+    if (typeof aboutData.name === "string" && profileName) profileName.textContent = aboutData.name;
+    if (typeof aboutData.role === "string" && profileRole) profileRole.textContent = aboutData.role;
+    if (typeof aboutData.bio === "string" && heroLead) heroLead.textContent = aboutData.bio;
+  }
+
   const homeData = readHomeData();
   if (homeData) {
     const heroTitle = document.querySelector<HTMLElement>(".hero-title");
@@ -732,7 +764,7 @@ export function initAdminContentSync(): void {
   listenersBound = true;
 
   window.addEventListener("storage", (event) => {
-    if (event.key === ARTICLE_KEY || event.key === PROJECT_KEY || event.key === HOME_KEY) queueSync();
+    if (event.key === ARTICLE_KEY || event.key === PROJECT_KEY || event.key === HOME_KEY || event.key === ABOUT_KEY) queueSync();
   });
   window.addEventListener(SYNC_EVENT, queueSync);
   document.addEventListener("astro:after-swap", queueSync);

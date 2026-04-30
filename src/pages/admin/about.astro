@@ -242,6 +242,12 @@ const initialAvatar = profile.avatar || DEFAULT_AVATAR;
     }, 3000);
   }
 
+  function notifyContentChanged() {
+    window.dispatchEvent(new CustomEvent("admin-content:changed", {
+      detail: { key: ABOUT_KEY, module: "about" },
+    }));
+  }
+
   // ===== Load saved data =====
   function loadSavedData() {
     try {
@@ -611,6 +617,7 @@ const initialAvatar = profile.avatar || DEFAULT_AVATAR;
     };
 
     localStorage.setItem(ABOUT_KEY, JSON.stringify(data));
+    notifyContentChanged();
     showStatus("已保存到本地存储", "success");
   });
 
