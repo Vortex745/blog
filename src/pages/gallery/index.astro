@@ -631,6 +631,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     align-items: center;
     display: grid;
     gap: 18px;
+    grid-column: 2;
     justify-items: center;
     margin: 0;
     min-width: 0;
@@ -720,6 +721,10 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     .lightbox-toolbar {
       right: 16px;
       top: 16px;
+    }
+
+    .lightbox-figure {
+      grid-column: 1;
     }
 
     .lightbox-nav {

@@ -972,6 +972,7 @@ body {
   display: block;
   border-radius: 8px;
   padding: 1px 0;
+  overflow-wrap: anywhere;
   color: var(--color-text-secondary);
   font-family: var(--font-body);
   font-size: 0.82rem;
@@ -1072,8 +1073,9 @@ body {
     top: auto;
     max-height: inherit;
     overflow-y: auto;
+    overflow-x: hidden;
     border-left-width: 2px;
-    padding: 4px 0 4px 18px;
+    padding: 4px 4px 4px 18px;
   }
 
   .article-toc-label {
