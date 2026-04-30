@@ -23,6 +23,7 @@ type ArticleRow = {
 };
 
 const connectionString = process.env.DATABASE_URL ?? import.meta.env.DATABASE_URL;
+let articlesTableReady: Promise<void> | null = null;
 
 export function neonArticlesStorageConfigured(): boolean {
   return Boolean(connectionString);
@@ -34,6 +35,23 @@ function getSql() {
   }
 
   return neon(connectionString);
+}
+
+async function ensureArticlesTable() {
+  articlesTableReady ??= getSql()`
+    create table if not exists admin_articles (
+      id text primary key,
+      title text not null default '',
+      content text not null default '',
+      description text not null default '',
+      cover_image text not null default '',
+      tags jsonb not null default '[]'::jsonb,
+      date timestamptz not null default now(),
+      updated_at timestamptz
+    )
+  `.then(() => undefined);
+
+  await articlesTableReady;
 }
 
 function splitTags(value: unknown): string[] {
@@ -132,6 +150,7 @@ export function normalizeArticles(value: unknown): NeonArticle[] {
 export async function readNeonArticles(): Promise<NeonArticle[]> {
   if (!neonArticlesStorageConfigured()) return [];
 
+  await ensureArticlesTable();
   const sql = getSql();
   const rows = await sql<ArticleRow[]>`
     select id, title, content, description, cover_image, tags, date, updated_at
@@ -145,6 +164,8 @@ export async function readNeonArticles(): Promise<NeonArticle[]> {
 export async function writeNeonArticles(articles: unknown): Promise<NeonArticle[]> {
   const normalized = normalizeArticles(articles);
   const payload = JSON.stringify(normalized);
+
+  await ensureArticlesTable();
   const sql = getSql();
 
   await sql`

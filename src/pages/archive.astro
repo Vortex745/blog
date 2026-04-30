@@ -1,15 +1,29 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { getCollection } from "astro:content";
+import { articleDate, readNeonArticles } from "../lib/neon-articles";
 import { projectDate, readNeonProjects } from "../lib/neon-content";
 
-const allArticles = (await getCollection("articles"))
+const localArticles = (await getCollection("articles"))
   .filter((a) => !a.data.draft)
   .sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
 
 const allProjects = (await getCollection("projects"))
   .sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
+const neonArticles = await readNeonArticles().catch(() => []);
 const neonProjects = await readNeonProjects().catch(() => []);
+const articleItems = [
+  ...neonArticles.map((article, index) => ({
+    title: article.title || "未命名文章",
+    date: articleDate(article),
+    href: `/articles/local-${encodeURIComponent(article.id || article.title || String(index))}`,
+  })),
+  ...localArticles.map((article) => ({
+    title: article.data.title,
+    date: article.data.date,
+    href: `/articles/${article.id.replace(/\.mdx?$/, "")}`,
+  })),
+].sort((a, b) => b.date.getTime() - a.date.getTime());
 const projectItems = [
   ...neonProjects.map((project, index) => ({
     title: project.title || "未命名项目",
@@ -24,19 +38,8 @@ const projectItems = [
 ].sort((a, b) => b.date.getTime() - a.date.getTime());
 
 // Group by year
-function groupByYear<T extends { data: { date: Date } }>(items: T[]) {
+function groupPlainItemsByYear<T extends { date: Date }>(items: T[]) {
   const groups: Record<string, T[]> = {};
-  items.forEach((item) => {
-    const year = item.data.date.getFullYear().toString();
-    if (!groups[year]) groups[year] = [];
-    groups[year].push(item);
-  });
-  return Object.entries(groups).sort((a, b) => parseInt(b[0]) - parseInt(a[0]));
-}
-
-const articleGroups = groupByYear(allArticles);
-function groupPlainProjects(items: typeof projectItems) {
-  const groups: Record<string, typeof projectItems> = {};
   items.forEach((item) => {
     const year = item.date.getFullYear().toString();
     if (!groups[year]) groups[year] = [];
@@ -45,16 +48,17 @@ function groupPlainProjects(items: typeof projectItems) {
   return Object.entries(groups).sort((a, b) => parseInt(b[0]) - parseInt(a[0]));
 }
 
-const projectGroups = groupPlainProjects(projectItems);
+const articleGroups = groupPlainItemsByYear(articleItems);
+const projectGroups = groupPlainItemsByYear(projectItems);
 const archiveYearCount = new Set(
-  [...allArticles.map((item) => item.data.date), ...projectItems.map((item) => item.date)].map((date) => date.getFullYear().toString())
+  [...articleItems.map((item) => item.date), ...projectItems.map((item) => item.date)].map((date) => date.getFullYear().toString())
 ).size;
 
 function formatDate(date: Date): string {
   return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
 }
 
-const totalCount = allArticles.length + projectItems.length;
+const totalCount = articleItems.length + projectItems.length;
 ---
 
 <BaseLayout title="子衿的个人博客网站" description="所有内容的归档记录，按时间顺序排列。">
@@ -66,7 +70,7 @@ const totalCount = allArticles.length + projectItems.length;
         data-animate="hero-item"
         data-archive-summary
       >
-        所有内容的完整记录。截至目前，共收录 {totalCount} 条内容，包括 {allArticles.length} 篇文章和 {projectItems.length} 个项目。
+        所有内容的完整记录。截至目前，共收录 {totalCount} 条内容，包括 {articleItems.length} 篇文章和 {projectItems.length} 个项目。
       </p>
     </div>
   </section>
@@ -76,7 +80,7 @@ const totalCount = allArticles.length + projectItems.length;
       {/* Stats Cards */}
       <div class="stats-grid" data-animate="stagger">
         <div class="stat-card">
-          <span class="stat-number" data-animate="counter" data-archive-stat="articles">{allArticles.length}</span>
+          <span class="stat-number" data-animate="counter" data-archive-stat="articles">{articleItems.length}</span>
           <span class="stat-label">文章</span>
         </div>
         <div class="stat-card">
@@ -97,7 +101,7 @@ const totalCount = allArticles.length + projectItems.length;
           class="archive-list"
           data-animate="stagger"
           data-archive-list="articles"
-          data-static-count={allArticles.length}
+          data-static-count={articleItems.length}
           hidden={articleGroups.length === 0}
         >
           {articleGroups.map(([year, articles]) => (
@@ -108,9 +112,9 @@ const totalCount = allArticles.length + projectItems.length;
               </div>
               <div class="year-items">
                 {articles.map((article) => (
-                  <a href={`/articles/${article.id.replace(/\.mdx?$/, "")}`} class="archive-item">
-                    <span class="archive-date">{formatDate(article.data.date)}</span>
-                    <span class="archive-title">{article.data.title}</span>
+                  <a href={article.href} class="archive-item">
+                    <span class="archive-date">{formatDate(article.date)}</span>
+                    <span class="archive-title">{article.title}</span>
                     <span class="archive-arrow">→</span>
                   </a>
                 ))}
