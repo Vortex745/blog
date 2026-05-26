@@ -918,11 +918,14 @@ const initialProjectsPayload = JSON.stringify({
       titleInput.dispatchEvent(new Event("input", { bubbles: true }));
     }
 
-    // Fill description if empty
-    if (descInput && !descInput.value.trim() && repo.description) {
-      descInput.value = repo.description;
-      descInput.dispatchEvent(new Event("input", { bubbles: true }));
-      refreshMarkdownRendererFor(descInput);
+    // Fill description if empty — prefer README summary over short description
+    if (descInput && !descInput.value.trim()) {
+      const desc = repo.readme_summary || repo.description;
+      if (desc) {
+        descInput.value = desc;
+        descInput.dispatchEvent(new Event("input", { bubbles: true }));
+        refreshMarkdownRendererFor(descInput);
+      }
     }
 
     // Fill URL if empty
