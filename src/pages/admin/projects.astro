@@ -948,6 +948,29 @@ const initialProjectsPayload = JSON.stringify({
     renderProjectTags();
   }
 
+  const README_SUMMARIZE_PROMPT = "你是一位技术文档摘要专家。请用简洁的中文总结以下项目 README 内容，概括项目的核心功能和定位（150字以内）。只输出总结内容，不要解释。如果不是中文项目名，保留英文原名。";
+
+  async function summarizeReadmeWithLLM(cleaned: string, descInput: HTMLTextAreaElement | null): Promise<string | null> {
+    const settings = getLlmSettings();
+    if (!settings?.baseUrl || !settings?.apiKey || !settings?.model) return null;
+
+    const summary = await requestLlmChat({
+      messages: [
+        { role: "system", content: README_SUMMARIZE_PROMPT },
+        { role: "user", content: cleaned },
+      ],
+      temperature: 0.3,
+      onSlow: () => showStatus("AI 响应较慢，请继续等待...", "info"),
+    });
+
+    if (summary && descInput) {
+      descInput.value = summary;
+      descInput.dispatchEvent(new Event("input", { bubbles: true }));
+      refreshMarkdownRendererFor(descInput);
+    }
+    return summary || null;
+  }
+
   btnGithubFill?.addEventListener("click", async () => {
     const url = githubInput?.value?.trim();
     if (!url) {
@@ -966,16 +989,36 @@ const initialProjectsPayload = JSON.stringify({
 
     const repo = await fetchGithubRepo(parsed.owner, parsed.repo);
 
-    btnGithubFill.disabled = false;
-    btnGithubFill.textContent = "自动填充";
-
     if (!repo) {
+      btnGithubFill.disabled = false;
+      btnGithubFill.textContent = "自动填充";
       showStatus("无法获取仓库信息，请检查链接是否正确", "error");
       return;
     }
 
+    // First pass: fill basic info (title, url, tags, rule-based summary)
     fillProjectFromGithub(repo);
     showStatus("已自动填充仓库信息", "success");
+
+    // Second pass: use LLM to summarize README if available
+    if (repo.readme_cleaned && repo.readme_cleaned.length > 50) {
+      btnGithubFill.textContent = "AI 总结中...";
+      showStatus("正在用 AI 总结 README 生成项目介绍...", "info");
+
+      try {
+        const summarized = await summarizeReadmeWithLLM(repo.readme_cleaned, descInput as HTMLTextAreaElement | null);
+        if (summarized) {
+          showStatus("已用 AI 生成项目介绍", "success");
+        } else {
+          showStatus("AI 未配置，已使用基础 README 摘要", "info");
+        }
+      } catch (err) {
+        showStatus("AI 总结失败，已使用基础 README 摘要", "info");
+      }
+    }
+
+    btnGithubFill.disabled = false;
+    btnGithubFill.textContent = "自动填充";
   });
 
   // Init

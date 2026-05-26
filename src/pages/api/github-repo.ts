@@ -30,7 +30,6 @@ function extractReadmeSummary(markdown: string): string | null {
 
   // Collect a condensed summary: first heading + following paragraphs
   const parts: string[] = [];
-  let chars = 0;
   const MAX = 500;
   let foundTitle = false;
   let inParagraph = false;
@@ -67,7 +66,6 @@ function extractReadmeSummary(markdown: string): string | null {
     }
 
     // Regular paragraph text
-    const addition = (inParagraph ? " " : "") + line;
     const candidate = parts.join("\n") + (inParagraph ? " " : "\n") + line;
     if (candidate.length > MAX) {
       const remaining = MAX - parts.join("\n").length - 1;
@@ -86,6 +84,37 @@ function extractReadmeSummary(markdown: string): string | null {
 
   const result = parts.join("\n\n").trim();
   return result.length > 10 ? result : null;
+}
+
+function cleanReadmeContent(markdown: string): string | null {
+  if (!markdown || markdown.length < 20) return null;
+
+  // Remove HTML comments
+  let text = markdown.replace(/<!--[\s\S]*?-->/g, "");
+
+  // Remove badge lines
+  text = text.replace(/\[!\[.*?\]\(.*?\)\]\(.*?\)/g, "");
+  text = text.replace(
+    /!\[.*?(?:badge|shield|coverage|build|ci|test|npm|download|version|license|stars|fork|commit|issues?|prs?|pipeline|status|release).*?\]\(.*?\)/gi,
+    "",
+  );
+
+  // Remove code blocks and inline code
+  text = text.replace(/```[\s\S]*?```/g, "");
+  text = text.replace(/`[^`]*`/g, "");
+
+  // Remove HTML tags
+  text = text.replace(/<[^>]+>/g, "");
+
+  // Remove image-only lines
+  text = text.replace(/^!\[.*\]\(.*\)$/gm, "");
+  text = text.replace(/^\[!\[/gm, "");
+
+  // Trim multiple blank lines
+  text = text.replace(/\n{3,}/g, "\n\n");
+
+  text = text.trim();
+  return text.length > 50 ? text.slice(0, 4000) : null;
 }
 
 export const GET: APIRoute = async ({ url }) => {
@@ -123,8 +152,9 @@ export const GET: APIRoute = async ({ url }) => {
 
     const data = await res.json();
 
-    // Fetch README for a condensed summary
+    // Fetch README for summaries
     let readmeSummary: string | null = null;
+    let readmeCleaned: string | null = null;
     try {
       const readmeRes = await fetch(
         `https://api.github.com/repos/${owner}/${repo}/readme`,
@@ -133,6 +163,7 @@ export const GET: APIRoute = async ({ url }) => {
       if (readmeRes.ok) {
         const content = await readmeRes.text();
         readmeSummary = extractReadmeSummary(content);
+        readmeCleaned = cleanReadmeContent(content);
       }
     } catch {
       // README fetch failed — fall back to description
@@ -144,6 +175,7 @@ export const GET: APIRoute = async ({ url }) => {
         name: data.name,
         description: data.description,
         readme_summary: readmeSummary,
+        readme_cleaned: readmeCleaned,
         language: data.language,
         topics: data.topics,
         html_url: data.html_url,
