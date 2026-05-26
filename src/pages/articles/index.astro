@@ -1,0 +1,516 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { getCollection } from "astro:content";
+import { articleCover, articleDate, articleSummary, articleTags, readNeonArticles } from "../../lib/neon-articles";
+import { COVER_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
+
+const [contentArticles, neonArticles] = await Promise.all([
+  getCollection("articles"),
+  readNeonArticles().catch(() => []),
+]);
+
+const sortedContentArticles = contentArticles.sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
+
+const COVER_PLACEHOLDER = COVER_IMAGE_PLACEHOLDER;
+const articleItems = [
+  ...neonArticles.map((article, index) => ({
+    title: article.title || "未命名文章",
+    description: articleSummary(article),
+    date: articleDate(article),
+    tags: articleTags(article),
+    coverImage: articleCover(article),
+    href: `/articles/local-${encodeURIComponent(article.id || article.title || String(index))}`,
+  })),
+  ...sortedContentArticles.map((article) => ({
+    title: article.data.title,
+    description: article.data.description,
+    date: article.data.date,
+    tags: article.data.tags,
+    coverImage: article.data.coverImage || "",
+    href: `/articles/${article.id.replace(/\.mdx?$/, "")}`,
+  })),
+].sort((a, b) => b.date.getTime() - a.date.getTime());
+
+const allTags = [...new Set(articleItems.flatMap((a) => a.tags))];
+
+const formatDate = (date: Date) =>
+  new Date(date).toLocaleDateString("zh-CN", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+---
+
+<BaseLayout title="子衿的个人博客网站" description="技术、设计与生活的思考记录。">
+  <section class="articles-hero" data-animate="hero">
+    <div class="editorial-container">
+      <h1 class="articles-title" data-animate="hero-item">文章</h1>
+      <p class="articles-subtitle" data-animate="hero-item">技术、设计与生活的思考记录</p>
+
+      {/* Stats */}
+      <div class="articles-stats" data-animate="hero-item">
+        <span class="articles-stat">{articleItems.length} 篇文章</span>
+        <span class="articles-stat-sep">·</span>
+        <span class="articles-stat">{allTags.length} 个标签</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="articles-content">
+    <div class="editorial-container">
+      {/* Tag Filters */}
+      <div class="filter-bar" data-animate="fade-up" id="tag-filters">
+        <button class="filter-chip active" data-tag="all">全部</button>
+        {allTags.map((tag) => (
+          <button class="filter-chip" data-tag={tag}>{tag}</button>
+        ))}
+      </div>
+
+      {/* Dense Article List */}
+      {articleItems.length > 0 ? (
+        <div class="articles-dense-list" data-animate="stagger" id="articles-list">
+          {articleItems.map((article, idx) => (
+            <a
+              href={article.href}
+              class="article-row"
+              data-tags={JSON.stringify(article.tags)}
+              data-index={idx}
+            >
+              <div class="article-row-num">{String(idx + 1).padStart(2, "0")}</div>
+              <div class="front-cover front-cover--row">
+                <img
+                  src={article.coverImage || COVER_PLACEHOLDER}
+                  alt={article.coverImage ? `${article.title} 封面` : ""}
+                  loading="lazy"
+                />
+              </div>
+              <div class="article-row-main">
+                <div class="article-row-top">
+                  <h3 class="article-row-title">{article.title}</h3>
+                  <span class="article-row-date">{formatDate(article.date)}</span>
+                </div>
+                <p class="article-row-desc">{article.description}</p>
+                <div class="article-row-bottom">
+                  <div class="article-row-tags">
+                    {article.tags.map((tag) => (
+                      <span class="article-row-tag">{tag}</span>
+                    ))}
+                  </div>
+                  <span class="article-row-arrow">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                  </span>
+                </div>
+              </div>
+            </a>
+          ))}
+        </div>
+      ) : (
+        <div class="empty-placeholder">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="empty-icon"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>
+          <p class="empty-title">暂无文章</p>
+          <p class="empty-desc">还没有发布任何文章，请在后台添加内容。</p>
+        </div>
+      )}
+
+      {/* Empty State */}
+      <div id="empty-state" class="empty-state hidden">
+        <p>该标签下暂无文章。</p>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<script>
+  const filterBar = document.getElementById("tag-filters");
+  const empty = document.getElementById("empty-state");
+  const articlesContainer = document.querySelector(".articles-content .editorial-container");
+
+  function splitTags(value) {
+    if (Array.isArray(value)) {
+      return value.map((item) => String(item).trim()).filter(Boolean);
+    }
+
+    return String(value ?? "")
+      .split(/[,，]/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  function readItemTags(item) {
+    try {
+      return splitTags(JSON.parse(item.dataset.tags || "[]"));
+    } catch {
+      return [];
+    }
+  }
+
+  function readRequestedTag() {
+    const queryTag = new URLSearchParams(window.location.search).get("tag")?.trim();
+    if (queryTag) return queryTag;
+
+    return filterBar?.dataset.currentTag || "all";
+  }
+
+  function syncTagToUrl(tag) {
+    const url = new URL(window.location.href);
+    if (tag === "all") {
+      url.searchParams.delete("tag");
+    } else {
+      url.searchParams.set("tag", tag);
+    }
+    window.history.replaceState({}, "", url);
+  }
+
+  function renderArticleFilters() {
+    if (!filterBar) return;
+
+    const items = Array.from(document.querySelectorAll("#articles-list .article-row"));
+    const availableTags = new Set(items.flatMap(readItemTags));
+    const requestedTag = readRequestedTag();
+    const currentTag =
+      requestedTag === "all" || availableTags.has(requestedTag) || items.length === 0
+        ? requestedTag
+        : "all";
+    const visibleItems = [];
+
+    filterBar.dataset.currentTag = currentTag;
+
+    items.forEach((item) => {
+      const visible = currentTag === "all" || readItemTags(item).includes(currentTag);
+      item.classList.toggle("hidden", !visible);
+      item.hidden = !visible;
+      if (visible) visibleItems.push(item);
+    });
+
+    visibleItems.forEach((item, idx) => {
+      const numEl = item.querySelector(".article-row-num");
+      const nextNum = String(idx + 1).padStart(2, "0");
+      if (numEl && numEl.textContent !== nextNum) numEl.textContent = nextNum;
+    });
+
+    empty?.classList.toggle("hidden", currentTag === "all" || visibleItems.length > 0);
+    filterBar.querySelectorAll(".filter-chip").forEach((filter) => {
+      filter.classList.toggle("active", filter.dataset.tag === currentTag);
+    });
+  }
+
+  if (filterBar && !filterBar.dataset.articleFilterBound) {
+    filterBar.dataset.articleFilterBound = "true";
+    filterBar.addEventListener("click", (event) => {
+      const filter = event.target.closest(".filter-chip");
+      if (!filter || !filterBar.contains(filter)) return;
+
+      const nextTag = filter.dataset.tag || "all";
+      filterBar.dataset.currentTag = nextTag;
+      syncTagToUrl(nextTag);
+      renderArticleFilters();
+    });
+
+    if (articlesContainer) {
+      const observer = new MutationObserver(() => window.requestAnimationFrame(renderArticleFilters));
+      observer.observe(articlesContainer, { childList: true, subtree: true });
+    }
+  }
+
+  renderArticleFilters();
+</script>
+
+<style>
+  .editorial-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* Hero */
+  .articles-hero {
+    padding: 48px 0 24px;
+  }
+
+  .articles-title {
+    font-family: var(--font-display);
+    font-size: 36px;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    color: #181c23;
+    margin: 0 0 8px;
+  }
+
+  .articles-subtitle {
+    font-size: 15px;
+    color: #717785;
+    margin: 0 0 12px;
+  }
+
+  .articles-stats {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .articles-stat {
+    font-size: 13px;
+    color: #a0a8b8;
+  }
+
+  .articles-stat-sep {
+    color: #c1c6d6;
+  }
+
+  /* Content */
+  .articles-content {
+    padding-bottom: 48px;
+  }
+
+  /* Filter Bar */
+  .filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(193,198,214,0.3);
+  }
+
+  .filter-chip {
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: 9999px;
+    border: 1px solid transparent;
+    background: rgba(236,237,247,0.6);
+    color: #414753;
+    cursor: pointer;
+    white-space: nowrap;
+    transform: scale(1);
+    transition:
+      background-color var(--motion-duration-standard) var(--motion-ease-out),
+      border-color var(--motion-duration-standard) var(--motion-ease-out),
+      color var(--motion-duration-standard) var(--motion-ease-out),
+      transform var(--motion-duration-fast) var(--motion-ease-press);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .filter-chip:hover {
+      background: rgba(224,226,236,0.8);
+      color: #181c23;
+    }
+  }
+
+  .filter-chip:active {
+    transform: scale(0.97);
+  }
+
+  .filter-chip.active {
+    background: #0059b5;
+    color: #fff;
+    border-color: #0059b5;
+  }
+
+  /* Dense Article List */
+  .articles-dense-list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .article-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 16px 0;
+    border-bottom: 1px solid rgba(193,198,214,0.25);
+    text-decoration: none;
+    transform: translateX(0) scale(1);
+    transition:
+      border-color var(--motion-duration-standard) var(--motion-ease-out),
+      transform var(--motion-duration-fast) var(--motion-ease-press);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .article-row:hover {
+      transform: translateX(4px) scale(1);
+    }
+  }
+
+  .article-row:active {
+    transform: translateX(2px) scale(0.995);
+  }
+
+  .article-row.hidden {
+    display: none;
+  }
+
+  .article-row-num {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 500;
+    color: #a0a8b8;
+    min-width: 28px;
+    padding-top: 2px;
+    flex-shrink: 0;
+  }
+
+  .article-row-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .article-row-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .article-row-title {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: #181c23;
+    margin: 0;
+    word-break: break-word;
+    transition: color var(--motion-duration-standard) var(--motion-ease-out);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .article-row:hover .article-row-title {
+      color: #0059b5;
+    }
+  }
+
+  .article-row-date {
+    font-size: 12px;
+    color: #a0a8b8;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .article-row-desc {
+    font-size: 13px;
+    line-height: 1.5;
+    color: #717785;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .article-row-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .article-row-tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .article-row-tag {
+    font-size: 11px;
+    font-weight: 500;
+    color: #0059b5;
+    background: rgba(0,89,181,0.08);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+
+  .article-row-arrow {
+    color: #a0a8b8;
+    transition:
+      color var(--motion-duration-standard) var(--motion-ease-out),
+      transform var(--motion-duration-standard) var(--motion-ease-out);
+    flex-shrink: 0;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .article-row:hover .article-row-arrow {
+      color: #0059b5;
+      transform: translateX(4px);
+    }
+  }
+
+  /* Empty State */
+  .empty-state {
+    text-align: center;
+    padding: 48px 0;
+    color: #a0a8b8;
+    font-size: 14px;
+  }
+
+  .empty-state.hidden {
+    display: none;
+  }
+
+  /* Empty Placeholder */
+  .empty-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 24px;
+    text-align: center;
+    border: 2px dashed rgba(193,198,214,0.4);
+    border-radius: 16px;
+    background: rgba(244,246,250,0.4);
+  }
+  .empty-icon {
+    color: #c1c6d6;
+    margin-bottom: 16px;
+  }
+  .empty-placeholder .empty-title {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 600;
+    color: #181c23;
+    margin: 0 0 8px;
+  }
+  .empty-placeholder .empty-desc {
+    font-size: 14px;
+    color: #717785;
+    margin: 0;
+  }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .editorial-container {
+      padding: 0 16px;
+    }
+
+    .articles-hero {
+      padding: 32px 0 16px;
+    }
+
+    .articles-title {
+      font-size: 28px;
+    }
+
+    .article-row {
+      gap: 12px;
+      padding: 14px 0;
+    }
+
+    .article-row-num {
+      font-size: 12px;
+      min-width: 24px;
+    }
+
+    .article-row-top {
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .article-row-date {
+      font-size: 11px;
+    }
+  }
+</style>

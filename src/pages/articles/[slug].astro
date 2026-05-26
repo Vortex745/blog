@@ -1,0 +1,369 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { getCollection, render } from "astro:content";
+import {
+  articleCover as getArticleCover,
+  articleDate,
+  articleSummary,
+  articleTags,
+  readNeonArticles,
+} from "../../lib/neon-articles";
+import { renderMarkdownDocument, stripMarkdown } from "../../lib/markdown";
+
+const { slug = "" } = Astro.params;
+
+const allArticles = await getCollection("articles");
+const article = allArticles.find(
+  (a) => a.id.replace(/\.mdx?$/, "") === slug
+);
+const isLocalArticle = !article && slug.startsWith("local-");
+
+if (!article && !isLocalArticle) {
+  return Astro.redirect("/404");
+}
+
+function localSlugToken(value: string): { decoded: string; encoded: string } {
+  const encoded = value.slice("local-".length);
+  try {
+    return { decoded: decodeURIComponent(encoded), encoded };
+  } catch {
+    return { decoded: encoded, encoded };
+  }
+}
+
+const neonArticles = isLocalArticle ? await readNeonArticles().catch(() => []) : [];
+const localToken = isLocalArticle ? localSlugToken(slug) : null;
+const neonArticle = localToken
+  ? neonArticles.find((item, index) => {
+      const keys = [item.id, item.title, String(index)].map((key) => String(key || "").trim());
+      return keys.some((key) => key === localToken.decoded || encodeURIComponent(key) === localToken.encoded);
+    })
+  : null;
+
+let Content: any = null;
+let headings: { depth: number; slug: string; text: string }[] = [];
+
+if (article) {
+  const rendered = await render(article);
+  Content = rendered.Content;
+  headings = rendered.headings as typeof headings;
+}
+
+const tags = article?.data.tags ?? (neonArticle ? articleTags(neonArticle) : []);
+const articleCover = article?.data.coverImage || (neonArticle ? getArticleCover(neonArticle) : "");
+const neonTitle = neonArticle?.title || "未命名文章";
+const neonContent = neonArticle?.content || (neonArticle ? articleSummary(neonArticle) : "");
+const neonDate = neonArticle ? articleDate(neonArticle) : null;
+const neonRendered = neonArticle
+  ? renderMarkdownDocument(neonContent, {
+      emptyHtml: "<p>暂无正文内容。</p>",
+      includeToc: true,
+      headingIdPrefix: "neon-heading",
+    })
+  : null;
+const neonReadingMinutes = neonArticle
+  ? Math.max(1, Math.ceil(stripMarkdown(neonContent).split(/\s+/).length / 240))
+  : 1;
+
+const sortedArticles = allArticles.sort(
+  (a, b) => b.data.date.getTime() - a.data.date.getTime()
+);
+const currentIndex = article
+  ? sortedArticles.findIndex((item) => item.id === article.id)
+  : -1;
+const prevArticle =
+  currentIndex > 0 ? sortedArticles[currentIndex - 1] : null;
+const nextArticle =
+  currentIndex >= 0 && currentIndex < sortedArticles.length - 1
+    ? sortedArticles[currentIndex + 1]
+    : null;
+const readingMinutes = article
+  ? Math.max(1, Math.ceil(article.body.split(/\s+/).length / 240))
+  : 1;
+const toc = headings.filter(
+  (heading) => heading.depth > 1 && heading.depth < 4
+);
+const neonToc = neonRendered?.toc.filter((heading) => heading.depth > 1 && heading.depth < 4) ?? [];
+---
+
+<BaseLayout
+  title="子衿的个人博客网站"
+  description={article?.data.description ?? (neonArticle ? articleSummary(neonArticle) : "后台本地文章详情")}
+  image={articleCover}
+  type="article"
+  publishedTime={article ? article.data.date.toISOString() : neonDate?.toISOString()}
+  tags={tags}
+  url={`/articles/${slug}/`}
+>
+  {
+    article && Content ? (
+      <section class="article-detail-section section-light min-h-[100dvh]">
+        <div class="article-detail-shell">
+          <a
+            href="/articles"
+            class="article-detail-back link-text text-[var(--color-link-blue)] no-underline hover:underline"
+            >← 返回文章列表</a
+          >
+
+          {articleCover && (
+            <figure class="front-cover front-cover--article-detail" data-animate="fade-up">
+              <img
+                src={articleCover}
+                alt={article.data.coverImage ? `${article.data.title} 封面` : ""}
+              />
+            </figure>
+          )}
+
+          <header class="article-detail-header" data-animate="hero">
+            <h1 class="article-detail-title text-[var(--color-near-black)]" data-animate="hero-item">
+              {article.data.title}
+            </h1>
+            <div class="article-detail-tags" data-animate="hero-item">
+              {tags.map((tag: string) => (
+                <a
+                  href={`/articles?tag=${encodeURIComponent(tag)}`}
+                  class="apple-badge no-underline"
+                >
+                  {tag}
+                </a>
+              ))}
+            </div>
+            <div class="article-detail-meta caption-text text-[var(--color-text-secondary)]" data-animate="hero-item">
+              <time>{article.data.date.toLocaleDateString("zh-CN")}</time>
+              {article.data.updated && (
+                <span>
+                  更新于 {article.data.updated.toLocaleDateString("zh-CN")}
+                </span>
+              )}
+              <span>{readingMinutes} 分钟阅读</span>
+            </div>
+          </header>
+
+          <div class="article-detail-layout">
+            <main class="article-detail-main">
+              <article
+                id="article-content"
+                class="article-detail-prose prose prose-apple max-w-none"
+                data-animate="fade-up"
+              >
+                <Content />
+              </article>
+            </main>
+
+            <aside class="article-detail-aside" data-animate="fade-up">
+              <div class="article-toc-panel">
+                <p class="article-toc-label">
+                  目录
+                </p>
+                {toc.length > 0 ? (
+                  <nav class="article-toc-nav">
+                    {toc.map((heading) => (
+                      <a
+                        href={`#${heading.slug}`}
+                        class:list={[
+                          "article-toc-link",
+                          heading.depth === 3 && "is-depth-3",
+                        ]}
+                      >
+                        {heading.text}
+                      </a>
+                    ))}
+                  </nav>
+                ) : (
+                  <nav class="article-toc-nav">
+                    <a href="#article-content" class="article-toc-link">正文</a>
+                  </nav>
+                )}
+              </div>
+            </aside>
+          </div>
+
+          <nav
+            class="article-pagination grid gap-4 md:grid-cols-2"
+            data-animate="stagger"
+            aria-label="上一篇和下一篇文章"
+          >
+            {prevArticle ? (
+              <a
+                href={`/articles/${prevArticle.id.replace(/\.mdx?$/, "")}`}
+                class="apple-card no-underline"
+              >
+                <p class="micro-text mb-2 text-[var(--color-text-secondary)]">
+                  上一篇
+                </p>
+                <h2 class="card-title text-[var(--color-near-black)]">
+                  {prevArticle.data.title}
+                </h2>
+              </a>
+            ) : (
+              <div class="apple-card opacity-60">
+                <p class="caption-text text-[var(--color-text-secondary)]">
+                  已经是最新文章
+                </p>
+              </div>
+            )}
+            {nextArticle ? (
+              <a
+                href={`/articles/${nextArticle.id.replace(/\.mdx?$/, "")}`}
+                class="apple-card text-right no-underline"
+              >
+                <p class="micro-text mb-2 text-[var(--color-text-secondary)]">
+                  下一篇
+                </p>
+                <h2 class="card-title text-[var(--color-near-black)]">
+                  {nextArticle.data.title}
+                </h2>
+              </a>
+            ) : (
+              <div class="apple-card text-right opacity-60">
+                <p class="caption-text text-[var(--color-text-secondary)]">
+                  已经是最后一篇
+                </p>
+              </div>
+            )}
+          </nav>
+        </div>
+      </section>
+    ) : neonArticle && neonRendered && neonDate ? (
+      <section class="article-detail-section section-light min-h-[100dvh]">
+        <div class="article-detail-shell">
+          <a
+            href="/articles"
+            class="article-detail-back link-text text-[var(--color-link-blue)] no-underline hover:underline"
+            >← 返回文章列表</a
+          >
+
+          {articleCover && (
+            <figure class="front-cover front-cover--article-detail" data-animate="fade-up">
+              <img
+                src={articleCover}
+                alt={neonArticle.coverImage ? `${neonTitle} 封面` : ""}
+              />
+            </figure>
+          )}
+
+          <header class="article-detail-header" data-animate="hero">
+            <h1 class="article-detail-title text-[var(--color-near-black)]" data-animate="hero-item">
+              {neonTitle}
+            </h1>
+            <div class="article-detail-tags" data-animate="hero-item">
+              {tags.map((tag: string) => (
+                <a
+                  href={`/articles?tag=${encodeURIComponent(tag)}`}
+                  class="apple-badge no-underline"
+                >
+                  {tag}
+                </a>
+              ))}
+            </div>
+            <div class="article-detail-meta caption-text text-[var(--color-text-secondary)]" data-animate="hero-item">
+              <time>{neonDate.toLocaleDateString("zh-CN")}</time>
+              {neonArticle.updatedAt && (
+                <span>
+                  更新于 {new Date(neonArticle.updatedAt).toLocaleDateString("zh-CN")}
+                </span>
+              )}
+              <span>{neonReadingMinutes} 分钟阅读</span>
+            </div>
+          </header>
+
+          <div class="article-detail-layout">
+            <main class="article-detail-main">
+              <article
+                id="article-content"
+                class="article-detail-prose prose prose-apple max-w-none"
+                data-animate="fade-up"
+                set:html={neonRendered.html}
+              />
+            </main>
+
+            <aside class="article-detail-aside" data-animate="fade-up">
+              <div class="article-toc-panel">
+                <p class="article-toc-label">
+                  目录
+                </p>
+                {neonToc.length > 0 ? (
+                  <nav class="article-toc-nav">
+                    {neonToc.map((heading) => (
+                      <a
+                        href={`#${heading.id}`}
+                        class:list={[
+                          "article-toc-link",
+                          heading.depth === 3 && "is-depth-3",
+                        ]}
+                      >
+                        {heading.text}
+                      </a>
+                    ))}
+                  </nav>
+                ) : (
+                  <nav class="article-toc-nav">
+                    <a href="#article-content" class="article-toc-link">正文</a>
+                  </nav>
+                )}
+              </div>
+            </aside>
+          </div>
+        </div>
+      </section>
+    ) : (
+      <section
+        class="article-detail-section section-light min-h-[100dvh]"
+        data-local-article-detail
+        data-local-slug={slug}
+      >
+        <div class="article-detail-shell">
+          <a
+            href="/articles"
+            class="article-detail-back link-text text-[var(--color-link-blue)] no-underline hover:underline"
+            >← 返回文章列表</a
+          >
+
+          <figure class="front-cover front-cover--article-detail hidden" data-animate="fade-up" data-local-cover-wrap>
+            <img src="" alt="" data-local-cover />
+          </figure>
+
+          <header class="article-detail-header" data-animate="hero">
+            <h1 class="article-detail-title text-[var(--color-near-black)]" data-local-title data-animate="hero-item">
+              正在载入文章...
+            </h1>
+            <div class="article-detail-tags" data-local-tags data-animate="hero-item"></div>
+            <div class="article-detail-meta caption-text text-[var(--color-text-secondary)]" data-animate="hero-item">
+              <time data-local-date></time>
+              <span data-local-reading></span>
+            </div>
+          </header>
+
+          <div class="article-detail-layout">
+            <main class="article-detail-main">
+              <article
+                id="article-content"
+                class="article-detail-prose prose prose-apple max-w-none"
+                data-local-body
+                data-animate="fade-up"
+              >
+                <p>正在载入正文...</p>
+              </article>
+            </main>
+
+            <aside class="article-detail-aside" data-animate="fade-up">
+              <div class="article-toc-panel">
+                <p class="article-toc-label">目录</p>
+                <nav class="article-toc-nav" data-local-toc>
+                  <p class="article-toc-empty">正在生成目录。</p>
+                </nav>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </section>
+    )
+  }
+</BaseLayout>
+
+<script>
+  import { initLocalArticleDetail } from "../../scripts/local-detail";
+
+  initLocalArticleDetail();
+  document.addEventListener("astro:after-swap", initLocalArticleDetail);
+</script>

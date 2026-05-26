@@ -1,0 +1,1589 @@
+---
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import { neonContentStorageConfigured, projectTags, readNeonProjects } from "../../lib/neon-content";
+import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
+
+const projectsStorageConfigured = neonContentStorageConfigured();
+let projectsReadFailed = false;
+const projects = await readNeonProjects().catch(() => {
+  projectsReadFailed = true;
+  return [];
+});
+const initialProjectsPayload = JSON.stringify({
+  projects,
+  storageConfigured: projectsStorageConfigured,
+  readFailed: projectsReadFailed,
+}).replace(/</g, "\\u003c");
+---
+
+<AdminLayout title="项目管理" current="projects">
+  <div class="admin-page-header">
+    <h1 class="admin-page-title">项目管理</h1>
+    <p class="admin-page-desc">管理项目列表，支持添加、编辑、删除项目和可选封面上传。</p>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <button type="button" id="btn-add" class="btn-primary">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      添加项目
+    </button>
+    <span id="status-msg" class="save-status"></span>
+  </div>
+
+  <!-- Project List -->
+  <section class="form-section">
+    <div class="section-header">
+      <h2 class="section-title">项目列表</h2>
+      <span id="project-count" class="section-badge">{projects.length} 个项目</span>
+    </div>
+    <div id="project-list" class="article-list">
+      {projects.map((p, idx) => {
+        const allTags = projectTags(p);
+        return (
+          <div class="admin-list-card" data-id={p.id} data-index={idx}>
+            <div class="admin-list-card-main">
+              <div class="admin-list-card-meta">
+                <span class="admin-info-row">
+                  <span class="admin-field-label">创建时间</span>
+                  <time class="admin-list-card-date admin-field-value" datetime={p.date || ""}>
+                    {p.date ? new Date(p.date).toISOString().slice(0,10) : "-"}
+                  </time>
+                </span>
+                {allTags.length ? (
+                  <div class="admin-info-row">
+                    <span class="admin-field-label">标签</span>
+                    <span class="admin-tag-list">
+                      {allTags.map(t => <span class="admin-tag">{t}</span>)}
+                    </span>
+                  </div>
+                ) : null}
+              </div>
+              <div class="admin-list-card-title admin-info-row">
+                <span class="admin-field-label">项目名称</span>
+                <span class="admin-field-value">{p.title}</span>
+              </div>
+              <div class="admin-list-card-desc admin-info-row">
+                <span class="admin-field-label">简介</span>
+                <span class="admin-field-value">{(p.description || "").substring(0,120)}...</span>
+              </div>
+            </div>
+            <div class="admin-list-card-actions">
+              <button type="button" class="btn-icon btn-edit" data-action="edit" title="编辑">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+              </button>
+              <button type="button" class="btn-icon btn-delete" data-action="delete" title="删除">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+              </button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </section>
+
+  <!-- Add/Edit Modal -->
+  <div id="project-modal" class="modal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3 id="modal-title" class="modal-title">添加项目</h3>
+        <button type="button" id="btn-close" class="btn-icon btn-close">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+      <form id="project-form" class="admin-form">
+        <input type="hidden" id="project-id" name="id" value="" />
+        <div class="field-row">
+          <div class="field-group field-group-large">
+            <label for="p-title" class="field-label">项目名称 <span class="required">*</span></label>
+            <input id="p-title" name="title" type="text" class="field-input" placeholder="输入项目名称" required />
+          </div>
+          <div class="field-group field-group-small">
+            <label for="p-category" class="field-label">分类 <span class="required">*</span></label>
+            <select id="p-category" name="category" class="field-input" required>
+              <option value="">请选择</option>
+              <option value="Web">Web</option>
+              <option value="App">App</option>
+              <option value="工具">工具</option>
+              <option value="开源">开源</option>
+              <option value="其他">其他</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field-group field-group-large">
+            <label class="field-label">技术标签 <span class="required">*</span> <span class="field-hint-inline">输入 # 后回车添加</span></label>
+            <div class="tag-input-wrap">
+              <div id="project-tag-list" class="tag-list"></div>
+              <input id="project-tag-input" type="text" class="tag-input" placeholder="输入 #Astro 后按回车添加" />
+            </div>
+            <input type="hidden" id="p-tech" name="tech" value="" />
+          </div>
+          <div class="field-group field-group-small">
+            <label for="p-url" class="field-label">项目地址</label>
+            <input id="p-url" name="url" type="url" class="field-input" placeholder="https://example.com" />
+          </div>
+        </div>
+        <div class="field-row" style="align-items: end;">
+          <div class="field-group" style="flex: 1;">
+            <label for="p-github" class="field-label">GitHub 链接 <span class="field-hint-inline">自动填充项目信息</span></label>
+            <input id="p-github" name="github" type="url" class="field-input" placeholder="https://github.com/owner/repo" />
+          </div>
+          <button type="button" id="btn-github-fill" class="btn-secondary" style="margin-bottom: 0; height: 44px; white-space: nowrap;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>
+            自动填充
+          </button>
+        </div>
+        <div class="field-group">
+          <div class="field-label-row">
+            <label for="p-desc" class="field-label">项目介绍 <span class="required">*</span></label>
+            <button type="button" id="btn-polish-project" class="toolbar-btn toolbar-btn-polish" title="AI 润色" aria-label="AI 润色">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+            </button>
+          </div>
+          <div class="markdown-renderer" data-markdown-renderer>
+            <div class="markdown-renderer-pane is-active" data-markdown-edit-pane>
+              <textarea id="p-desc" name="description" class="field-input field-textarea" rows="8" placeholder="使用 Markdown 输入项目详细介绍" required data-markdown-source></textarea>
+            </div>
+          </div>
+          <div class="polish-options hidden" id="project-polish-options">
+            <div class="polish-options-bar">
+              <label class="field-label" style="margin-bottom:0">AI 润色</label>
+              <div class="polish-presets">
+                <button type="button" class="polish-preset active" data-preset="polite">润色修饰</button>
+                <button type="button" class="polish-preset" data-preset="concise">精简紧凑</button>
+                <button type="button" class="polish-preset" data-preset="expand">扩写丰富</button>
+              </div>
+              <div class="polish-actions">
+                <button type="button" id="btn-project-polish-run" class="btn-primary btn-small">执行润色</button>
+                <button type="button" id="btn-project-polish-cancel" class="btn-secondary btn-small">取消</button>
+              </div>
+            </div>
+            <div class="polish-custom-prompt">
+              <input id="project-polish-custom" type="text" class="field-input" placeholder="自定义润色指令，如：更偏作品集介绍语气（可选）" />
+            </div>
+            <div id="project-polish-status" class="polish-status"></div>
+            <div class="polish-diff hidden" id="project-polish-diff">
+              <div class="diff-header">
+                <span class="diff-label">润色结果预览</span>
+                <div class="diff-actions">
+                  <button type="button" id="btn-project-polish-apply" class="btn-primary btn-small">应用</button>
+                  <button type="button" id="btn-project-polish-discard" class="btn-secondary btn-small">放弃</button>
+                </div>
+              </div>
+              <div class="diff-body" id="project-polish-diff-body"></div>
+            </div>
+          </div>
+        </div>
+        <!-- Image Upload -->
+        <div class="field-group">
+          <label class="field-label">项目封面 <span class="field-hint-inline">可选</span></label>
+          <div class="image-upload-wrap">
+            <input type="file" id="p-image" name="imageFile" accept="image/jpeg,image/png,image/gif,image/webp,image/bmp,image/tiff" class="image-upload-input" />
+            <div id="image-preview-area" class="image-preview-area">
+              <div class="image-upload-placeholder">
+                <img src={ADMIN_IMAGE_PLACEHOLDER} alt="" loading="lazy" class="admin-placeholder-art" />
+                <span>点击上传或拖拽图片到此处</span>
+                <small>可不上传；前台将使用默认占位图</small>
+              </div>
+              <img id="image-preview" class="image-preview" alt="预览" />
+              <button type="button" id="btn-remove-image" class="btn-remove-image" title="移除图片">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>
+            </div>
+          </div>
+          <input type="hidden" id="p-image-data" name="imageData" value="" />
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn-primary">保存</button>
+          <button type="button" id="btn-cancel" class="btn-secondary">取消</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</AdminLayout>
+
+<script type="application/json" id="initial-projects-data" set:html={initialProjectsPayload}></script>
+
+<script>
+  import { initMarkdownRenderers, refreshMarkdownRendererFor } from "../../scripts/admin-markdown-renderer";
+  import { getLlmSettings, requestLlmChat } from "../../scripts/admin-llm";
+
+  // LocalStorage key
+  const STORAGE_KEY = "admin-projects-data";
+  const PROJECTS_API = "/api/projects";
+
+  // Elements
+  const modal = document.getElementById("project-modal");
+  const modalTitle = document.getElementById("modal-title");
+  const form = document.getElementById("project-form");
+  const listEl = document.getElementById("project-list");
+  const countEl = document.getElementById("project-count");
+  const statusMsg = document.getElementById("status-msg");
+  let handlingInvalid = false;
+  let toastTimer;
+
+  // Image upload elements
+  const imageInput = document.getElementById("p-image");
+  const imagePreviewArea = document.getElementById("image-preview-area");
+  const imagePreview = document.getElementById("image-preview");
+  const imageDataInput = document.getElementById("p-image-data");
+  const btnRemoveImage = document.getElementById("btn-remove-image");
+  const projectTagInput = document.getElementById("project-tag-input");
+  const projectTagList = document.getElementById("project-tag-list");
+  const projectTagsHidden = document.getElementById("p-tech");
+  const projectDescInput = document.getElementById("p-desc") as HTMLTextAreaElement | null;
+  initMarkdownRenderers();
+  const githubInput = document.getElementById("p-github");
+  const btnGithubFill = document.getElementById("btn-github-fill");
+  const btnPolishProject = document.getElementById("btn-polish-project");
+  const projectPolishOptions = document.getElementById("project-polish-options");
+  const btnProjectPolishRun = document.getElementById("btn-project-polish-run");
+  const btnProjectPolishCancel = document.getElementById("btn-project-polish-cancel");
+  const projectPolishCustom = document.getElementById("project-polish-custom");
+  const projectPolishStatus = document.getElementById("project-polish-status");
+  const projectPolishDiff = document.getElementById("project-polish-diff");
+  const projectPolishDiffBody = document.getElementById("project-polish-diff-body");
+  const btnProjectPolishApply = document.getElementById("btn-project-polish-apply");
+  const btnProjectPolishDiscard = document.getElementById("btn-project-polish-discard");
+  const PROJECT_TAG_LIMIT = 8;
+  let currentProjectTags = [];
+  let currentPolishPreset = "polite";
+  let polishedProjectDescription = "";
+
+  const ANTI_AI_RULES = "你是一位文字编辑。处理文本时：1.删除填充短语和强调性拐杖词 2.打破公式化结构，避免否定式排比 3.变化句子节奏，三项改两项或四项 4.用具体细节替代模糊归因 5.避免宣传性语言 6.用「是/有」替代「作为/标志着」 7.避免破折号和粗体过度使用 8.信任读者，不手把手引导 9.保留第一人称和复杂感受 10.像真人说话，不是新闻稿。";
+  const PROJECT_POLISH_PROMPTS = {
+    polite: ANTI_AI_RULES + " 请润色以下项目介绍，使其更清晰、专业、有吸引力，但保留原始信息和语气。只输出润色后的项目介绍，不要解释。",
+    concise: ANTI_AI_RULES + " 请精简以下项目介绍，去掉冗余表达，保留关键亮点。只输出精简后的项目介绍，不要解释。",
+    expand: ANTI_AI_RULES + " 请扩写以下项目介绍，在保留事实的基础上补充价值、场景和亮点，使其更适合作品集展示。只输出扩写后的项目介绍，不要解释。",
+  };
+
+  function readInitialProjects() {
+    const source = document.getElementById("initial-projects-data")?.textContent;
+    if (!source) return { projects: [], storageConfigured: false, readFailed: true };
+
+    try {
+      const parsed = JSON.parse(source);
+      return {
+        projects: Array.isArray(parsed?.projects) ? parsed.projects : [],
+        storageConfigured: parsed?.storageConfigured === true,
+        readFailed: parsed?.readFailed === true,
+      };
+    } catch {
+      return { projects: [], storageConfigured: false, readFailed: true };
+    }
+  }
+
+  const initialProjectsState = readInitialProjects();
+  const useServerProjects = initialProjectsState.storageConfigured && !initialProjectsState.readFailed;
+
+  // Load from localStorage or default
+  function loadProjects() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return [];
+  }
+
+  async function loadRemoteProjects() {
+    try {
+      const response = await fetch(PROJECTS_API, {
+        headers: { accept: "application/json" },
+        cache: "no-store",
+      });
+      if (!response.ok) return [];
+
+      const result = await response.json();
+      return {
+        projects: Array.isArray(result?.projects) ? result.projects : [],
+        storage: typeof result?.storage === "string" ? result.storage : "",
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  function notifyContentChanged() {
+    window.dispatchEvent(new CustomEvent("admin-content:changed", {
+      detail: { key: STORAGE_KEY, module: "projects" },
+    }));
+  }
+
+  function cacheProjects(list) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  }
+
+  function persistProjects(list) {
+    cacheProjects(list);
+    notifyContentChanged();
+  }
+
+  async function saveProjects(list) {
+    persistProjects(list);
+
+    try {
+      const response = await fetch(PROJECTS_API, {
+        method: "PUT",
+        headers: {
+          "content-type": "application/json",
+          "x-admin-auth": localStorage.getItem("admin-auth") || "",
+        },
+        body: JSON.stringify({ projects: list }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.ok) {
+        throw new Error(result.message || "云端同步失败");
+      }
+
+      if (Array.isArray(result.projects)) {
+        projects = result.projects;
+        persistProjects(projects);
+      }
+      return true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "云端同步失败";
+      showToast(`已保存在本机，云端同步失败：${message}`, "error");
+      showStatus("云端同步失败，手机端暂时不可见", "error");
+      return false;
+    }
+  }
+
+  async function hydrateProjectsFromCloud() {
+    const remote = await loadRemoteProjects();
+    if (!remote || remote.storage !== "neon") return;
+
+    if (JSON.stringify(projects) === JSON.stringify(remote.projects)) {
+      cacheProjects(remote.projects);
+      return;
+    }
+
+    projects = remote.projects;
+    cacheProjects(projects);
+    renderList();
+  }
+
+  let projects = useServerProjects ? initialProjectsState.projects : loadProjects();
+  if (useServerProjects) cacheProjects(projects);
+
+  function formatDate(dateStr) {
+    const d = new Date(dateStr);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  }
+
+  // Render list
+  function renderList() {
+    if (!listEl) return;
+    if (countEl) countEl.textContent = `${projects.length} 个项目`;
+    if (projects.length === 0) {
+      listEl.innerHTML = '<div class="empty-state">暂无项目，点击上方按钮添加。</div>';
+      return;
+    }
+    listEl.innerHTML = projects.map((p, idx) => {
+      const allTags = [
+        ...(p.tech || "").split(/[,，]/).map(t => t.trim()).filter(Boolean),
+        ...(p.category ? [p.category] : []),
+      ];
+      return `
+      <div class="admin-list-card" data-index="${idx}">
+        <div class="admin-list-card-main">
+          <div class="admin-list-card-meta">
+            <span class="admin-info-row">
+              <span class="admin-field-label">创建时间</span>
+              <time class="admin-list-card-date admin-field-value" datetime="${escapeHtml(p.date || "")}">${p.date ? formatDate(p.date) : "-"}</time>
+            </span>
+            ${allTags.length ? `<div class="admin-info-row">
+              <span class="admin-field-label">标签</span>
+              <span class="admin-tag-list">
+                ${allTags.map(t => `<span class="admin-tag">${escapeHtml(t)}</span>`).join("")}
+              </span>
+            </div>` : ""}
+          </div>
+          <div class="admin-list-card-title admin-info-row">
+            <span class="admin-field-label">项目名称</span>
+            <span class="admin-field-value">${escapeHtml(p.title)}</span>
+          </div>
+          <div class="admin-list-card-desc admin-info-row">
+            <span class="admin-field-label">简介</span>
+            <span class="admin-field-value">${escapeHtml(p.description?.substring(0, 120) || "")}...</span>
+          </div>
+        </div>
+        <div class="admin-list-card-actions">
+          <button type="button" class="btn-icon btn-edit" data-action="edit" title="编辑">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+          </button>
+          <button type="button" class="btn-icon btn-delete" data-action="delete" title="删除">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+          </button>
+        </div>
+      </div>
+    `;
+    }).join("");
+  }
+
+  function escapeHtml(str) {
+    return (str || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+  }
+
+  function splitProjectTags(value) {
+    return (value || "")
+      .split(/[,，]/)
+      .map((item) => item.trim().replace(/^#+/, "").trim())
+      .filter(Boolean);
+  }
+
+  function parseHashTagInput(value) {
+    const raw = (value || "").trim();
+    if (!raw) return "";
+    if (!raw.startsWith("#")) return null;
+    return raw.replace(/^#+/, "").trim();
+  }
+
+  function renderProjectTags() {
+    if (!projectTagList) return;
+    projectTagList.innerHTML = currentProjectTags.map((tag, idx) => `
+      <span class="tag-chip">
+        #${escapeHtml(tag)}
+        <button type="button" class="tag-remove" data-idx="${idx}" aria-label="移除 ${escapeHtml(tag)}">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </span>
+    `).join("");
+    if (projectTagsHidden) projectTagsHidden.value = currentProjectTags.join(",");
+    if (projectTagInput) projectTagInput.disabled = currentProjectTags.length >= PROJECT_TAG_LIMIT;
+    if (projectTagInput) {
+      projectTagInput.placeholder = currentProjectTags.length >= PROJECT_TAG_LIMIT
+        ? `已达 ${PROJECT_TAG_LIMIT} 个上限`
+        : "输入 #Astro 后按回车添加";
+    }
+  }
+
+  function addProjectTagFromInput() {
+    if (!projectTagInput) return;
+    const tag = parseHashTagInput(projectTagInput.value);
+    if (tag === "") return;
+    if (tag === null) {
+      showToast("请以 # 开始输入标签", "error");
+      showStatus("请以 # 开始输入标签", "error");
+      return;
+    }
+    if (currentProjectTags.length >= PROJECT_TAG_LIMIT) {
+      showToast(`最多 ${PROJECT_TAG_LIMIT} 个标签`, "error");
+      showStatus(`最多 ${PROJECT_TAG_LIMIT} 个标签`, "error");
+      return;
+    }
+    if (currentProjectTags.includes(tag)) {
+      showToast("标签已存在", "error");
+      showStatus("标签已存在", "error");
+      return;
+    }
+    currentProjectTags.push(tag);
+    projectTagInput.value = "";
+    renderProjectTags();
+  }
+
+  function showToast(text, type = "info") {
+    let toast = document.getElementById("admin-toast");
+    if (!toast) {
+      toast = document.createElement("div");
+      toast.id = "admin-toast";
+      toast.className = "admin-toast";
+      toast.setAttribute("role", "status");
+      toast.setAttribute("aria-live", "polite");
+      document.body.appendChild(toast);
+    }
+    toast.textContent = text;
+    toast.className = `admin-toast is-${type} is-visible`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toast.classList.remove("is-visible");
+    }, 1000);
+  }
+
+  function showProjectPolishStatus(text, type) {
+    if (!projectPolishStatus) return;
+    projectPolishStatus.textContent = text;
+    projectPolishStatus.className = "polish-status is-" + type;
+  }
+
+  function renderProjectPolishDiff(original, polished) {
+    if (!projectPolishDiffBody) return;
+    projectPolishDiffBody.innerHTML = `
+      <div class="diff-content">
+        <div class="diff-section">
+          <div class="diff-section-label">润色后</div>
+          <pre class="diff-pre diff-new">${escapeHtml(polished)}</pre>
+        </div>
+        <div class="diff-section">
+          <div class="diff-section-label">原始内容</div>
+          <pre class="diff-pre diff-old">${escapeHtml(original)}</pre>
+        </div>
+      </div>
+    `;
+  }
+
+  function getProjectValidationMessage(field) {
+    const fieldName = {
+      "p-title": "请填写项目名称",
+      "p-category": "请选择项目分类",
+      "p-tech": "请填写技术栈",
+      "p-url": "请输入有效的项目地址",
+      "p-desc": "请填写项目介绍",
+    }[field.id];
+    if (field.validity?.typeMismatch && field.id === "p-url") return "请输入有效的项目地址";
+    return fieldName || field.validationMessage || "请检查表单内容";
+  }
+
+  function focusInvalidField(field) {
+    if (!field) return;
+    const wrapper = field.closest(".field-group") || field;
+    wrapper.scrollIntoView({ behavior: "smooth", block: "center" });
+    setTimeout(() => field.focus({ preventScroll: true }), 120);
+  }
+
+  // Modal controls
+  function openModal(isEdit) {
+    modalTitle.textContent = isEdit ? "编辑项目" : "添加项目";
+    modal.classList.add("is-open");
+    document.body.style.overflow = "hidden";
+  }
+  function closeModal() {
+    modal.classList.remove("is-open");
+    document.body.style.overflow = "";
+    form.reset();
+    refreshMarkdownRendererFor(projectDescInput);
+    document.getElementById("project-id").value = "";
+    if (githubInput) githubInput.value = "";
+    currentProjectTags = [];
+    renderProjectTags();
+    resetImagePreview();
+    polishedProjectDescription = "";
+    if (projectPolishOptions) projectPolishOptions.classList.add("hidden");
+    if (projectPolishDiff) projectPolishDiff.classList.add("hidden");
+    showProjectPolishStatus("", "info");
+  }
+
+  // Image upload handlers
+  function resetImagePreview() {
+    if (imagePreview) imagePreview.src = "";
+    if (imagePreview) imagePreview.style.display = "none";
+    if (btnRemoveImage) btnRemoveImage.style.display = "none";
+    if (imageDataInput) imageDataInput.value = "";
+    const placeholder = imagePreviewArea?.querySelector(".image-upload-placeholder");
+    if (placeholder) placeholder.style.display = "flex";
+  }
+
+  function showImagePreview(dataUrl) {
+    if (!imagePreview || !btnRemoveImage) return;
+    imagePreview.src = dataUrl;
+    imagePreview.style.display = "block";
+    btnRemoveImage.style.display = "flex";
+    const placeholder = imagePreviewArea?.querySelector(".image-upload-placeholder");
+    if (placeholder) placeholder.style.display = "none";
+  }
+
+  imageInput?.addEventListener("change", async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await processProjectImage(file);
+    imageInput.value = "";
+  });
+
+  // Drag & drop
+  imagePreviewArea?.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    imagePreviewArea.classList.add("is-dragover");
+  });
+  imagePreviewArea?.addEventListener("dragleave", () => {
+    imagePreviewArea.classList.remove("is-dragover");
+  });
+  imagePreviewArea?.addEventListener("drop", async (e) => {
+    e.preventDefault();
+    imagePreviewArea.classList.remove("is-dragover");
+    const file = e.dataTransfer?.files?.[0];
+    if (!file) return;
+    await processProjectImage(file);
+  });
+
+  async function processProjectImage(file) {
+    if (!file.type.startsWith("image/")) {
+      showStatus("请上传图片文件", "error");
+      return;
+    }
+    showStatus("正在上传封面到图床...", "info");
+    try {
+      const image = await uploadImageToImgbb(file);
+      showImagePreview(image.url);
+      if (imageDataInput) imageDataInput.value = image.url;
+      showStatus("封面上传成功", "success");
+    } catch (err) {
+      showStatus(err instanceof Error ? err.message : "封面上传失败", "error");
+    }
+  }
+
+  function uploadImageToImgbb(file) {
+    return new Promise((resolve, reject) => {
+      const formData = new FormData();
+      formData.append("image", file);
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", "/api/upload/cover");
+      xhr.responseType = "json";
+      xhr.upload.addEventListener("progress", (event) => {
+        if (!event.lengthComputable) return;
+        const pct = Math.round((event.loaded / event.total) * 100);
+        showStatus(`正在上传封面... ${pct}%`, "info");
+      });
+      xhr.addEventListener("load", () => {
+        const response = xhr.response || {};
+        if (xhr.status >= 200 && xhr.status < 300 && response.ok) {
+          resolve(response.image);
+          return;
+        }
+        reject(new Error(response.message || "上传失败"));
+      });
+      xhr.addEventListener("error", () => reject(new Error("网络错误，上传失败")));
+      xhr.addEventListener("abort", () => reject(new Error("上传已取消")));
+      xhr.send(formData);
+    });
+  }
+
+  btnRemoveImage?.addEventListener("click", () => {
+    resetImagePreview();
+    if (imageInput) imageInput.value = "";
+  });
+
+  projectTagInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addProjectTagFromInput();
+    }
+    if (e.key === "Backspace" && !projectTagInput.value && currentProjectTags.length > 0) {
+      currentProjectTags.pop();
+      renderProjectTags();
+    }
+  });
+
+  projectTagList?.addEventListener("click", (e) => {
+    const btn = e.target.closest(".tag-remove");
+    if (!btn) return;
+    const idx = parseInt(btn.dataset.idx, 10);
+    currentProjectTags.splice(idx, 1);
+    renderProjectTags();
+  });
+
+  document.querySelectorAll("#project-polish-options .polish-preset").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll("#project-polish-options .polish-preset").forEach((item) => item.classList.remove("active"));
+      btn.classList.add("active");
+      currentPolishPreset = btn.dataset.preset || "polite";
+    });
+  });
+
+  btnPolishProject?.addEventListener("click", () => {
+    if (!projectDescInput?.value?.trim()) {
+      showToast("请先填写项目介绍", "error");
+      showStatus("请先填写项目介绍", "error");
+      focusInvalidField(projectDescInput);
+      return;
+    }
+    const settings = getLlmSettings();
+    if (!settings?.baseUrl || !settings?.apiKey || !settings?.model) {
+      showToast("请先在 API 管理中配置 LLM API", "error");
+      showStatus("请先在 API 管理中配置 LLM API", "error");
+      return;
+    }
+    polishedProjectDescription = "";
+    if (projectPolishOptions) projectPolishOptions.classList.remove("hidden");
+    if (projectPolishDiff) projectPolishDiff.classList.add("hidden");
+    showProjectPolishStatus("", "info");
+  });
+
+  btnProjectPolishCancel?.addEventListener("click", () => {
+    if (projectPolishOptions) projectPolishOptions.classList.add("hidden");
+    if (projectPolishDiff) projectPolishDiff.classList.add("hidden");
+    polishedProjectDescription = "";
+  });
+
+  btnProjectPolishRun?.addEventListener("click", async () => {
+    const content = projectDescInput?.value?.trim();
+    if (!content) {
+      showProjectPolishStatus("没有可润色的内容", "error");
+      return;
+    }
+
+    const customPrompt = projectPolishCustom?.value?.trim();
+    const systemPrompt = customPrompt || PROJECT_POLISH_PROMPTS[currentPolishPreset] || PROJECT_POLISH_PROMPTS.polite;
+
+    if (btnProjectPolishRun) btnProjectPolishRun.disabled = true;
+    showProjectPolishStatus("正在润色中，请稍候...", "info");
+
+    try {
+      polishedProjectDescription = await requestLlmChat({
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content },
+        ],
+        temperature: 0.7,
+        onSlow: () => showProjectPolishStatus("API 响应较慢，请继续等待...", "info"),
+      });
+      renderProjectPolishDiff(content, polishedProjectDescription);
+      if (projectPolishDiff) projectPolishDiff.classList.remove("hidden");
+      showProjectPolishStatus("润色完成，请预览对比", "success");
+    } catch (err) {
+      showProjectPolishStatus("润色失败: " + (err instanceof Error ? err.message : String(err)), "error");
+    } finally {
+      if (btnProjectPolishRun) btnProjectPolishRun.disabled = false;
+    }
+  });
+
+  btnProjectPolishApply?.addEventListener("click", () => {
+    if (polishedProjectDescription && projectDescInput) {
+      projectDescInput.value = polishedProjectDescription;
+      projectDescInput.dispatchEvent(new Event("input", { bubbles: true }));
+      refreshMarkdownRendererFor(projectDescInput);
+      showToast("已应用润色结果", "success");
+      showStatus("已应用润色结果", "success");
+    }
+    if (projectPolishOptions) projectPolishOptions.classList.add("hidden");
+    if (projectPolishDiff) projectPolishDiff.classList.add("hidden");
+    polishedProjectDescription = "";
+  });
+
+  btnProjectPolishDiscard?.addEventListener("click", () => {
+    if (projectPolishDiff) projectPolishDiff.classList.add("hidden");
+    polishedProjectDescription = "";
+    showProjectPolishStatus("已放弃润色结果", "info");
+  });
+
+  document.getElementById("btn-add")?.addEventListener("click", () => openModal(false));
+  document.getElementById("btn-close")?.addEventListener("click", closeModal);
+  document.getElementById("btn-cancel")?.addEventListener("click", closeModal);
+  document.querySelector(".modal-backdrop")?.addEventListener("click", closeModal);
+
+  form?.addEventListener("invalid", (e) => {
+    e.preventDefault();
+    const field = e.target;
+    if (!(field instanceof HTMLInputElement || field instanceof HTMLSelectElement || field instanceof HTMLTextAreaElement)) return;
+    if (handlingInvalid) return;
+    handlingInvalid = true;
+    setTimeout(() => { handlingInvalid = false; }, 0);
+    showToast(getProjectValidationMessage(field), "error");
+    focusInvalidField(field);
+  }, true);
+
+  // Edit / Delete handlers (delegation)
+  listEl?.addEventListener("click", async (e) => {
+    const btn = e.target.closest("[data-action]");
+    if (!btn) return;
+    const card = btn.closest(".admin-list-card");
+    const idx = parseInt(card?.dataset.index || "-1", 10);
+    if (idx < 0 || idx >= projects.length) return;
+
+    if (btn.dataset.action === "delete") {
+      if (await (window as any).showConfirmDialog(`确定要删除项目 "${projects[idx].title}" 吗？`)) {
+        projects.splice(idx, 1);
+        await saveProjects(projects);
+        renderList();
+        showStatus("已删除", "success");
+      }
+      return;
+    }
+
+    if (btn.dataset.action === "edit") {
+      const p = projects[idx];
+      document.getElementById("project-id").value = String(idx);
+      document.getElementById("p-title").value = p.title || "";
+      document.getElementById("p-category").value = p.category || "";
+      currentProjectTags = splitProjectTags(p.tech || "");
+      renderProjectTags();
+      document.getElementById("p-url").value = p.url || "";
+      if (projectDescInput) projectDescInput.value = p.description || "";
+      refreshMarkdownRendererFor(projectDescInput);
+      if (p.imageData) {
+        showImagePreview(p.imageData);
+        if (imageDataInput) imageDataInput.value = p.imageData;
+      } else {
+        resetImagePreview();
+      }
+      openModal(true);
+    }
+  });
+
+  // Form submit
+  form?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fd = new FormData(form);
+    const idxRaw = (fd.get("id") || "").toString().trim();
+    const payload = {
+      title: (fd.get("title") || "").toString().trim(),
+      category: (fd.get("category") || "").toString().trim(),
+      tech: (fd.get("tech") || "").toString().trim(),
+      url: (fd.get("url") || "").toString().trim(),
+      description: (fd.get("description") || "").toString().trim(),
+      imageData: (fd.get("imageData") || "").toString(),
+    };
+
+    if (!payload.title || !payload.category || !payload.description) {
+      showToast("请填写所有必填项", "error");
+      showStatus("请填写所有必填项", "error");
+      return;
+    }
+    if (!payload.tech) {
+      showToast("请用 # 添加至少一个技术标签", "error");
+      showStatus("请用 # 添加至少一个技术标签", "error");
+      focusInvalidField(projectTagInput);
+      return;
+    }
+
+    const now = new Date().toISOString();
+
+    if (idxRaw !== "") {
+      const idx = parseInt(idxRaw, 10);
+      const existing = projects[idx] || {};
+      projects[idx] = {
+        ...existing,
+        ...payload,
+        id: existing.id || Date.now().toString(36),
+        date: existing.date || now,
+        updatedAt: now,
+      };
+      showToast("项目已保存", "success");
+      showStatus("已保存修改", "success");
+    } else {
+      projects.push({
+        ...payload,
+        id: Date.now().toString(36),
+        date: now,
+        updatedAt: now,
+      });
+      showToast("项目已添加", "success");
+      showStatus("已添加项目", "success");
+    }
+
+    const synced = await saveProjects(projects);
+    renderList();
+    closeModal();
+    if (synced) showStatus("已保存到 Neon", "success");
+  });
+
+  function showStatus(text, type) {
+    if (!statusMsg) return;
+    statusMsg.textContent = text;
+    statusMsg.className = "save-status is-" + type;
+    setTimeout(() => {
+      statusMsg.textContent = "";
+      statusMsg.className = "save-status";
+    }, 3000);
+  }
+
+  function parseGithubUrl(url) {
+    try {
+      const u = new URL(url);
+      if (u.hostname !== "github.com") return null;
+      const parts = u.pathname.split("/").filter(Boolean);
+      if (parts.length < 2) return null;
+      return { owner: parts[0], repo: parts[1] };
+    } catch {
+      return null;
+    }
+  }
+
+  async function fetchGithubRepo(owner, repo) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    try {
+      const res = await fetch(`/api/github-repo?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}`, {
+        signal: controller.signal,
+        headers: { accept: "application/json" },
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.ok ? data.repo : null;
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  function fillProjectFromGithub(repo) {
+    const titleInput = document.getElementById("p-title");
+    const descInput = document.getElementById("p-desc");
+    const urlInput = document.getElementById("p-url");
+
+    // Fill title if empty
+    if (titleInput && !titleInput.value.trim() && repo.name) {
+      titleInput.value = repo.name;
+      titleInput.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+
+    // Fill description if empty
+    if (descInput && !descInput.value.trim() && repo.description) {
+      descInput.value = repo.description;
+      descInput.dispatchEvent(new Event("input", { bubbles: true }));
+      refreshMarkdownRendererFor(descInput);
+    }
+
+    // Fill URL if empty
+    if (urlInput && !urlInput.value.trim() && repo.html_url) {
+      urlInput.value = repo.html_url;
+    }
+
+    // Add tech tags (language + topics)
+    if (repo.language && !currentProjectTags.includes(repo.language)) {
+      currentProjectTags.push(repo.language);
+    }
+    if (Array.isArray(repo.topics)) {
+      for (const topic of repo.topics) {
+        if (currentProjectTags.length >= PROJECT_TAG_LIMIT) break;
+        if (!currentProjectTags.includes(topic)) {
+          currentProjectTags.push(topic);
+        }
+      }
+    }
+    renderProjectTags();
+  }
+
+  btnGithubFill?.addEventListener("click", async () => {
+    const url = githubInput?.value?.trim();
+    if (!url) {
+      showStatus("请输入 GitHub 链接", "error");
+      return;
+    }
+    const parsed = parseGithubUrl(url);
+    if (!parsed) {
+      showStatus("请输入有效的 GitHub 仓库链接，如 https://github.com/owner/repo", "error");
+      return;
+    }
+
+    btnGithubFill.disabled = true;
+    btnGithubFill.textContent = "获取中...";
+    showStatus("正在获取仓库信息...", "info");
+
+    const repo = await fetchGithubRepo(parsed.owner, parsed.repo);
+
+    btnGithubFill.disabled = false;
+    btnGithubFill.textContent = "自动填充";
+
+    if (!repo) {
+      showStatus("无法获取仓库信息，请检查链接是否正确", "error");
+      return;
+    }
+
+    fillProjectFromGithub(repo);
+    showStatus("已自动填充仓库信息", "success");
+  });
+
+  // Init
+  renderProjectTags();
+  renderList();
+  void hydrateProjectsFromCloud();
+</script>
+
+<style>
+  .admin-page-header {
+    margin-bottom: 24px;
+  }
+  .admin-page-title {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 700;
+    color: #181c23;
+    margin-bottom: 6px;
+  }
+  .admin-page-desc {
+    font-size: 15px;
+    color: #717785;
+  }
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 12px;
+    border: none;
+    background: #0059b5;
+    color: #ffffff;
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.15s cubic-bezier(0.23, 1, 0.32, 1);
+    transform: scale(1);
+  }
+  .btn-primary:hover {
+    background: #004a94;
+  }
+  .btn-primary:active {
+    transform: scale(0.97);
+  }
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    padding: 10px 18px;
+    border-radius: 12px;
+    border: 1px solid rgba(193,198,214,0.5);
+    background: rgba(255,255,255,0.6);
+    color: #414753;
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), border-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), color 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.15s cubic-bezier(0.23, 1, 0.32, 1);
+    transform: scale(1);
+  }
+  .btn-secondary:hover {
+    background: rgba(255,255,255,0.9);
+    border-color: rgba(113,119,133,0.4);
+    color: #181c23;
+  }
+  .btn-secondary:active {
+    transform: scale(0.97);
+  }
+  .toolbar-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: none;
+    background: #f4f6fa;
+    color: #414753;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .toolbar-btn:hover {
+    background: #e8ebf0;
+  }
+  .toolbar-btn-polish {
+    color: #7c3aed;
+    background: rgba(124, 58, 237, 0.08);
+  }
+  .toolbar-btn-polish:hover {
+    background: rgba(124, 58, 237, 0.15);
+    color: #6d28d9;
+  }
+  .save-status {
+    font-size: 14px;
+    color: #717785;
+    transition: opacity 0.3s cubic-bezier(0.23, 1, 0.32, 1), color 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .save-status.is-success {
+    color: #0d8a4f;
+  }
+  .save-status.is-error {
+    color: #b91c1c;
+  }
+  .save-status.is-info {
+    color: #0059b5;
+  }
+  .admin-toast {
+    position: fixed;
+    top: 24px;
+    left: 50%;
+    z-index: 2000;
+    transform: translate(-50%, -8px);
+    opacity: 0;
+    pointer-events: none;
+    min-width: 180px;
+    max-width: min(420px, calc(100vw - 32px));
+    padding: 10px 16px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.95);
+    border: 1px solid rgba(193,198,214,0.55);
+    box-shadow: 0 14px 40px rgba(24,28,35,0.14);
+    color: #181c23;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.4;
+    text-align: center;
+    transition: opacity 0.15s cubic-bezier(0.23, 1, 0.32, 1), transform 0.15s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .admin-toast.is-visible {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  .admin-toast.is-success {
+    color: #0d8a4f;
+    border-color: rgba(13,138,79,0.22);
+  }
+  .admin-toast.is-error {
+    color: #b91c1c;
+    border-color: rgba(185,28,28,0.22);
+  }
+  .admin-toast.is-info {
+    color: #0059b5;
+    border-color: rgba(0,89,181,0.22);
+  }
+
+  /* Section */
+  .form-section {
+    background: rgba(255,255,255,0.6);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(255,255,255,0.6);
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.03);
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .section-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #181c23;
+  }
+  .section-badge {
+    padding: 3px 10px;
+    border-radius: 8px;
+    background: rgba(0,89,181,0.08);
+    color: #0059b5;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  /* Project list */
+  .article-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .empty-state {
+    text-align: center;
+    padding: 48px 20px;
+    color: #a0a8b8;
+    font-size: 14px;
+  }
+
+  /* Modal */
+  .modal {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+    transition: opacity 0.2s cubic-bezier(0.23, 1, 0.32, 1), visibility 0s linear 0.2s;
+  }
+  .modal.is-open {
+    opacity: 1;
+    pointer-events: auto;
+    visibility: visible;
+    transition: opacity 0.2s cubic-bezier(0.23, 1, 0.32, 1), visibility 0s linear 0s;
+  }
+  .modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.25);
+    backdrop-filter: blur(4px);
+  }
+  .modal-panel {
+    position: relative;
+    width: 100%;
+    max-width: 640px;
+    max-height: 90vh;
+    overflow-y: auto;
+    margin: 20px;
+    padding: 28px;
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: blur(40px);
+    border: 1px solid rgba(255,255,255,0.6);
+    border-radius: 24px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.12);
+    transform: translateY(12px) scale(0.96);
+    transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .modal.is-open .modal-panel {
+    transform: translateY(0) scale(1);
+  }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .modal-title {
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 700;
+    color: #181c23;
+  }
+  .btn-close {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    transition: background-color 0.15s cubic-bezier(0.23, 1, 0.32, 1), transform 0.12s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .btn-close:active {
+    transform: scale(0.92);
+  }
+
+  /* Form */
+  .admin-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .field-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+  .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .field-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #181c23;
+  }
+  .field-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .required {
+    color: #b91c1c;
+  }
+  .field-input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(193,198,214,0.5);
+    background: rgba(255,255,255,0.7);
+    font-family: var(--font-body);
+    font-size: 14px;
+    color: #181c23;
+    outline: none;
+    transition: border-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.12s cubic-bezier(0.23, 1, 0.32, 1);
+    box-sizing: border-box;
+    transform: scale(1);
+  }
+  .field-input:active {
+    transform: scale(0.995);
+  }
+  .field-input:focus {
+    border-color: #0059b5;
+    box-shadow: 0 0 0 3px rgba(0,89,181,0.1);
+  }
+  select.field-input {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23717785' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+  }
+  .field-textarea {
+    resize: vertical;
+    min-height: 80px;
+    line-height: 1.6;
+    font-family: var(--font-editor);
+  }
+  .field-hint {
+    font-size: 12px;
+    color: #717785;
+  }
+  .field-hint-inline {
+    font-size: 12px;
+    font-weight: 400;
+    color: #a0a5b1;
+  }
+  .tag-input-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border: 1px solid rgba(193,198,214,0.5);
+    border-radius: 12px;
+    padding: 10px 12px;
+    background: rgba(255,255,255,0.7);
+    box-sizing: border-box;
+  }
+  .tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: rgba(0,89,181,0.08);
+    color: #0059b5;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .tag-remove {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    border: none;
+    background: transparent;
+    color: #0059b5;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  .tag-remove:hover {
+    background: rgba(0,89,181,0.15);
+  }
+  .tag-input {
+    width: 100%;
+    border: none;
+    outline: none;
+    padding: 4px 0;
+    background: transparent;
+    color: #181c23;
+    font-family: var(--font-body);
+    font-size: 14px;
+  }
+  .tag-input::placeholder {
+    color: #a0a5b1;
+  }
+  .form-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-top: 4px;
+  }
+  .btn-small {
+    padding: 6px 12px;
+    font-size: 13px;
+    min-height: 32px;
+  }
+  .polish-options {
+    margin-top: 8px;
+    padding: 16px;
+    background: rgba(244,246,250,0.72);
+    border: 1px solid rgba(124,58,237,0.2);
+    border-radius: 12px;
+  }
+  .polish-options.hidden,
+  .polish-diff.hidden {
+    display: none;
+  }
+  .polish-options-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .polish-presets {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .polish-preset {
+    padding: 5px 12px;
+    border: 1px solid rgba(193,198,214,0.6);
+    border-radius: 6px;
+    background: #fff;
+    color: #414753;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .polish-preset:hover {
+    border-color: #7c3aed;
+    color: #7c3aed;
+  }
+  .polish-preset.active {
+    background: #7c3aed;
+    color: #fff;
+    border-color: #7c3aed;
+  }
+  .polish-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-left: auto;
+  }
+  .polish-custom-prompt {
+    margin-bottom: 8px;
+  }
+  .polish-status {
+    font-size: 13px;
+    min-height: 18px;
+  }
+  .polish-status.is-success { color: #059669; }
+  .polish-status.is-error { color: #dc2626; }
+  .polish-status.is-info { color: #0059b5; }
+  .diff-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 10px 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(193,198,214,0.35);
+  }
+  .diff-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #414753;
+  }
+  .diff-actions {
+    display: flex;
+    gap: 6px;
+  }
+  .diff-content {
+    display: flex;
+    gap: 12px;
+  }
+  .diff-section {
+    flex: 1;
+    min-width: 0;
+  }
+  .diff-section-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #717785;
+    margin-bottom: 6px;
+  }
+  .diff-pre {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    padding: 12px;
+    border-radius: 8px;
+    margin: 0;
+  }
+  .diff-new {
+    background: rgba(5,150,105,0.06);
+    border: 1px solid rgba(5,150,105,0.2);
+    color: #065f46;
+  }
+  .diff-old {
+    background: rgba(220,38,38,0.04);
+    border: 1px solid rgba(220,38,38,0.15);
+    color: #991b1b;
+  }
+
+  /* Image Upload */
+  .image-upload-wrap {
+    position: relative;
+  }
+  .image-upload-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 2;
+  }
+  .image-preview-area {
+    position: relative;
+    border-radius: 16px;
+    border: 2px dashed rgba(193,198,214,0.6);
+    background: rgba(255,255,255,0.5);
+    min-height: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    transition: border-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), background-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .image-preview-area.is-dragover {
+    border-color: #0059b5;
+    background: rgba(0,89,181,0.04);
+    transform: scale(1.01);
+  }
+  .image-upload-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    color: #717785;
+    pointer-events: none;
+  }
+  .admin-placeholder-art {
+    width: min(180px, 72%);
+    aspect-ratio: 16 / 10;
+    object-fit: cover;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(24,28,35,0.08);
+  }
+  .image-upload-placeholder span {
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .image-upload-placeholder small {
+    font-size: 12px;
+    color: #a0a5b1;
+  }
+  .image-preview {
+    display: none;
+    width: 100%;
+    max-height: 240px;
+    object-fit: cover;
+    border-radius: 12px;
+  }
+  .btn-remove-image {
+    display: none;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    border: none;
+    background: rgba(255,255,255,0.9);
+    color: #717785;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: background-color 0.15s cubic-bezier(0.23, 1, 0.32, 1), color 0.15s cubic-bezier(0.23, 1, 0.32, 1), transform 0.12s cubic-bezier(0.23, 1, 0.32, 1);
+    z-index: 3;
+  }
+  .btn-remove-image:hover {
+    background: #fff;
+    color: #b91c1c;
+  }
+  .btn-remove-image:active {
+    transform: scale(0.92);
+  }
+
+  @media (max-width: 640px) {
+    .field-row {
+      grid-template-columns: 1fr;
+    }
+    .diff-content {
+      flex-direction: column;
+    }
+    .polish-actions {
+      margin-left: 0;
+    }
+    .modal-panel {
+      margin: 12px;
+      padding: 20px;
+      border-radius: 20px;
+    }
+  }
+</style>

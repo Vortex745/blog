@@ -1,0 +1,96 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+
+const today = new Date().toISOString().slice(0, 10);
+---
+
+<BaseLayout title="子衿的个人博客网站" description="生成新文章 Markdown 模板">
+  <section class="section-light min-h-[100dvh] px-5 py-16 md:py-24">
+    <div class="mx-auto grid max-w-[1120px] gap-8 lg:grid-cols-[0.9fr_1.1fr]">
+      <div>
+        <a href="/articles" class="pill-link mb-8 inline-flex">← 返回文章</a>
+        <p class="eyebrow mb-3 text-[var(--color-link-blue)]">New Writing</p>
+        <h1 class="display-hero text-[var(--color-near-black)]">添加文章</h1>
+        <p class="body-text mt-4 text-[var(--color-text-secondary)]">
+          当前站点是静态内容集合。填写后复制右侧内容，新建到 <code>src/content/articles/你的-slug.md</code> 即可。
+        </p>
+      </div>
+
+      <div class="apple-card">
+        <form id="article-form" class="content-form space-y-5">
+          <label class="content-field">
+            <span>标题</span>
+            <input name="title" type="text" value="新的文章" required />
+          </label>
+          <label class="content-field">
+            <span>Slug</span>
+            <input name="slug" type="text" value="new-article" required />
+          </label>
+          <label class="content-field">
+            <span>摘要</span>
+            <textarea name="description" rows="3" required>写下这篇文章的核心内容。</textarea>
+          </label>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <label class="content-field">
+              <span>日期</span>
+              <input name="date" type="date" value={today} required />
+            </label>
+            <label class="content-field">
+              <span>标签（逗号分隔）</span>
+              <input name="tags" type="text" value="随笔, 技术" />
+            </label>
+          </div>
+          <label class="content-field">
+            <span>正文</span>
+            <textarea name="body" rows="8">## 小标题
+
+从这里开始写正文。</textarea>
+          </label>
+        </form>
+
+        <div class="mt-8 rounded-[20px] bg-black/[0.04] p-4 dark:bg-white/[0.06]">
+          <div class="mb-3 flex items-center justify-between gap-3">
+            <p class="eyebrow text-[var(--color-text-secondary)]">Markdown</p>
+            <button id="copy-output" class="filter-chip" type="button">复制</button>
+          </div>
+          <pre class="content-output"><code id="article-output"></code></pre>
+          <p id="copy-status" class="micro-text mt-3 text-[var(--color-text-secondary)]" aria-live="polite"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    const form = document.getElementById("article-form");
+    const output = document.getElementById("article-output");
+    const copyButton = document.getElementById("copy-output");
+    const copyStatus = document.getElementById("copy-status");
+
+    function quote(value) {
+      return `"${value.replaceAll("\\", "\\\\").replaceAll("\"", "\\\"")}"`;
+    }
+
+    function parseTags(value) {
+      return value.split(",").map((tag) => tag.trim()).filter(Boolean);
+    }
+
+    function renderArticle() {
+      if (!(form instanceof HTMLFormElement) || !output) return;
+      const data = new FormData(form);
+      const title = String(data.get("title") || "");
+      const description = String(data.get("description") || "");
+      const date = String(data.get("date") || "");
+      const tags = parseTags(String(data.get("tags") || ""));
+      const body = String(data.get("body") || "");
+      output.textContent = `---\ntitle: ${quote(title)}\ndescription: ${quote(description)}\ndate: ${date}\ntags: [${tags.map(quote).join(", ")}]\nfeatured: false\n---\n\n${body}\n`;
+    }
+
+    form?.addEventListener("input", renderArticle);
+    copyButton?.addEventListener("click", async () => {
+      if (!output?.textContent) return;
+      await navigator.clipboard.writeText(output.textContent);
+      if (copyStatus) copyStatus.textContent = "已复制。请保存到 src/content/articles/ 对应文件。";
+    });
+    renderArticle();
+  </script>
+</BaseLayout>

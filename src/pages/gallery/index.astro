@@ -1,0 +1,738 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="子衿的个人博客网站" description="精心策划的瞬间收藏。探索光、结构与自然形态的交汇。">
+  <section class="gallery-content">
+    <div class="editorial-container">
+      <div class="gallery-toolbar" data-animate="fade-up">
+        <h1 class="gallery-toolbar-title">图库展示</h1>
+
+        <div class="sort-bar" id="gallery-sort" aria-label="图库排序">
+          <button class="sort-chip active" type="button" data-sort="latest">最新</button>
+          <button class="sort-chip" type="button" data-sort="downloads">下载量</button>
+        </div>
+      </div>
+
+      <div class="gallery-grid is-empty" id="gallery-grid">
+        <div class="empty-placeholder" id="empty-initial">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="empty-icon" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+          <p class="empty-title">暂无图片</p>
+          <p class="empty-desc">请在后台图库管理中上传图片。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div id="lightbox-root" class="hidden" aria-hidden="true">
+    <div class="lightbox-backdrop" id="lightbox-backdrop">
+      <div class="lightbox-container" role="dialog" aria-modal="true" aria-labelledby="lightbox-title">
+        <div class="lightbox-toolbar" aria-label="图片操作">
+          <button class="lightbox-action" id="lightbox-download" type="button" aria-label="下载当前图片">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+          </button>
+          <button class="lightbox-action" id="lightbox-close" type="button" aria-label="关闭">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
+        </div>
+
+        <button class="lightbox-nav lightbox-prev" id="lightbox-prev" type="button" aria-label="上一张">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+
+        <figure class="lightbox-figure">
+          <img id="lightbox-image" class="lightbox-image" src="" alt="" />
+          <figcaption class="lightbox-info">
+            <p id="lightbox-title" class="lightbox-title"></p>
+          </figcaption>
+        </figure>
+
+        <button class="lightbox-nav lightbox-next" id="lightbox-next" type="button" aria-label="下一张">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</BaseLayout>
+
+<script>
+  const GALLERY_KEY = "admin-gallery-data";
+  const SYNC_EVENT = "admin-content:changed";
+  const galleryGrid = document.getElementById("gallery-grid");
+  const sortBar = document.getElementById("gallery-sort");
+  const emptyInitial = document.getElementById("empty-initial");
+
+  function loadGalleryImages() {
+    try {
+      const raw = localStorage.getItem(GALLERY_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveGalleryImages() {
+    localStorage.setItem(GALLERY_KEY, JSON.stringify(galleryImages));
+    window.dispatchEvent(new CustomEvent(SYNC_EVENT, {
+      detail: { key: GALLERY_KEY, module: "gallery" },
+    }));
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      "\"": "&quot;",
+      "'": "&#39;",
+    }[char]));
+  }
+
+  function stripExtension(value) {
+    return String(value || "").replace(/\.[a-z0-9]{2,5}$/i, "");
+  }
+
+  function displayTitle(img) {
+    return String(img?.title || stripExtension(img?.name) || "未命名图片").trim();
+  }
+
+  function getTimestamp(img) {
+    const value = img?.date || img?.updatedAt || img?.createdAt;
+    const time = value ? new Date(String(value)).getTime() : 0;
+    return Number.isFinite(time) ? time : 0;
+  }
+
+  function sanitizeFilename(name) {
+    const cleaned = String(name || "gallery-image")
+      .replace(/[\\/:*?"<>|]/g, "-")
+      .replace(/\s+/g, " ")
+      .trim();
+    return cleaned || "gallery-image";
+  }
+
+  function inferExtension(url) {
+    try {
+      const pathname = new URL(url, window.location.href).pathname;
+      const match = pathname.match(/\.([a-z0-9]{2,5})$/i);
+      return match ? match[1].toLowerCase() : "jpg";
+    } catch {
+      return "jpg";
+    }
+  }
+
+  function getDownloadName(img) {
+    const base = sanitizeFilename(img?.filename || img?.name || displayTitle(img));
+    if (/\.[a-z0-9]{2,5}$/i.test(base)) return base;
+    return `${base}.${inferExtension(img?.url || "")}`;
+  }
+
+  function triggerDownload(url, filename, openInNewTab = false) {
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.rel = "noopener";
+    if (openInNewTab) link.target = "_blank";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+
+  function incrementDownloadCount(img) {
+    if (!img) return;
+    const targetId = img.id || img.url;
+    const target = galleryImages.find((item) => (item.id || item.url) === targetId);
+    if (!target) return;
+    target.downloadCount = Number(target.downloadCount || 0) + 1;
+    saveGalleryImages();
+  }
+
+  async function downloadImage(img, trigger) {
+    if (!img?.url) return;
+    const filename = getDownloadName(img);
+    trigger?.setAttribute("aria-busy", "true");
+
+    try {
+      const response = await fetch(img.url, { mode: "cors" });
+      if (!response.ok) throw new Error("download failed");
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      triggerDownload(objectUrl, filename);
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 5000);
+    } catch {
+      triggerDownload(img.url, filename, true);
+    } finally {
+      trigger?.removeAttribute("aria-busy");
+      incrementDownloadCount(img);
+    }
+  }
+
+  let galleryImages = loadGalleryImages();
+  let sortMode = "latest";
+  let sortButtons = Array.from(sortBar?.querySelectorAll(".sort-chip") || []);
+
+  function getSortedImages() {
+    return [...galleryImages].sort((a, b) => {
+      if (sortMode === "downloads") {
+        const byDownloads = Number(b.downloadCount || 0) - Number(a.downloadCount || 0);
+        if (byDownloads !== 0) return byDownloads;
+      }
+      return getTimestamp(b) - getTimestamp(a);
+    });
+  }
+
+  function renderSortButtons() {
+    sortButtons.forEach((button) => {
+      button.classList.toggle("active", button.dataset.sort === sortMode);
+    });
+  }
+
+  function renderGallery() {
+    if (!galleryGrid) return;
+    galleryGrid.querySelectorAll(".gallery-item[data-index]").forEach((el) => el.remove());
+
+    const sorted = getSortedImages();
+    const hasImages = sorted.length > 0;
+    galleryGrid.classList.toggle("is-empty", !hasImages);
+    galleryGrid.classList.toggle("is-single", sorted.length === 1);
+
+    if (emptyInitial) emptyInitial.style.display = hasImages ? "none" : "";
+    if (!hasImages) return;
+
+    sorted.forEach((img) => {
+      const realIndex = galleryImages.indexOf(img);
+      const title = displayTitle(img);
+      const item = document.createElement("article");
+      item.className = "gallery-item";
+      item.dataset.index = String(realIndex);
+      item.innerHTML = `
+        <button class="gallery-card" type="button" aria-label="查看 ${escapeHtml(title)}">
+          <span class="gallery-media">
+            <img src="${escapeHtml(img.url)}" alt="${escapeHtml(title)}" class="gallery-image" loading="lazy" decoding="async" />
+          </span>
+          <span class="gallery-title">${escapeHtml(title)}</span>
+        </button>
+      `;
+      galleryGrid.appendChild(item);
+    });
+  }
+
+  function render() {
+    renderSortButtons();
+    renderGallery();
+  }
+
+  sortBar?.addEventListener("click", (event) => {
+    const button = event.target instanceof Element ? event.target.closest(".sort-chip") : null;
+    if (!button) return;
+    sortMode = button.dataset.sort || "latest";
+    render();
+  });
+
+  const lightboxRoot = document.getElementById("lightbox-root");
+  const lightboxBackdrop = document.getElementById("lightbox-backdrop");
+  const lightboxImage = document.getElementById("lightbox-image");
+  const lightboxTitle = document.getElementById("lightbox-title");
+  const lightboxClose = document.getElementById("lightbox-close");
+  const lightboxPrev = document.getElementById("lightbox-prev");
+  const lightboxNext = document.getElementById("lightbox-next");
+  const lightboxDownload = document.getElementById("lightbox-download");
+
+  let currentIndex = 0;
+  let visibleImages = [];
+
+  function updateVisibleImages() {
+    visibleImages = Array.from(document.querySelectorAll(".gallery-item[data-index]"))
+      .map((item) => parseInt(item.dataset.index || "0", 10))
+      .filter((idx) => Number.isInteger(idx));
+  }
+
+  function syncLightboxNav() {
+    const multiple = visibleImages.length > 1;
+    if (lightboxPrev) lightboxPrev.hidden = !multiple;
+    if (lightboxNext) lightboxNext.hidden = !multiple;
+  }
+
+  function showImage(idx) {
+    const img = galleryImages[idx];
+    if (!img) return;
+    const title = displayTitle(img);
+    if (lightboxImage) {
+      lightboxImage.src = img.url;
+      lightboxImage.alt = title;
+    }
+    if (lightboxTitle) lightboxTitle.textContent = title;
+  }
+
+  function openLightbox(index) {
+    updateVisibleImages();
+    const imageIndex = visibleImages.indexOf(index);
+    if (imageIndex === -1) return;
+    currentIndex = imageIndex;
+    showImage(visibleImages[currentIndex]);
+    syncLightboxNav();
+    lightboxRoot?.classList.remove("hidden");
+    lightboxRoot?.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeLightbox() {
+    lightboxRoot?.classList.add("hidden");
+    lightboxRoot?.setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
+    if (sortMode === "downloads") render();
+  }
+
+  function goNext() {
+    if (visibleImages.length < 1) return;
+    currentIndex = (currentIndex + 1) % visibleImages.length;
+    showImage(visibleImages[currentIndex]);
+  }
+
+  function goPrev() {
+    if (visibleImages.length < 1) return;
+    currentIndex = (currentIndex - 1 + visibleImages.length) % visibleImages.length;
+    showImage(visibleImages[currentIndex]);
+  }
+
+  galleryGrid?.addEventListener("click", (event) => {
+    const item = event.target instanceof Element ? event.target.closest(".gallery-item[data-index]") : null;
+    if (!item) return;
+    openLightbox(parseInt(item.dataset.index || "0", 10));
+  });
+
+  galleryGrid?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const item = event.target instanceof Element ? event.target.closest(".gallery-item[data-index]") : null;
+    if (!item) return;
+    event.preventDefault();
+    openLightbox(parseInt(item.dataset.index || "0", 10));
+  });
+
+  lightboxClose?.addEventListener("click", closeLightbox);
+  lightboxBackdrop?.addEventListener("click", (event) => {
+    if (event.target === lightboxBackdrop) closeLightbox();
+  });
+  lightboxNext?.addEventListener("click", (event) => { event.stopPropagation(); goNext(); });
+  lightboxPrev?.addEventListener("click", (event) => { event.stopPropagation(); goPrev(); });
+  lightboxDownload?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    downloadImage(galleryImages[visibleImages[currentIndex]], lightboxDownload);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (lightboxRoot?.classList.contains("hidden")) return;
+    if (event.key === "Escape") closeLightbox();
+    if (event.key === "ArrowRight") goNext();
+    if (event.key === "ArrowLeft") goPrev();
+  });
+
+  function reloadGalleryFromStorage() {
+    galleryImages = loadGalleryImages();
+    render();
+  }
+
+  window.addEventListener("storage", (event) => {
+    if (event.key === GALLERY_KEY) reloadGalleryFromStorage();
+  });
+  window.addEventListener(SYNC_EVENT, (event) => {
+    const detail = event instanceof CustomEvent ? event.detail : null;
+    if (detail?.key === GALLERY_KEY) reloadGalleryFromStorage();
+  });
+
+  render();
+</script>
+
+<style is:global>
+  .editorial-container {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  .gallery-content {
+    padding: 118px 0 104px;
+  }
+
+  .gallery-toolbar {
+    align-items: end;
+    display: grid;
+    gap: 18px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    margin-bottom: 26px;
+  }
+
+  .gallery-toolbar-title {
+    color: #181c23;
+    font-family: var(--font-display);
+    font-size: 34px;
+    font-weight: 760;
+    letter-spacing: 0;
+    line-height: 1.08;
+    margin: 0;
+  }
+
+  .sort-bar {
+    align-items: center;
+    background: rgba(255, 255, 255, 0.54);
+    border: 1px solid rgba(193, 198, 214, 0.4);
+    border-radius: 9999px;
+    display: inline-flex;
+    gap: 6px;
+    padding: 6px;
+  }
+
+  .sort-chip {
+    background: transparent;
+    border: 0;
+    border-radius: 9999px;
+    color: #596274;
+    cursor: pointer;
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0;
+    min-height: 38px;
+    padding: 0 16px;
+    transform: translateY(0) scale(1);
+    transition:
+      background-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+      color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+      transform 140ms cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .sort-chip:hover {
+      color: #181c23;
+      transform: translateY(-1px);
+    }
+  }
+
+  .sort-chip:active {
+    transform: translateY(1px) scale(0.98);
+  }
+
+  .sort-chip.active {
+    background: #0059b5;
+    color: #ffffff;
+  }
+
+  .gallery-grid {
+    display: grid;
+    gap: 22px;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  }
+
+  .gallery-grid.is-empty {
+    display: block;
+  }
+
+  .gallery-grid.is-single {
+    max-width: 520px;
+  }
+
+  .gallery-item {
+    min-width: 0;
+  }
+
+  .gallery-card {
+    background: transparent;
+    border: 0;
+    color: inherit;
+    cursor: pointer;
+    display: grid;
+    gap: 10px;
+    padding: 0;
+    text-align: left;
+    transform: translateY(0) scale(1);
+    transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+    width: 100%;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .gallery-card:hover {
+      transform: translateY(-3px);
+    }
+  }
+
+  .gallery-card:active {
+    transform: translateY(1px) scale(0.99);
+  }
+
+  .gallery-card:focus-visible,
+  .sort-chip:focus-visible,
+  .lightbox-action:focus-visible,
+  .lightbox-nav:focus-visible {
+    outline: 2px solid #0071e3;
+    outline-offset: 4px;
+  }
+
+  .gallery-media {
+    aspect-ratio: 4 / 3;
+    background: rgba(238, 242, 248, 0.72);
+    border: 1px solid rgba(193, 198, 214, 0.36);
+    border-radius: 18px;
+    box-shadow: 0 16px 48px rgba(44, 66, 110, 0.08);
+    display: block;
+    overflow: hidden;
+  }
+
+  .gallery-image {
+    display: block;
+    height: 100%;
+    object-fit: cover;
+    transform: scale(1);
+    transition: transform 700ms cubic-bezier(0.16, 1, 0.3, 1);
+    width: 100%;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .gallery-card:hover .gallery-image {
+      transform: scale(1.035);
+    }
+  }
+
+  .gallery-title {
+    color: #181c23;
+    display: block;
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 720;
+    letter-spacing: 0;
+    line-height: 1.28;
+    overflow-wrap: anywhere;
+    text-align: center;
+  }
+
+  .empty-placeholder {
+    align-items: center;
+    background: rgba(255, 255, 255, 0.56);
+    border: 1px dashed rgba(113, 119, 133, 0.28);
+    border-radius: 22px;
+    color: #717785;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 300px;
+    padding: 56px 24px;
+    text-align: center;
+  }
+
+  .empty-icon {
+    color: #8e96a7;
+    margin-bottom: 18px;
+  }
+
+  .empty-title {
+    color: #181c23;
+    font-family: var(--font-display);
+    font-size: 19px;
+    font-weight: 720;
+    letter-spacing: 0;
+    margin: 0 0 8px;
+  }
+
+  .empty-desc {
+    color: #717785;
+    font-size: 14px;
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  #lightbox-root {
+    inset: 0;
+    position: fixed;
+    z-index: 100;
+  }
+
+  #lightbox-root.hidden {
+    display: none;
+  }
+
+  .lightbox-backdrop {
+    align-items: center;
+    background: rgba(9, 13, 20, 0.94);
+    display: flex;
+    inset: 0;
+    justify-content: center;
+    position: absolute;
+  }
+
+  .lightbox-container {
+    align-items: center;
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr) 64px;
+    height: 100%;
+    padding: 34px;
+    position: relative;
+    width: 100%;
+  }
+
+  .lightbox-toolbar {
+    display: flex;
+    gap: 10px;
+    position: absolute;
+    right: 28px;
+    top: 28px;
+  }
+
+  .lightbox-action,
+  .lightbox-nav {
+    align-items: center;
+    background: rgba(255, 255, 255, 0.09);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: rgba(255, 255, 255, 0.86);
+    cursor: pointer;
+    display: inline-flex;
+    justify-content: center;
+    transform: translateY(0) scale(1);
+    transition:
+      background-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+      border-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+      color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+      transform 140ms cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  .lightbox-action {
+    border-radius: 9999px;
+    height: 42px;
+    width: 42px;
+  }
+
+  .lightbox-nav {
+    border-radius: 9999px;
+    height: 48px;
+    justify-self: center;
+    width: 48px;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .lightbox-action:hover,
+    .lightbox-nav:hover {
+      background: rgba(255, 255, 255, 0.16);
+      border-color: rgba(255, 255, 255, 0.26);
+      color: #ffffff;
+      transform: translateY(-1px);
+    }
+  }
+
+  .lightbox-action:active,
+  .lightbox-nav:active {
+    transform: translateY(1px) scale(0.96);
+  }
+
+  .lightbox-action[aria-busy="true"] {
+    opacity: 0.64;
+    pointer-events: none;
+  }
+
+  .lightbox-figure {
+    align-items: center;
+    display: grid;
+    gap: 18px;
+    grid-column: 2;
+    justify-items: center;
+    margin: 0;
+    min-width: 0;
+  }
+
+  .lightbox-image {
+    border-radius: 14px;
+    box-shadow: 0 30px 90px rgba(0, 0, 0, 0.32);
+    display: block;
+    max-height: 76vh;
+    max-width: 100%;
+    object-fit: contain;
+  }
+
+  .lightbox-title {
+    color: #ffffff;
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 720;
+    letter-spacing: 0;
+    line-height: 1.3;
+    margin: 0;
+    overflow-wrap: anywhere;
+    text-align: center;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sort-chip,
+    .gallery-card,
+    .gallery-image,
+    .lightbox-action,
+    .lightbox-nav {
+      transition: none !important;
+    }
+  }
+
+  @media (max-width: 900px) {
+    .gallery-content {
+      padding-top: 76px;
+    }
+
+    .gallery-toolbar {
+      align-items: start;
+      grid-template-columns: 1fr;
+    }
+
+    .gallery-grid {
+      grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    }
+  }
+
+  @media (max-width: 640px) {
+    .editorial-container {
+      padding: 0 16px;
+    }
+
+    .gallery-content {
+      padding: 48px 0 72px;
+    }
+
+    .gallery-toolbar-title {
+      font-size: 30px;
+    }
+
+    .sort-bar {
+      width: 100%;
+    }
+
+    .sort-chip {
+      flex: 1;
+    }
+
+    .gallery-grid {
+      gap: 18px;
+      grid-template-columns: 1fr;
+    }
+
+    .gallery-grid.is-single {
+      max-width: none;
+    }
+
+    .lightbox-container {
+      grid-template-columns: 1fr;
+      padding: 22px 16px 28px;
+    }
+
+    .lightbox-toolbar {
+      right: 16px;
+      top: 16px;
+    }
+
+    .lightbox-figure {
+      grid-column: 1;
+    }
+
+    .lightbox-nav {
+      display: none;
+    }
+
+    .lightbox-image {
+      max-height: 68vh;
+    }
+  }
+</style>
