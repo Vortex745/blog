@@ -12,14 +12,22 @@ export default defineConfig({
   adapter: vercel(),
   integrations: [react(), sitemap()],
   vite: {
+    server: {
+      watch: {
+        ignored: ["**/.env"]
+      }
+    },
     plugins: [tailwindcss()],
+    optimizeDeps: {
+      include: ["react", "react-dom", "react-dom/client", "react/jsx-runtime"]
+    },
     build: {
       cssMinify: true,
       minify: true,
     },
   },
   prefetch: {
-    prefetchAll: false,
-    defaultStrategy: "hover",
+    prefetchAll: true,
+    defaultStrategy: "viewport",
   },
 });

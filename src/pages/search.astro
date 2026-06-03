@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { getCollection } from "astro:content";
+import { readContentArticles, readContentProjects, articleTags, articleDate, articleSummary, projectTags, projectDate } from "../lib/content-store";
 
 const allArticles = (await getCollection("articles"))
   .filter((a) => !a.data.draft)
@@ -9,45 +10,87 @@ const allArticles = (await getCollection("articles"))
 const allProjects = (await getCollection("projects"))
   .sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
 
-// Collect all unique years
-const allYears = Array.from(
-  new Set([
-    ...allArticles.map((a) => a.data.date.getFullYear().toString()),
-    ...allProjects.map((p) => p.data.date.getFullYear().toString()),
-  ])
-).sort((a, b) => parseInt(b) - parseInt(a));
+const sqliteArticles = await readContentArticles();
+const sqliteProjects = await readContentProjects();
 
 function cleanSlug(id: string) {
   return id.replace(/\.mdx?$/, "");
 }
 
+const localArticleIds = new Set(allArticles.map((a) => cleanSlug(a.id)));
+const localArticleTitles = new Set(allArticles.map((a) => a.data.title));
+const localProjectIds = new Set(allProjects.map((p) => cleanSlug(p.id)));
+const localProjectTitles = new Set(allProjects.map((p) => p.data.title));
+
+const uniqueSqliteArticles = sqliteArticles.filter((a) => {
+  const id = String(a.id || "");
+  const title = String(a.title || "");
+  return !localArticleIds.has(id) && !localArticleTitles.has(title);
+});
+
+const uniqueSqliteProjects = sqliteProjects.filter((p) => {
+  const id = String(p.id || "");
+  const title = String(p.title || "");
+  return !localProjectIds.has(id) && !localProjectTitles.has(title);
+});
+
 function formatDate(date: Date): string {
   return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
 }
 
-// Serialize data for client-side JS
+const allYears = Array.from(
+  new Set([
+    ...allArticles.map((a) => a.data.date.getFullYear().toString()),
+    ...allProjects.map((p) => p.data.date.getFullYear().toString()),
+    ...uniqueSqliteArticles.map((a) => articleDate(a).getFullYear().toString()),
+    ...uniqueSqliteProjects.map((p) => projectDate(p).getFullYear().toString()),
+  ])
+).sort((a, b) => parseInt(b) - parseInt(a));
+
 const searchData = {
-  articles: allArticles.map((a) => ({
-    id: cleanSlug(a.id),
-    title: a.data.title,
-    description: a.data.description,
-    date: a.data.date.toISOString(),
-    tags: a.data.tags,
-    type: "article" as const,
-    url: `/articles/${cleanSlug(a.id)}/`,
-  })),
-  projects: allProjects.map((p) => ({
-    id: cleanSlug(p.id),
-    title: p.data.title,
-    description: p.data.description,
-    date: p.data.date.toISOString(),
-    tags: p.data.tags,
-    type: "project" as const,
-    url: `/projects/${cleanSlug(p.id)}/`,
-  })),
+  articles: [
+    ...allArticles.map((a) => ({
+      id: cleanSlug(a.id),
+      title: a.data.title,
+      description: a.data.description,
+      date: a.data.date.toISOString(),
+      tags: a.data.tags,
+      type: "article" as const,
+      url: `/articles/${cleanSlug(a.id)}/`,
+    })),
+    ...uniqueSqliteArticles.map((a) => ({
+      id: `local-${a.id || a.title || ""}`,
+      title: a.title || "",
+      description: a.description || articleSummary(a),
+      date: articleDate(a).toISOString(),
+      tags: articleTags(a),
+      type: "article" as const,
+      url: `/articles/local-${encodeURIComponent(a.id || a.title || "")}`,
+    })),
+  ],
+  projects: [
+    ...allProjects.map((p) => ({
+      id: cleanSlug(p.id),
+      title: p.data.title,
+      description: p.data.description,
+      date: p.data.date.toISOString(),
+      tags: p.data.tags,
+      type: "project" as const,
+      url: `/projects/${cleanSlug(p.id)}/`,
+    })),
+    ...uniqueSqliteProjects.map((p) => ({
+      id: `local-${p.id || p.title || ""}`,
+      title: p.title || "",
+      description: p.description || "",
+      date: projectDate(p).toISOString(),
+      tags: projectTags(p),
+      type: "project" as const,
+      url: `/projects/local-${encodeURIComponent(p.id || p.title || "")}`,
+    })),
+  ],
 };
 
-const totalCount = allArticles.length + allProjects.length;
+const totalCount = searchData.articles.length + searchData.projects.length;
 ---
 
 <BaseLayout title="子衿的个人博客网站" description="搜索文章和项目内容。">

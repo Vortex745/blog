@@ -1,4 +1,4 @@
-import type { MiddlewareResponseHandler } from "astro";
+import type { MiddlewareHandler } from "astro";
 
 /**
  * Performance middleware:
@@ -6,7 +6,7 @@ import type { MiddlewareResponseHandler } from "astro";
  * 2. Adds security headers
  * 3. Preconnect hints for external resources
  */
-const onRequest: MiddlewareResponseHandler = async (context, next) => {
+const onRequest: MiddlewareHandler = async (context, next) => {
   const response = await next();
 
   // Only modify HTML responses for admin pages

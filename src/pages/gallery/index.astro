@@ -1,5 +1,9 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import { readContentGallery } from "../../lib/content-store";
+
+const sqliteGallery = await readContentGallery().catch(() => []);
+const sqliteGalleryPayload = JSON.stringify(sqliteGallery).replace(/</g, "\\u003c");
 ---
 
 <BaseLayout title="子衿的个人博客网站" description="精心策划的瞬间收藏。探索光、结构与自然形态的交汇。">
@@ -55,6 +59,8 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
   </div>
 </BaseLayout>
 
+<script type="application/json" id="sqlite-gallery-data" set:html={sqliteGalleryPayload}></script>
+
 <script>
   const GALLERY_KEY = "admin-gallery-data";
   const SYNC_EVENT = "admin-content:changed";
@@ -71,6 +77,34 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     } catch {
       return [];
     }
+  }
+
+  function loadSQLiteGalleryImages() {
+    const source = document.getElementById("sqlite-gallery-data")?.textContent;
+    if (!source) return [];
+    try {
+      const parsed = JSON.parse(source);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function mergeGalleryImages(sqliteImages, localImages) {
+    const sqliteIds = new Set(sqliteImages.map((img) => img.id || img.url));
+    const localOnly = localImages.filter((img) => !sqliteIds.has(img.id || img.url));
+    return [...sqliteImages.map((img) => ({
+      id: img.id,
+      url: img.imageData || img.url || "",
+      title: img.title || "未命名图片",
+      name: img.title || "未命名图片",
+      filename: img.title || "",
+      size: 0,
+      type: "image/unknown",
+      source: "sqlite",
+      date: img.date || new Date().toISOString(),
+      downloadCount: 0,
+    })), ...localOnly];
   }
 
   function saveGalleryImages() {
@@ -168,7 +202,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     }
   }
 
-  let galleryImages = loadGalleryImages();
+  let galleryImages = mergeGalleryImages(loadSQLiteGalleryImages(), loadGalleryImages());
   let sortMode = "latest";
   let sortButtons = Array.from(sortBar?.querySelectorAll(".sort-chip") || []);
 

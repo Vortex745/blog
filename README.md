@@ -88,10 +88,33 @@ IMGBB_API_KEY="your-api-key"
 
 ## 数据库配置
 
-后台文章同步使用 Neon Postgres，通过环境变量配置：
+后台内容和 RAG 索引统一使用 SQLite + sqlite-vec。数据库入口只有 `SQLITE_DB_PATH`：
 
 ```bash
-DATABASE_URL="your-neon-postgres-url"
+SQLITE_DB_PATH="./data/blog.sqlite"
+```
+
+生成站内 RAG 索引：
+
+```bash
+npm run rag:index
+```
+
+## API Key 配置
+
+所有服务端 API Key 都从 `.env` 读取。`.env.example` 提供完整模板：
+
+```bash
+AI_GATEWAY_API_KEY="your-vercel-ai-gateway-key"
+AI_CHAT_MODEL="openai/gpt-4o-mini"
+AI_CHAT_TEMPERATURE="0.7"
+AI_EMBEDDING_MODEL="openai/text-embedding-3-small"
+AI_EMBEDDING_DIMENSIONS="1536"
+AI_RERANK_MODEL="cohere/rerank-v3.5"
+
+LLM_API_KEY="your-openai-compatible-key"
+IMGBB_API_KEY="your-imgbb-key"
+GITHUB_TOKEN="optional-github-token"
 ```
 
 ## 后台登录

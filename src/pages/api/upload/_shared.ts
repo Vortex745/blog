@@ -1,7 +1,8 @@
 import type { APIRoute } from "astro";
+import { readServerEnv } from "../../../lib/env";
 
 // ── ImgBB Configuration ──────────────────────────────────────────────
-const IMGBB_API_KEY = import.meta.env.IMGBB_API_KEY;
+const IMGBB_API_KEY = readServerEnv("IMGBB_API_KEY");
 const IMGBB_ENDPOINT = "https://api.imgbb.com/1/upload";
 
 // ── Validation ───────────────────────────────────────────────────────
@@ -16,14 +17,6 @@ export const ACCEPTED_IMAGE_TYPES = new Map([
 ]);
 
 // ── JSON Response Helper ─────────────────────────────────────────────
-export function jsonResponse(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json; charset=utf-8" },
-  });
-}
-
-// ── File Validation ──────────────────────────────────────────────────
 export function validateImageFile(file: File) {
   if (!ACCEPTED_IMAGE_TYPES.has(file.type)) {
     return "仅支持 JPG、PNG、GIF、WebP、BMP、TIFF 格式";

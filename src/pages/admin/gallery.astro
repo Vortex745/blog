@@ -1,5 +1,18 @@
 ---
 import AdminLayout from "../../layouts/AdminLayout.astro";
+import { storageConfigured, readContentGallery } from "../../lib/content-store";
+
+const galleryStorageConfigured = storageConfigured();
+let galleryReadFailed = false;
+const initialGalleryData = await readContentGallery().catch(() => {
+  galleryReadFailed = true;
+  return [];
+});
+const initialGalleryPayload = JSON.stringify({
+  gallery: initialGalleryData,
+  storageConfigured: galleryStorageConfigured,
+  readFailed: galleryReadFailed,
+}).replace(/</g, "\\u003c");
 ---
 
 <AdminLayout title="图库管理" current="gallery">
@@ -116,25 +129,28 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
   </div>
 </AdminLayout>
 
-<script>
-  // ===== Storage Key =====
-  const GALLERY_KEY = "admin-gallery-data";
+<script type="application/json" id="initial-gallery-data" set:html={initialGalleryPayload}></script>
 
-  // ===== Elements =====
-  const galleryGrid = document.getElementById("gallery-grid");
-  const imageCount = document.getElementById("image-count");
-  const uploadStatus = document.getElementById("upload-status");
-  const uploadProgressList = document.getElementById("upload-progress-list");
-  const dropZone = document.getElementById("drop-zone");
-  const localFileInput = document.getElementById("local-file-input");
-  const urlInput = document.getElementById("gallery-url-input");
-  const urlTitleInput = document.getElementById("gallery-url-title-input");
-  const btnAddUrl = document.getElementById("btn-add-url");
-  const urlImportPreview = document.getElementById("url-import-preview");
-  const urlImportImg = document.getElementById("url-import-img");
-  const urlImportStatus = document.getElementById("url-import-status");
-  const btnConfirmImport = document.getElementById("btn-confirm-import");
-  const urlImportStatusMsg = document.getElementById("url-import-status-msg");
+<script>
+  document.addEventListener("astro:page-load", () => {
+    const galleryGrid = document.getElementById("gallery-grid");
+    if (!galleryGrid) return; // Only run on gallery page
+    const GALLERY_KEY = "admin-gallery-data";
+    const GALLERY_API = "/api/gallery";
+
+    const imageCount = document.getElementById("image-count");
+    const uploadStatus = document.getElementById("upload-status");
+    const uploadProgressList = document.getElementById("upload-progress-list");
+    const dropZone = document.getElementById("drop-zone");
+    const localFileInput = document.getElementById("local-file-input");
+    const urlInput = document.getElementById("gallery-url-input");
+    const urlTitleInput = document.getElementById("gallery-url-title-input");
+    const btnAddUrl = document.getElementById("btn-add-url");
+    const urlImportPreview = document.getElementById("url-import-preview");
+    const urlImportImg = document.getElementById("url-import-img");
+    const urlImportStatus = document.getElementById("url-import-status");
+    const btnConfirmImport = document.getElementById("btn-confirm-import");
+    const urlImportStatusMsg = document.getElementById("url-import-status-msg");
 
   // Preview modal
   const previewModal = document.getElementById("preview-modal");
@@ -157,18 +173,90 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     return [];
   }
 
+  function readInitialGallery() {
+    const source = document.getElementById("initial-gallery-data")?.textContent;
+    if (!source) return { gallery: [], storageConfigured: false, readFailed: true };
+
+    try {
+      const parsed = JSON.parse(source);
+      return {
+        gallery: Array.isArray(parsed?.gallery) ? parsed.gallery : [],
+        storageConfigured: parsed?.storageConfigured === true,
+        readFailed: parsed?.readFailed === true,
+      };
+    } catch {
+      return { gallery: [], storageConfigured: false, readFailed: true };
+    }
+  }
+
+  const initialGalleryState = readInitialGallery();
+  const useServerGallery = initialGalleryState.storageConfigured && !initialGalleryState.readFailed;
+
   function notifyContentChanged() {
     window.dispatchEvent(new CustomEvent("admin-content:changed", {
       detail: { key: GALLERY_KEY, module: "gallery" },
     }));
   }
 
-  function saveGallery(list) {
+  function cacheGallery(list) {
     localStorage.setItem(GALLERY_KEY, JSON.stringify(list));
+  }
+
+  function saveGallery(list) {
+    cacheGallery(list);
     notifyContentChanged();
   }
 
-  let gallery = loadGallery();
+  async function syncGalleryToCloud(list) {
+    try {
+      const response = await fetch(GALLERY_API, {
+        method: "PUT",
+        headers: {
+          "content-type": "application/json",
+          "x-admin-token": localStorage.getItem("admin-token") || "",
+        },
+        body: JSON.stringify({ gallery: list }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.ok) {
+        throw new Error(result.message || "云端同步失败");
+      }
+
+      if (Array.isArray(result.gallery)) {
+        gallery = result.gallery;
+        cacheGallery(gallery);
+      }
+      return true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "云端同步失败";
+      showUploadStatus(`已保存在本机，云端同步失败：${message}`, "error");
+      return false;
+    }
+  }
+
+  async function hydrateGalleryFromCloud() {
+    try {
+      const response = await fetch(GALLERY_API, {
+        headers: { accept: "application/json" },
+        cache: "no-store",
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (data?.storage !== "sqlite" || !Array.isArray(data?.gallery)) return;
+
+      if (JSON.stringify(gallery) === JSON.stringify(data.gallery)) {
+        cacheGallery(data.gallery);
+        return;
+      }
+
+      gallery = data.gallery;
+      cacheGallery(gallery);
+      renderGallery();
+    } catch {}
+  }
+
+  let gallery = useServerGallery ? initialGalleryState.gallery : loadGallery();
+  if (useServerGallery) cacheGallery(gallery);
 
   // ===== Helpers =====
   function escapeHtml(str) {
@@ -306,6 +394,7 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
       saveGallery(gallery);
       renderGallery();
       showUploadStatus(`「${title}」上传成功`, "success");
+      void syncGalleryToCloud(gallery);
       return item;
     } catch (err) {
       removeProgressItem(id);
@@ -480,6 +569,8 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     saveGallery(gallery);
     renderGallery();
 
+    void syncGalleryToCloud(gallery);
+
     // Reset
     if (urlInput) urlInput.value = "";
     if (urlTitleInput) urlTitleInput.value = "";
@@ -568,6 +659,7 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
         saveGallery(gallery);
         renderGallery();
         showUploadStatus("图片已删除", "success");
+        void syncGalleryToCloud(gallery);
       }
     }
   });
@@ -584,6 +676,8 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
 
   // ===== Init =====
   renderGallery();
+  void hydrateGalleryFromCloud();
+  });
 </script>
 
 <style is:global>
@@ -952,8 +1046,9 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.15s ease;
+    transition: background-color 150ms var(--admin-ease-out), color 150ms var(--admin-ease-out), transform 150ms var(--admin-ease-out);
   }
+  .gallery-btn-view:active, .gallery-btn-delete:active { transform: scale(0.97); }
   .gallery-btn-view:hover {
     background: #fff;
     color: #0059b5;

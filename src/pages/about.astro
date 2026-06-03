@@ -1,9 +1,9 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { renderMarkdown } from "../lib/markdown";
-import { normalizeAbout, readNeonAbout } from "../lib/neon-content";
+import { normalizeAbout, readContentAbout } from "../lib/content-store";
 
-const about = (await readNeonAbout().catch(() => null)) ?? normalizeAbout({});
+const about = (await readContentAbout().catch(() => null)) ?? normalizeAbout({});
 const initialPhilosophyHtml = renderMarkdown(
   about.philosophy?.filter(Boolean).join("\n\n") ?? "",
   { emptyHtml: "" }

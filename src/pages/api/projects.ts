@@ -1,24 +1,19 @@
 import type { APIRoute } from "astro";
 import {
-  neonContentStorageConfigured,
-  readNeonProjects,
-  writeNeonProjects,
-} from "../../lib/neon-content";
-import { jsonResponse } from "./upload/_shared";
-
-function hasAdminWriteAccess(request: Request): boolean {
-  const cookie = request.headers.get("cookie") || "";
-  const hasCookie = /(?:^|;\s*)admin-auth=1(?:;|$)/.test(cookie);
-  return request.headers.get("x-admin-auth") === "1" || hasCookie;
-}
+  storageConfigured,
+  readContentProjects,
+  writeContentProjects,
+} from "../../lib/content-store";
+import { hasAdminWriteAccess } from "../../lib/auth";
+import { jsonResponse } from "../../lib/api-utils";
 
 export const GET: APIRoute = async () => {
   try {
-    const projects = await readNeonProjects();
+    const projects = await readContentProjects();
     return jsonResponse({
       ok: true,
       projects,
-      storage: neonContentStorageConfigured() ? "neon" : "unconfigured",
+      storage: storageConfigured() ? "sqlite" : "unconfigured",
     });
   } catch (error) {
     return jsonResponse(
@@ -37,16 +32,16 @@ export const PUT: APIRoute = async ({ request }) => {
     return jsonResponse({ ok: false, message: "请先登录后台" }, 401);
   }
 
-  if (!neonContentStorageConfigured()) {
+  if (!storageConfigured()) {
     return jsonResponse(
-      { ok: false, message: "缺少 DATABASE_URL，无法同步到 Neon 数据库" },
+      { ok: false, message: "缺少 SQLITE_DB_PATH，无法同步到 SQLite 数据库" },
       503,
     );
   }
 
   try {
     const body = await request.json();
-    const projects = await writeNeonProjects(
+    const projects = await writeContentProjects(
       Array.isArray(body) ? body : (body as { projects?: unknown }).projects,
     );
 

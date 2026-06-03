@@ -5,387 +5,523 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
 <AdminLayout title="API 管理" current="api">
   <div class="admin-page-header">
     <h1 class="admin-page-title">API 管理</h1>
-    <p class="admin-page-desc">配置 LLM API 连接信息，用于文章和关于页面的 AI 润色功能。</p>
+    <p class="admin-page-desc">配置 AI 模型参数和 API 连接信息，支持 LLM、Embedding、Rerank 模型的统一管理。</p>
   </div>
 
-  <!-- LLM API Settings -->
-  <section class="form-section">
-    <div class="section-header">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z"/><circle cx="12" cy="15" r="1"/></svg>
-      <h2 class="section-title">LLM API 设置</h2>
-      <span class="section-badge" id="llm-status-badge">未配置</span>
+  <div class="api-layout">
+    <div class="api-sidebar">
+      <div class="pill-nav vertical">
+        <div class="pill-slider"></div>
+        <button class="pill-btn active" data-target="llm" data-index="0">LLM</button>
+        <button class="pill-btn" data-target="embedding" data-index="1">Embedding</button>
+        <button class="pill-btn" data-target="rerank" data-index="2">Rerank</button>
+      </div>
     </div>
-    <div class="llm-fields">
-      <div class="field-group">
-        <label for="llm-base-url" class="field-label">Base URL</label>
-        <input id="llm-base-url" type="url" class="field-input" placeholder="https://api.openai.com/v1" />
-        <span class="field-hint">OpenAI 兼容协议地址，如 https://api.openai.com/v1 或自定义代理地址</span>
+    <div class="api-content">
+
+  <div class="cards-container">
+    <!-- LLM Card -->
+    <section class="form-section config-card active" id="card-llm" style="z-index: 3;">
+      <div class="section-header">
+        <h2 class="section-title">LLM API 设置</h2>
+        <span class="section-badge" id="badge-llm">检测中</span>
       </div>
-      <div class="field-group">
-        <label for="llm-api-key" class="field-label">API Key</label>
-        <div class="api-key-wrap">
-          <input id="llm-api-key" type="password" class="field-input" placeholder="sk-..." />
-          <button type="button" id="btn-toggle-key" class="btn-icon btn-toggle-key" title="显示/隐藏密钥">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-          </button>
+      <div class="llm-fields">
+        <div class="field-group">
+          <label for="llm-base-url" class="field-label">Base URL</label>
+          <input id="llm-base-url" type="url" class="field-input" placeholder="https://api.openai.com/v1" />
         </div>
-        <span class="field-hint">API 密钥仅保存在浏览器本地，测试和调用时会通过本站后端转发</span>
-      </div>
-      <div class="field-group">
-        <label for="llm-model" class="field-label">模型名称</label>
-        <div class="model-combobox" id="llm-model-combobox">
-          <input id="llm-model" type="text" class="field-input" placeholder="gpt-4o-mini" autocomplete="off" />
-          <div id="llm-model-dropdown" class="model-dropdown" hidden></div>
-        </div>
-        <div class="model-actions">
-          <button type="button" id="btn-fetch-models" class="btn-secondary btn-small" title="从 API 获取可用模型列表">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-9 9m9-9a9 9 0 0 0-9-9m9 9H3m9 9a9 9 0 0 1-9-9m9 9c1.66 0 3-4.03 3-9s-1.34-9-3-9m0 18c-1.66 0-3-4.03-3-9s1.34-9 3-9m-9 9a9 9 0 0 1 9-9"/></svg>
-            获取模型
-          </button>
-          <span class="field-hint">输入模型名称或点击"获取模型"从 API 自动识别可用模型</span>
-        </div>
-      </div>
-      <div class="llm-actions">
-        <button type="button" id="btn-save-llm" class="btn-primary btn-small">保存设置</button>
-        <button type="button" id="btn-test-llm" class="btn-secondary btn-small">测试连接</button>
-        <div id="llm-test-progress-group" class="test-progress-group hidden">
-          <div class="test-progress-track">
-            <div id="llm-test-progress-fill" class="test-progress-fill"></div>
+        <div class="field-group">
+          <label for="llm-api-key" class="field-label">API Key</label>
+          <div class="password-input-wrapper">
+            <input id="llm-api-key" type="password" class="field-input" placeholder="输入 API Key (留空表示不修改)" />
+            <button type="button" class="btn-toggle-password" tabindex="-1">
+              <svg class="icon-eye" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
           </div>
         </div>
-        <span id="llm-test-status" class="save-status"></span>
+        <div class="field-group">
+          <label for="llm-model" class="field-label">模型名称</label>
+          <div class="model-combobox">
+            <input id="llm-model" type="text" class="field-input" placeholder="gpt-4o-mini" autocomplete="off" />
+            <button type="button" class="combobox-toggle" tabindex="-1">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <ul id="llm-model-list" class="combobox-list"></ul>
+          </div>
+        </div>
+        <div class="llm-actions">
+          <button type="button" id="btn-save-llm" class="btn-primary btn-small">保存并测试</button>
+          <span id="status-llm" class="save-status"></span>
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- Usage Info -->
-  <section class="form-section">
-    <div class="section-header">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-      <h2 class="section-title">使用说明</h2>
-    </div>
-    <div class="usage-info">
-      <p>配置 LLM API 后，以下功能将可用：</p>
-      <ul>
-        <li><strong>文章管理</strong> — 编辑文章时，工具栏中的 ✨ 按钮可对文章内容进行 AI 润色</li>
-        <li><strong>项目管理</strong> — 编辑项目时，可对项目介绍进行 AI 润色</li>
-        <li><strong>首页管理</strong> — 根据修改方向生成每日前言和引言</li>
-        <li><strong>关于管理</strong> — 编辑理念内容时，可对正文进行 AI 润色</li>
-      </ul>
-      <p class="usage-note">支持所有 OpenAI 兼容协议的 API 服务，包括 OpenAI、DeepSeek、智谱 (GLM) 等。</p>
-    </div>
-  </section>
+    <!-- Embedding Card -->
+    <section class="form-section config-card" id="card-embedding" style="z-index: 2; transform: translateY(20px) scale(0.95); opacity: 0.65; pointer-events: none;">
+      <div class="section-header">
+        <h2 class="section-title">Embedding 设置</h2>
+        <span class="section-badge" id="badge-embedding">检测中</span>
+      </div>
+      <div class="llm-fields">
+        <div class="field-group">
+          <label for="embedding-base-url" class="field-label">Base URL</label>
+          <input id="embedding-base-url" type="url" class="field-input" placeholder="https://api.openai.com/v1" />
+        </div>
+        <div class="field-group">
+          <label for="embedding-api-key" class="field-label">API Key</label>
+          <div class="password-input-wrapper">
+            <input id="embedding-api-key" type="password" class="field-input" placeholder="输入 API Key (留空表示不修改)" />
+            <button type="button" class="btn-toggle-password" tabindex="-1">
+              <svg class="icon-eye" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="field-group">
+          <label for="embedding-model" class="field-label">模型名称</label>
+          <div class="model-combobox">
+            <input id="embedding-model" type="text" class="field-input" placeholder="text-embedding-3-small" autocomplete="off" />
+            <button type="button" class="combobox-toggle" tabindex="-1">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <ul id="embedding-model-list" class="combobox-list"></ul>
+          </div>
+        </div>
+        <div class="llm-actions">
+          <button type="button" id="btn-save-embedding" class="btn-primary btn-small">保存设置</button>
+          <span id="status-embedding" class="save-status"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Rerank Card -->
+    <section class="form-section config-card" id="card-rerank" style="z-index: 1; transform: translateY(40px) scale(0.9); opacity: 0.3; pointer-events: none;">
+      <div class="section-header">
+        <h2 class="section-title">Rerank 设置</h2>
+        <span class="section-badge" id="badge-rerank">检测中</span>
+      </div>
+      <div class="llm-fields">
+        <div class="field-group">
+          <label for="rerank-base-url" class="field-label">Base URL</label>
+          <input id="rerank-base-url" type="url" class="field-input" placeholder="https://api.cohere.ai/v1" />
+        </div>
+        <div class="field-group">
+          <label for="rerank-api-key" class="field-label">API Key</label>
+          <div class="password-input-wrapper">
+            <input id="rerank-api-key" type="password" class="field-input" placeholder="输入 API Key (留空表示不修改)" />
+            <button type="button" class="btn-toggle-password" tabindex="-1">
+              <svg class="icon-eye" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="field-group">
+          <label for="rerank-model" class="field-label">模型名称</label>
+          <div class="model-combobox">
+            <input id="rerank-model" type="text" class="field-input" placeholder="rerank-v3.5" autocomplete="off" />
+            <button type="button" class="combobox-toggle" tabindex="-1">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <ul id="rerank-model-list" class="combobox-list"></ul>
+          </div>
+        </div>
+        <div class="llm-actions">
+          <button type="button" id="btn-save-rerank" class="btn-primary btn-small">保存设置</button>
+          <span id="status-rerank" class="save-status"></span>
+        </div>
+      </div>
+    </section>
+  </div>
+
+
+    </div> <!-- end api-content -->
+  </div> <!-- end api-layout -->
 </AdminLayout>
 
 <script>
+  import { gsap } from "gsap";
   import { requestLlmChat } from "../../scripts/admin-llm";
 
-  const LLM_KEY = "admin-llm-settings";
-  const LLM_MODELS_KEY = "admin-llm-models-cache";
-  const llmBaseUrl = document.getElementById("llm-base-url");
-  const llmApiKey = document.getElementById("llm-api-key");
-  const llmModel = document.getElementById("llm-model");
-  const llmModelCombobox = document.getElementById("llm-model-combobox");
-  const llmModelDropdown = document.getElementById("llm-model-dropdown");
-  const btnToggleKey = document.getElementById("btn-toggle-key");
-  const btnSaveLlm = document.getElementById("btn-save-llm");
-  const btnTestLlm = document.getElementById("btn-test-llm");
-  const llmTestStatus = document.getElementById("llm-test-status");
-  const llmTestProgressGroup = document.getElementById("llm-test-progress-group");
-  const llmTestProgressFill = document.getElementById("llm-test-progress-fill");
-  const btnFetchModels = document.getElementById("btn-fetch-models");
-  const llmBadge = document.getElementById("llm-status-badge");
-  let availableModels: string[] = [
-    "gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo",
-    "claude-3-5-sonnet-20241022", "deepseek-chat", "glm-4-flash",
-  ];
-  let autoFetchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  document.addEventListener("astro:page-load", () => {
+    // 1. Tab Switching Logic
+    const pills = document.querySelectorAll(".pill-btn");
+    const cards = document.querySelectorAll(".config-card");
+    let activeIndex = 0;
 
-  function loadLlmSettings() {
-    try {
-      const raw = localStorage.getItem(LLM_KEY);
-      if (raw) {
-        const s = JSON.parse(raw);
-        if (llmBaseUrl) llmBaseUrl.value = s.baseUrl || "";
-        if (llmApiKey) llmApiKey.value = s.apiKey || "";
-        if (llmModel) llmModel.value = s.model || "";
-        updateLlmBadge(s);
-      }
-    } catch {}
-    // Load cached model list if the API key hasn't changed
-    try {
-      const cachedRaw = localStorage.getItem(LLM_MODELS_KEY);
-      if (cachedRaw) {
-        const cached = JSON.parse(cachedRaw);
-        const currentApiKey = llmApiKey?.value?.trim() || "";
-        const currentBaseUrl = llmBaseUrl?.value?.trim() || "";
-        if (
-          cached.apiKey === currentApiKey &&
-          cached.baseUrl === currentBaseUrl &&
-          Array.isArray(cached.models) &&
-          cached.models.length > 0
-        ) {
-          availableModels = cached.models;
-        }
-      }
-    } catch {}
-  }
+    pills.forEach((pill) => {
+      pill.addEventListener("click", () => {
+        const targetId = pill.getAttribute("data-target");
+        const newIndex = parseInt(pill.getAttribute("data-index") || "0", 10);
+        
+        if (newIndex === activeIndex) return;
+        
+        const direction = newIndex > activeIndex ? 1 : -1;
+        const currentCard = cards[activeIndex];
+        const nextCard = document.getElementById(`card-${targetId}`);
+        
+        // Update Pills
+        pills.forEach(p => p.classList.remove("active"));
+        pill.classList.add("active");
 
-  function readLlmFormSettings() {
-    return {
-      baseUrl: llmBaseUrl?.value?.trim() || "",
-      apiKey: llmApiKey?.value?.trim() || "",
-      model: llmModel?.value?.trim() || "",
-    };
-  }
+        gsap.to(".pill-slider", {
+          y: newIndex * 48,
+          duration: 0.4,
+          ease: "back.out(1.2)"
+        });
 
-  function saveLlmSettings() {
-    const s = readLlmFormSettings();
-    localStorage.setItem(LLM_KEY, JSON.stringify(s));
-    updateLlmBadge(s);
-    return s;
-  }
+        const stackOrders = [
+          [0, 1, 2],
+          [1, 0, 2],
+          [2, 1, 0]
+        ];
+        const currentOrder = stackOrders[newIndex];
+        
+        const tl = gsap.timeline();
+        
+        cards.forEach((card, i) => {
+          const pos = currentOrder[i];
+          const isNextActive = pos === 0;
+          const wasActive = i === activeIndex;
+          
+          if (isNextActive) {
+             gsap.set(card, { pointerEvents: "auto", position: "relative", zIndex: 3 });
+             tl.to(card, {
+                x: 40,
+                y: -10,
+                duration: 0.25,
+                ease: "power2.out"
+             }, 0).to(card, {
+                x: 0,
+                y: 0,
+                scale: 1,
+                opacity: 1,
+                duration: 0.5,
+                ease: "back.out(1.4)"
+             }, 0.25);
+          } else if (wasActive) {
+             gsap.set(card, { pointerEvents: "none", position: "absolute", zIndex: 2 });
+             tl.to(card, {
+                x: -40,
+                duration: 0.25,
+                ease: "power2.out"
+             }, 0).to(card, {
+                x: 0,
+                y: pos * 20,
+                scale: 1 - pos * 0.05,
+                opacity: 1 - pos * 0.35,
+                duration: 0.5,
+                ease: "back.out(1.2)"
+             }, 0.25);
+          } else {
+             gsap.set(card, { pointerEvents: "none", position: "absolute", zIndex: 1 });
+             tl.to(card, {
+                y: pos * 20,
+                scale: 1 - pos * 0.05,
+                opacity: 1 - pos * 0.35,
+                duration: 0.6,
+                ease: "power3.out"
+             }, 0);
+          }
+        });
 
-  function updateLlmBadge(s) {
-    if (!llmBadge) return;
-    if (s.baseUrl && s.apiKey && s.model) {
-      llmBadge.textContent = "已配置";
-      llmBadge.className = "section-badge is-ok";
-    } else {
-      llmBadge.textContent = "未配置";
-      llmBadge.className = "section-badge";
-    }
-  }
-
-  function getLlmSettings() {
-    try {
-      const raw = localStorage.getItem(LLM_KEY);
-      if (raw) return JSON.parse(raw);
-    } catch {}
-    return null;
-  }
-
-  function setModelOptions(models) {
-    availableModels = Array.from(new Set(models.map((model) => String(model).trim()).filter(Boolean)));
-  }
-
-  function closeModelDropdown() {
-    if (llmModelDropdown) llmModelDropdown.hidden = true;
-  }
-
-  function renderModelDropdown(filterByInput = false) {
-    if (!llmModelDropdown) return;
-    llmModelDropdown.innerHTML = "";
-
-    const query = filterByInput ? llmModel?.value?.trim().toLowerCase() || "" : "";
-    const visibleModels = query
-      ? availableModels.filter((id) => id.toLowerCase().includes(query))
-      : availableModels;
-
-    if (visibleModels.length === 0) {
-      const empty = document.createElement("div");
-      empty.className = "model-dropdown-empty";
-      empty.textContent = "没有匹配模型";
-      llmModelDropdown.appendChild(empty);
-      llmModelDropdown.hidden = false;
-      return;
-    }
-
-    const currentValue = llmModel?.value?.trim() || "";
-    visibleModels.forEach((id) => {
-      const option = document.createElement("button");
-      option.type = "button";
-      option.className = "model-option" + (id === currentValue ? " is-selected" : "");
-      option.textContent = id;
-      option.addEventListener("click", () => {
-        if (llmModel) llmModel.value = id;
-        closeModelDropdown();
+        activeIndex = newIndex;
       });
-      llmModelDropdown.appendChild(option);
     });
-    llmModelDropdown.hidden = false;
-  }
 
-  btnToggleKey?.addEventListener("click", () => {
-    if (!llmApiKey) return;
-    const isPassword = llmApiKey.type === "password";
-    llmApiKey.type = isPassword ? "text" : "password";
-  });
-
-  llmModel?.addEventListener("focus", () => {
-    if (availableModels.length > 0) renderModelDropdown(false);
-  });
-
-  llmModel?.addEventListener("input", () => {
-    if (availableModels.length > 0) renderModelDropdown(true);
-  });
-
-  llmModel?.addEventListener("blur", () => {
-    // Delay to allow click on dropdown option to register first
-    setTimeout(() => {
-      if (llmModelDropdown && !llmModelDropdown.hidden) {
-        llmModelDropdown.hidden = true;
-      }
-    }, 150);
-  });
-
-  btnSaveLlm?.addEventListener("click", () => {
-    saveLlmSettings();
-    if (llmTestStatus) {
-      llmTestStatus.textContent = "设置已保存";
-      llmTestStatus.className = "save-status is-success";
-      setTimeout(() => { llmTestStatus.textContent = ""; llmTestStatus.className = "save-status"; }, 2000);
-    }
-  });
-
-  btnTestLlm?.addEventListener("click", async () => {
-    const s = readLlmFormSettings();
-    if (!s || !s.baseUrl || !s.apiKey || !s.model) {
-      if (llmTestStatus) {
-        llmTestStatus.textContent = "请先填写完整设置";
-        llmTestStatus.className = "save-status is-error";
-      }
-      return;
-    }
-    saveLlmSettings();
-
-    // Reset and show progress
-    if (llmTestProgressGroup) llmTestProgressGroup.classList.remove("hidden");
-    if (llmTestProgressFill) {
-      llmTestProgressFill.className = "test-progress-fill";
-      llmTestProgressFill.style.width = "0%";
-    }
-    if (llmTestStatus) {
-      llmTestStatus.textContent = "正在测试连接...";
-      llmTestStatus.className = "save-status is-info";
-    }
-
-    let progress = 0;
-    const progressTimer = setInterval(() => {
-      progress = Math.min(progress + 4, 92);
-      if (llmTestProgressFill) llmTestProgressFill.style.width = progress + "%";
-    }, 100);
-
-    try {
-      const reply = await requestLlmChat({
-        messages: [{ role: "user", content: "Hello, reply with OK only." }],
-        maxTokens: 5,
-        onSlow: () => {
-          if (llmTestStatus) {
-            llmTestStatus.textContent = "API 响应较慢，请继续等待...";
-            llmTestStatus.className = "save-status is-info";
+    // 2. Fetch Initial Config
+    async function fetchConfig() {
+      try {
+        const res = await fetch("/api/env-config");
+        const data = await res.json();
+        if (data.ok && data.config) {
+          const conf = data.config;
+          
+          // LLM
+          (document.getElementById("llm-base-url") as HTMLInputElement).value = conf.LLM_BASE_URL || "";
+          (document.getElementById("llm-model") as HTMLInputElement).value = conf.LLM_MODEL || "";
+          if (conf.LLM_API_KEY === "true") {
+            (document.getElementById("llm-api-key") as HTMLInputElement).value = "********";
           }
-        },
-      });
-      clearInterval(progressTimer);
-      if (llmTestProgressFill) {
-        llmTestProgressFill.style.width = "100%";
-        llmTestProgressFill.classList.add("is-success");
-      }
-      if (llmTestStatus) {
-        llmTestStatus.textContent = `连接成功: ${reply.trim().substring(0, 50)}`;
-        llmTestStatus.className = "save-status is-success";
-      }
-    } catch (err) {
-      clearInterval(progressTimer);
-      if (llmTestProgressFill) {
-        llmTestProgressFill.style.width = "100%";
-        llmTestProgressFill.classList.add("is-error");
-      }
-      if (llmTestStatus) {
-        llmTestStatus.textContent = "连接失败: " + (err instanceof Error ? err.message : String(err));
-        llmTestStatus.className = "save-status is-error";
+          updateBadge("llm", conf.LLM_API_KEY === "true" && !!conf.LLM_BASE_URL && !!conf.LLM_MODEL);
+
+          // Embedding
+          (document.getElementById("embedding-base-url") as HTMLInputElement).value = conf.EMBEDDING_BASE_URL || "";
+          (document.getElementById("embedding-model") as HTMLInputElement).value = conf.EMBEDDING_MODEL || "";
+          if (conf.EMBEDDING_API_KEY === "true") {
+            (document.getElementById("embedding-api-key") as HTMLInputElement).value = "********";
+          }
+          updateBadge("embedding", conf.EMBEDDING_API_KEY === "true" && !!conf.EMBEDDING_BASE_URL && !!conf.EMBEDDING_MODEL);
+
+          // Rerank
+          (document.getElementById("rerank-base-url") as HTMLInputElement).value = conf.RERANK_BASE_URL || "";
+          (document.getElementById("rerank-model") as HTMLInputElement).value = conf.RERANK_MODEL || "";
+          if (conf.RERANK_API_KEY === "true") {
+            (document.getElementById("rerank-api-key") as HTMLInputElement).value = "********";
+          }
+          updateBadge("rerank", conf.RERANK_API_KEY === "true" && !!conf.RERANK_BASE_URL && !!conf.RERANK_MODEL);
+          
+          // Auto-detect models on initial load if configured
+          if (conf.LLM_BASE_URL) detectModels("llm");
+          if (conf.EMBEDDING_BASE_URL) detectModels("embedding");
+          if (conf.RERANK_BASE_URL) detectModels("rerank");
+        }
+      } catch (err) {
+        console.error("Failed to load env config", err);
       }
     }
-  });
 
-  async function doFetchModels(baseUrl: string, apiKey: string, silent = false) {
-    if (btnFetchModels) btnFetchModels.disabled = true;
-    const slowTimer = window.setTimeout(() => {
-      if (llmTestStatus && !silent) {
-        llmTestStatus.textContent = "API 响应较慢，请继续等待...";
-        llmTestStatus.className = "save-status is-info";
+    function updateBadge(prefix: string, isOk: boolean) {
+      const badge = document.getElementById(`badge-${prefix}`);
+      if (badge) {
+        badge.textContent = isOk ? "已配置" : "未配置";
+        badge.className = isOk ? "section-badge is-ok" : "section-badge";
       }
-    }, 8000);
-    try {
-      const res = await fetch("/api/llm-models", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ baseUrl, apiKey }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.ok) throw new Error(data.message || `HTTP ${res.status}`);
-      const models = Array.isArray(data.models)
-        ? data.models.map(m => typeof m === "string" ? m : m?.id).filter(Boolean)
-        : [];
-      setModelOptions(models);
-      // Persist model list keyed by apiKey + baseUrl
+    }
+
+    // 3. Save Config
+    async function saveConfig(prefix: string, keys: Record<string, string>) {
+      const statusEl = document.getElementById(`status-${prefix}`);
+      if (statusEl) {
+        statusEl.textContent = "保存中...";
+        statusEl.className = "save-status is-info";
+      }
+
+      const updates: Record<string, string> = {};
+      const baseUrl = (document.getElementById(`${prefix}-base-url`) as HTMLInputElement).value.trim();
+      const apiKey = (document.getElementById(`${prefix}-api-key`) as HTMLInputElement).value.trim();
+      const model = (document.getElementById(`${prefix}-model`) as HTMLInputElement).value.trim();
+
+      updates[keys.baseUrl] = baseUrl;
+      updates[keys.model] = model;
+      if (apiKey && apiKey !== "********") {
+        updates[keys.apiKey] = apiKey;
+      }
+
       try {
-        localStorage.setItem(LLM_MODELS_KEY, JSON.stringify({ baseUrl, apiKey, models }));
-      } catch {}
-      if (models.length > 0 && llmModel && !llmModel.value) {
-        llmModel.value = models[0];
+        const res = await fetch("/api/env-config", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updates)
+        });
+        const data = await res.json();
+        
+        if (data.ok) {
+          if (statusEl) {
+            statusEl.textContent = "保存成功";
+            statusEl.className = "save-status is-success";
+          }
+          const conf = data.config;
+          const isOk = conf[keys.apiKey] === "true" && !!conf[keys.baseUrl] && !!conf[keys.model];
+          updateBadge(prefix, isOk);
+          
+          if (apiKey && apiKey !== "********") {
+            (document.getElementById(`${prefix}-api-key`) as HTMLInputElement).value = "********";
+          }
+          
+          if (prefix === "llm") {
+             if (statusEl) {
+               statusEl.textContent = "保存成功，正在测试连接...";
+               statusEl.className = "save-status is-info";
+             }
+             let testApiKey = apiKey;
+             if (testApiKey === "********") testApiKey = "";
+             
+             try {
+               const reply = await requestLlmChat({
+                 baseUrl,
+                 model,
+                 apiKey: testApiKey,
+                 messages: [{ role: "user", content: "Hello, reply with OK only." }],
+                 maxTokens: 100,
+               });
+               if (statusEl) {
+                 statusEl.textContent = `保存并连接成功: ${reply.trim().substring(0, 50)}`;
+                 statusEl.className = "save-status is-success";
+               }
+             } catch (testErr) {
+               if (statusEl) {
+                 statusEl.textContent = "保存成功，但连接失败: " + (testErr instanceof Error ? testErr.message : String(testErr));
+                 statusEl.className = "save-status is-error";
+               }
+             }
+          }
+        } else {
+          throw new Error(data.message || "保存失败");
+        }
+      } catch (err) {
+        if (statusEl) {
+          statusEl.textContent = String(err);
+          statusEl.className = "save-status is-error";
+        }
       }
-      if (models.length > 0) renderModelDropdown(false);
-      if (llmTestStatus && !silent) {
-        llmTestStatus.textContent = models.length > 0 ? `获取到 ${models.length} 个模型` : "未获取到模型，请手动输入模型名称";
-        llmTestStatus.className = "save-status is-success";
-        setTimeout(() => { llmTestStatus.textContent = ""; llmTestStatus.className = "save-status"; }, 3000);
-      }
-    } catch (err) {
-      if (llmTestStatus && !silent) {
-        llmTestStatus.textContent = "获取模型失败: " + (err instanceof Error ? err.message : String(err));
-        llmTestStatus.className = "save-status is-error";
-      }
-    } finally {
-      window.clearTimeout(slowTimer);
-      if (btnFetchModels) btnFetchModels.disabled = false;
+      setTimeout(() => { if (statusEl) statusEl.textContent = ""; }, 5000);
     }
-  }
 
-  btnFetchModels?.addEventListener("click", async () => {
-    const baseUrl = llmBaseUrl?.value?.trim();
-    const apiKey = llmApiKey?.value?.trim();
-    if (!baseUrl || !apiKey) {
-      if (llmTestStatus) {
-        llmTestStatus.textContent = "请先填写 Base URL 和 API Key";
-        llmTestStatus.className = "save-status is-error";
+    document.getElementById("btn-save-llm")?.addEventListener("click", () => saveConfig("llm", { baseUrl: "LLM_BASE_URL", apiKey: "LLM_API_KEY", model: "LLM_MODEL" }));
+    document.getElementById("btn-save-embedding")?.addEventListener("click", () => saveConfig("embedding", { baseUrl: "EMBEDDING_BASE_URL", apiKey: "EMBEDDING_API_KEY", model: "EMBEDDING_MODEL" }));
+    document.getElementById("btn-save-rerank")?.addEventListener("click", () => saveConfig("rerank", { baseUrl: "RERANK_BASE_URL", apiKey: "RERANK_API_KEY", model: "RERANK_MODEL" }));
+
+    // standalone LLM Test connection logic removed
+
+    // 5. Auto Detect Models
+    let detectTimeout: number | undefined;
+
+    async function detectModels(prefix: string) {
+      const baseUrl = (document.getElementById(`${prefix}-base-url`) as HTMLInputElement).value.trim();
+      let apiKey = (document.getElementById(`${prefix}-api-key`) as HTMLInputElement).value.trim();
+      if (apiKey === "********") apiKey = "";
+
+      const badge = document.getElementById(`badge-${prefix}`);
+      if (!baseUrl) {
+        if (badge && badge.textContent !== "已配置") badge.textContent = "未配置";
+        return;
       }
-      return;
-    }
-    await doFetchModels(baseUrl, apiKey);
-  });
+      
+      if (badge) {
+        badge.textContent = "检测中...";
+        badge.className = "section-badge";
+      }
 
-  function scheduleAutoFetchModels() {
-    if (autoFetchDebounceTimer) clearTimeout(autoFetchDebounceTimer);
-    autoFetchDebounceTimer = setTimeout(async () => {
-      const baseUrl = llmBaseUrl?.value?.trim();
-      const apiKey = llmApiKey?.value?.trim();
-      if (!baseUrl || !apiKey) return;
-      // Skip if cached models already match this key+url
       try {
-        const cachedRaw = localStorage.getItem(LLM_MODELS_KEY);
-        if (cachedRaw) {
-          const cached = JSON.parse(cachedRaw);
-          if (
-            cached.apiKey === apiKey &&
-            cached.baseUrl === baseUrl &&
-            Array.isArray(cached.models) &&
-            cached.models.length > 0
-          ) {
-            availableModels = cached.models;
-            return;
+        const res = await fetch("/api/llm-models", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ baseUrl, apiKey, type: prefix })
+        });
+        const data = await res.json();
+        
+        if (data.ok && data.models) {
+          const listId = `${prefix}-model-list`;
+          let list = document.getElementById(listId);
+          if (list) {
+            list.innerHTML = data.models.map((m: any) => `<li class="combobox-item">${m.id}</li>`).join("");
+          }
+          
+          // Auto-select first model if empty
+          const input = document.getElementById(`${prefix}-model`) as HTMLInputElement;
+          if (input && !input.value && data.models.length > 0) {
+            input.value = data.models[0].id;
+          }
+
+          if (badge) {
+            badge.textContent = `已检测到 ${data.models.length} 个模型`;
+            badge.className = "section-badge is-ok";
+          }
+        } else {
+          if (badge) {
+            badge.textContent = "获取模型失败";
+            badge.className = "section-badge is-error";
           }
         }
-      } catch {}
-      await doFetchModels(baseUrl, apiKey, true);
-    }, 1000);
-  }
+      } catch (err) {
+        if (badge) {
+          badge.textContent = "获取模型失败";
+          badge.className = "section-badge is-error";
+        }
+      }
+    }
 
-  llmApiKey?.addEventListener("input", scheduleAutoFetchModels);
-  llmBaseUrl?.addEventListener("input", scheduleAutoFetchModels);
+    function setupAutoDetect(prefix: string) {
+      const triggerDetect = () => {
+        clearTimeout(detectTimeout);
+        detectTimeout = window.setTimeout(() => detectModels(prefix), 800);
+      };
+      
+      document.getElementById(`${prefix}-base-url`)?.addEventListener("input", triggerDetect);
+      document.getElementById(`${prefix}-api-key`)?.addEventListener("input", triggerDetect);
+    }
 
-  loadLlmSettings();
+    setupAutoDetect("llm");
+    setupAutoDetect("embedding");
+    setupAutoDetect("rerank");
+
+    // Custom Combobox Logic
+    function setupCombobox(prefix: string) {
+      const input = document.getElementById(`${prefix}-model`) as HTMLInputElement;
+      const toggle = input?.nextElementSibling as HTMLButtonElement;
+      const list = document.getElementById(`${prefix}-model-list`) as HTMLUListElement;
+      
+      if (!input || !toggle || !list) return;
+
+      let _selecting = false;
+
+      // Toggle list
+      toggle.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const isShowing = list.classList.contains("show");
+        document.querySelectorAll(".combobox-list").forEach(el => el.classList.remove("show"));
+        if (!isShowing && list.children.length > 0) {
+          list.querySelectorAll(".combobox-item").forEach((item: any) => item.style.display = "block");
+          list.classList.add("show");
+        }
+      });
+
+      // Select item
+      list.addEventListener("click", (e) => {
+        const item = (e.target as HTMLElement).closest(".combobox-item");
+        if (item) {
+          _selecting = true;
+          input.value = item.textContent || "";
+          list.classList.remove("show");
+          // Allow other listeners (e.g. outside change handlers) to react,
+          // but suppress the filter handler from re-opening the list.
+          setTimeout(() => { _selecting = false; }, 0);
+        }
+      });
+
+      // Close on outside click
+      document.addEventListener("click", (e) => {
+        const wrapper = input.closest(".model-combobox");
+        if (wrapper && !wrapper.contains(e.target as Node)) {
+          list.classList.remove("show");
+        }
+      });
+      
+      // Filter on typing (user-initiated only)
+      input.addEventListener("input", () => {
+        if (_selecting) return;
+        const val = input.value.toLowerCase();
+        const items = list.querySelectorAll(".combobox-item");
+        let hasVisible = false;
+        items.forEach((item: any) => {
+          const match = item.textContent.toLowerCase().includes(val);
+          item.style.display = match ? "block" : "none";
+          if (match) hasVisible = true;
+        });
+        if (hasVisible) {
+          list.classList.add("show");
+        } else {
+          list.classList.remove("show");
+        }
+      });
+      
+      // Show full list on focus (only if items exist)
+      input.addEventListener("focus", () => {
+        if (list.children.length > 0) {
+          list.querySelectorAll(".combobox-item").forEach((item: any) => item.style.display = "block");
+          list.classList.add("show");
+        }
+      });
+    }
+
+    setupCombobox("llm");
+    setupCombobox("embedding");
+    setupCombobox("rerank");
+
+    // 5. Password toggle
+    document.querySelectorAll(".btn-toggle-password").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const input = btn.previousElementSibling as HTMLInputElement;
+        if (input.type === "password") {
+          input.type = "text";
+        } else {
+          input.type = "password";
+        }
+      });
+    });
+
+    // Initial load
+    fetchConfig();
+  });
 </script>
 
 <style>
@@ -403,24 +539,105 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     font-size: 15px;
     color: #717785;
   }
-  .form-section {
-    background: rgba(255,255,255,0.6);
+  
+  .api-layout {
+    display: flex;
+    gap: 40px;
+    align-items: flex-start;
+  }
+  .api-sidebar {
+    width: 200px;
+    flex-shrink: 0;
+  }
+  .api-content {
+    flex-grow: 1;
+    max-width: 560px;
+  }
+  .usage-info-section {
+    margin-top: 24px;
+  }
+
+  .pill-nav.vertical {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    background: rgba(255, 255, 255, 0.6);
     backdrop-filter: blur(24px);
-    border: 1px solid rgba(255,255,255,0.6);
+    border: 1px solid rgba(193, 198, 214, 0.5);
+    border-radius: 20px;
+    padding: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+    gap: 4px;
+  }
+  .pill-slider {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: calc(100% - 16px);
+    height: 44px;
+    background: #0059b5;
+    border-radius: 12px;
+    z-index: 1;
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0, 89, 181, 0.2);
+    will-change: transform;
+  }
+  .pill-btn {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    border-radius: 12px;
+    border: none;
+    background: transparent;
+    color: #717785;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: color 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .pill-btn:hover {
+    color: #181c23;
+  }
+  .pill-btn.active {
+    color: #fff;
+  }
+
+  .cards-container {
+    position: relative;
+    min-height: 480px;
+  }
+
+  .form-section {
+    background: #ffffff;
+    border: 1px solid rgba(193, 198, 214, 0.5);
     border-radius: 20px;
     padding: 28px;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.03);
-    margin-bottom: 24px;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.06), 0 2px 10px rgba(0,0,0,0.03);
   }
+  
+  .config-card {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    will-change: transform, opacity;
+  }
+  
+  .config-card.active {
+    position: relative;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
   .section-header {
     display: flex;
     align-items: center;
     gap: 10px;
     margin-bottom: 20px;
-  }
-  .section-header svg {
-    color: #717785;
-    flex-shrink: 0;
   }
   .section-title {
     font-size: 18px;
@@ -441,6 +658,11 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     background: rgba(5, 150, 105, 0.1);
     color: #059669;
   }
+  .section-badge.is-error {
+    background: rgba(220, 38, 38, 0.1);
+    color: #dc2626;
+  }
+  
   .llm-fields {
     display: flex;
     flex-direction: column;
@@ -456,6 +678,106 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     font-weight: 500;
     color: #181c23;
   }
+  .model-combobox {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .model-combobox .field-input {
+    padding-right: 36px;
+  }
+  .combobox-toggle {
+    position: absolute;
+    right: 8px;
+    background: none;
+    border: none;
+    color: #a0a8b8;
+    cursor: pointer;
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+  }
+  .combobox-toggle:hover {
+    color: #414753;
+  }
+  .combobox-list {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    max-height: 240px;
+    overflow-y: auto;
+    background: #ffffff;
+    border: 1px solid rgba(193,198,214,0.5);
+    border-radius: 14px;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.08), 0 2px 10px rgba(0,0,0,0.03);
+    z-index: 100;
+    margin: 0;
+    padding: 8px;
+    list-style: none;
+    font-family: var(--font-body);
+    /* Animation base */
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px) scale(0.98);
+    transform-origin: top center;
+    transition: all 0.25s cubic-bezier(0.19, 1, 0.22, 1);
+    pointer-events: none;
+  }
+  .combobox-list.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+  }
+  :global(.combobox-item) {
+    padding: 10px 12px;
+    margin: 2px 0;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: #414753;
+    border-radius: 8px;
+    transition: all 0.2s cubic-bezier(0.19, 1, 0.22, 1);
+  }
+  :global(.combobox-item:hover) {
+    background: #f0f7ff;
+    color: #0059b5;
+    padding-left: 18px;
+  }
+  :global(.combobox-item:active) {
+    background: #e0efff;
+    transform: scale(0.98);
+  }
+
+  .password-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .password-input-wrapper .field-input {
+    padding-right: 44px;
+  }
+  .btn-toggle-password {
+    position: absolute;
+    right: 8px;
+    background: none;
+    border: none;
+    color: #a0a8b8;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+  }
+  .btn-toggle-password:hover {
+    color: #414753;
+  }
+  
   .field-input {
     width: 100%;
     padding: 14px 16px;
@@ -466,115 +788,14 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     font-size: 15px;
     color: #181c23;
     outline: none;
-    transition: border-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.12s cubic-bezier(0.23, 1, 0.32, 1);
+    transition: border-color 0.2s, box-shadow 0.2s;
     box-sizing: border-box;
-    transform: scale(1);
-  }
-  .field-input:active {
-    transform: scale(0.995);
   }
   .field-input:focus {
     border-color: #0059b5;
     box-shadow: 0 0 0 3px rgba(0,89,181,0.1);
   }
-  .field-hint {
-    font-size: 12px;
-    color: #717785;
-  }
-  .api-key-wrap {
-    position: relative;
-    display: flex;
-    align-items: center;
-  }
-  .api-key-wrap .field-input {
-    padding-right: 42px;
-  }
-  .btn-toggle-key {
-    position: absolute;
-    right: 4px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 32px;
-    height: 32px;
-    background: transparent;
-    border: none;
-    color: #a0a8b8;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .btn-toggle-key:hover {
-    color: #414753;
-  }
-  .model-combobox {
-    position: relative;
-    width: 100%;
-  }
-  .model-combobox .field-input {
-    width: 100%;
-  }
-  .model-dropdown {
-    position: absolute;
-    z-index: 30;
-    top: calc(100% + 4px);
-    left: 0;
-    right: 0;
-    max-height: 240px;
-    overflow-y: auto;
-    padding: 6px;
-    border: 1px solid rgba(193,198,214,0.55);
-    border-radius: 12px;
-    background: rgba(255,255,255,0.98);
-    box-shadow: 0 14px 34px rgba(24,28,35,0.12);
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .model-dropdown[hidden] {
-    display: none !important;
-  }
-  .model-option {
-    width: 100%;
-    border: 0;
-    border-radius: 8px;
-    background: transparent;
-    color: #181c23;
-    cursor: pointer;
-    display: block !important;
-    font-family: var(--font-body);
-    font-size: 13px;
-    line-height: 1.4;
-    padding: 9px 10px;
-    text-align: left;
-    word-break: break-all;
-    white-space: normal;
-    box-sizing: border-box;
-    margin: 0;
-  }
-  .model-option:hover,
-  .model-option.is-selected {
-    background: rgba(0,89,181,0.08) !important;
-    color: #0059b5 !important;
-  }
-  .model-option.is-selected {
-    font-weight: 600;
-  }
-  .model-dropdown-empty {
-    color: #717785;
-    font-size: 13px;
-    padding: 9px 10px;
-  }
-  .model-actions {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-top: 6px;
-  }
-  .model-actions .field-hint {
-    flex: 1;
-    min-width: 0;
-  }
+  
   .llm-actions {
     display: flex;
     align-items: center;
@@ -582,129 +803,50 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     margin-top: 4px;
   }
   .btn-primary {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 24px;
-    border-radius: 12px;
+    padding: 10px 20px;
+    border-radius: 10px;
     border: none;
     background: #0059b5;
-    color: #ffffff;
-    font-family: var(--font-body);
-    font-size: 15px;
+    color: #fff;
     font-weight: 500;
     cursor: pointer;
-    transition: background-color 0.2s ease, transform 0.15s ease;
+    transition: background 0.2s, transform 0.1s;
   }
-  .btn-primary:hover {
-    background: #004a94;
-  }
-  .btn-primary:active {
-    transform: scale(0.97);
-  }
+  .btn-primary:active { transform: scale(0.97); }
   .btn-secondary {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 10px 18px;
+    padding: 10px 20px;
+    border-radius: 10px;
+    border: 1px solid rgba(193,198,214,0.5);
     background: rgba(255,255,255,0.6);
     color: #414753;
-    border: 1px solid rgba(193,198,214,0.5);
-    border-radius: 12px;
-    font-family: var(--font-body);
-    font-size: 14px;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.2s;
   }
-  .btn-secondary:hover {
-    background: rgba(255,255,255,0.9);
-    border-color: rgba(113,119,133,0.4);
-    color: #181c23;
-  }
-  .btn-small {
-    padding: 6px 12px;
-    font-size: 13px;
-    min-height: 32px;
-  }
-  .btn-icon {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    border: none;
-    background: transparent;
-    color: #717785;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.15s ease;
-  }
-  .btn-icon:hover {
-    background: rgba(0,89,181,0.08);
-    color: #0059b5;
-  }
+  .btn-secondary:active { transform: scale(0.97); }
+  
   .save-status {
     font-size: 13px;
     font-weight: 500;
-    min-height: 20px;
-    transition: opacity 0.2s ease, color 0.2s ease;
   }
   .save-status.is-success { color: #059669; }
   .save-status.is-error { color: #dc2626; }
   .save-status.is-info { color: #0059b5; }
-  .test-progress-group {
-    display: flex;
-    align-items: center;
-    width: 100px;
-    flex-shrink: 0;
-  }
-  .test-progress-group.hidden {
-    display: none !important;
-  }
-  .test-progress-track {
-    width: 100%;
-    height: 4px;
-    background: rgba(193,198,214,0.35);
-    border-radius: 999px;
-    overflow: hidden;
-  }
-  .test-progress-fill {
-    width: 0%;
-    height: 100%;
-    border-radius: 999px;
-    background: #0059b5;
-    transition: width 0.2s ease, background-color 0.2s ease;
-  }
-  .test-progress-fill.is-error {
-    background: #dc2626;
-  }
-  .test-progress-fill.is-success {
-    background: #059669;
-  }
-
-  /* Usage Info */
+  
   .usage-info {
     font-size: 14px;
     color: #414753;
     line-height: 1.7;
   }
-  .usage-info p {
-    margin: 0 0 8px;
+
+  /* Card specific gradients */
+  #card-llm {
+    background: linear-gradient(135deg, #f0f7ff 0%, #ffffff 60%);
   }
-  .usage-info ul {
-    margin: 0 0 12px;
-    padding-left: 20px;
+  #card-embedding {
+    background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 60%);
   }
-  .usage-info li {
-    margin-bottom: 4px;
-  }
-  .usage-note {
-    font-size: 13px;
-    color: #717785;
-    padding: 12px 16px;
-    border-radius: 10px;
-    background: rgba(244,246,250,0.6);
-    border: 1px solid rgba(193,198,214,0.3);
+  #card-rerank {
+    background: linear-gradient(135deg, #f5f3ff 0%, #ffffff 60%);
   }
 </style>

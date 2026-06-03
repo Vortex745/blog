@@ -1,22 +1,21 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { getCollection } from "astro:content";
-import { articleCover, articleDate, articleSummary, articleTags, readNeonArticles } from "../lib/neon-articles";
+import { articleCover, articleDate, articleSummary, articleTags, normalizeAbout, projectCover, projectDate, projectTags, readContentAbout, readContentArticles, readContentProjects } from "../lib/content-store";
 import { COVER_IMAGE_PLACEHOLDER } from "../lib/placeholder-images";
-import { normalizeAbout, projectCover, projectDate, projectTags, readNeonAbout, readNeonProjects } from "../lib/neon-content";
 
 const articles = await getCollection("articles");
 const projects = await getCollection("projects");
-const [about, neonProjects, neonArticles] = await Promise.all([
-  readNeonAbout().catch(() => null),
-  readNeonProjects().catch(() => []),
-  readNeonArticles().catch(() => []),
+const [about, sqliteProjects, sqliteArticles] = await Promise.all([
+  readContentAbout().catch(() => null),
+  readContentProjects().catch(() => []),
+  readContentArticles().catch(() => []),
 ]);
 const profile = about ?? normalizeAbout({});
 
 const COVER_PLACEHOLDER = COVER_IMAGE_PLACEHOLDER;
 const articleItems = [
-  ...neonArticles.map((article, index) => ({
+  ...sqliteArticles.map((article, index) => ({
     title: article.title || "未命名文章",
     description: articleSummary(article),
     date: articleDate(article),
@@ -36,7 +35,7 @@ const articleItems = [
 const sortedArticles = articleItems.slice(0, 4);
 
 const projectItems = [
-  ...neonProjects.map((project, index) => ({
+  ...sqliteProjects.map((project, index) => ({
     title: project.title || "未命名项目",
     description: project.description || "",
     date: projectDate(project),
@@ -113,8 +112,8 @@ const quote = quotes[Math.floor(Math.random() * quotes.length)];
         </div>
         <div class="hero-quote-card" data-animate="hero-item">
           <svg class="quote-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21"/></svg>
-          <p class="quote-text">{quote.text}</p>
-          <p class="quote-author">{quote.author}</p>
+          <p class="text-lg text-gray-800 font-medium quote-text min-h-[56px] flex items-center"><span class="t-text-swap is-enter-start" id="quote-text">{quote.text}</span></p>
+          <p class="text-sm text-gray-500 mt-2 quote-author min-h-[20px]"><span class="t-text-swap is-enter-start" id="quote-author">{quote.author}</span></p>
         </div>
       </div>
     </div>
@@ -237,6 +236,56 @@ const quote = quotes[Math.floor(Math.random() * quotes.length)];
   </section>
 
 </BaseLayout>
+
+<script>
+  function initQuoteSwap() {
+    const quotes = [{"text":"代码是思想的外壳，产品是价值观的投射。","author":""},{"text":"Stay hungry, stay foolish.","author":"Steve Jobs"},{"text":"好的设计让使用者感觉不到设计的存在.","author":"Dieter Rams"},{"text":"Talk is cheap. Show me the code.","author":"Linus Torvalds"}];
+    const textEl = document.getElementById("quote-text");
+    const authorEl = document.getElementById("quote-author");
+
+    if (!textEl || !authorEl) return;
+
+    const dur = parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue("--text-swap-dur")
+    ) || 200;
+
+    // Initial reveal on load
+    setTimeout(() => {
+      if (textEl) textEl.classList.remove("is-enter-start");
+      if (authorEl) authorEl.classList.remove("is-enter-start");
+    }, 50);
+
+    function swapText(el, next) {
+      if (!el || el.textContent === next) return;
+      el.classList.add("is-exit");
+      setTimeout(() => {
+        el.textContent = next;
+        el.classList.remove("is-exit");
+        el.classList.add("is-enter-start");
+        void el.offsetHeight; // force reflow
+        el.classList.remove("is-enter-start");
+      }, dur);
+    }
+
+    if (window.quoteSwapInterval) clearInterval(window.quoteSwapInterval);
+    
+    window.quoteSwapInterval = setInterval(() => {
+      if (!textEl || !authorEl) return;
+      const nextQuote = quotes[Math.floor(Math.random() * quotes.length)];
+      swapText(textEl, nextQuote.text);
+      swapText(authorEl, nextQuote.author);
+    }, 5000);
+  }
+
+  // Handle Astro page transitions
+  document.addEventListener('astro:page-load', initQuoteSwap);
+  // Fallback for first load if astro:page-load doesn't fire
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initQuoteSwap);
+  } else {
+    initQuoteSwap();
+  }
+</script>
 
 <style>
   /* Container */

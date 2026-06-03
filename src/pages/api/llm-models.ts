@@ -1,16 +1,7 @@
 import type { APIRoute } from "astro";
 import { buildOpenAiCompatibleEndpoint } from "../../lib/llm-endpoint";
-
-function jsonResponse(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json; charset=utf-8" },
-  });
-}
-
-function readString(value: unknown): string {
-  return typeof value === "string" ? value.trim() : "";
-}
+import { jsonResponse, readString } from "../../lib/api-utils";
+import { readServerEnv } from "../../lib/env";
 
 function readErrorMessage(data: any, fallback: string) {
   return readString(data?.error?.message) || readString(data?.message) || fallback;
@@ -30,19 +21,33 @@ function normalizeModelIds(value: unknown) {
   return Array.from(new Set(ids));
 }
 
+export const GET: APIRoute = async () => {
+  const apiKey = readServerEnv("LLM_API_KEY");
+  return jsonResponse({
+    configured: Boolean(apiKey),
+    hasBaseUrl: false,
+  });
+};
+
 export const POST: APIRoute = async ({ request }) => {
-  let payload: Record<string, unknown>;
+  let payload: Record<string, unknown> = {};
   try {
-    payload = await request.json();
+    if (request.headers.get("Content-Type")?.includes("application/json")) {
+      payload = await request.json();
+    }
   } catch {
     return jsonResponse({ ok: false, message: "请求内容不是有效的 JSON" }, 400);
   }
 
-  const baseUrl = readString(payload.baseUrl);
-  const apiKey = readString(payload.apiKey);
+  const apiKey = readString(payload.apiKey) || readServerEnv("LLM_API_KEY");
+  if (!apiKey) {
+    return jsonResponse({ ok: false, message: "未提供 API Key 且服务端未配置" }, 400);
+  }
 
-  if (!baseUrl || !apiKey) {
-    return jsonResponse({ ok: false, message: "请先填写 Base URL 和 API Key" }, 400);
+  const baseUrl = readString(payload.baseUrl) || readServerEnv("LLM_BASE_URL");
+
+  if (!baseUrl) {
+    return jsonResponse({ ok: false, message: "请先填写 Base URL" }, 400);
   }
 
   const endpointResult = buildOpenAiCompatibleEndpoint(baseUrl, "models");
@@ -68,11 +73,21 @@ export const POST: APIRoute = async ({ request }) => {
     if (!response.ok) {
       return jsonResponse(
         { ok: false, message: readErrorMessage(data, text || `获取模型失败 (HTTP ${response.status})`) },
-        response.status,
+        502,
       );
     }
 
-    const modelIds = normalizeModelIds(data.data);
+    let modelIds = normalizeModelIds(data.data);
+    const type = readString(payload.type);
+
+    if (type === "embedding") {
+      modelIds = modelIds.filter(id => id.toLowerCase().includes("embed") || id.toLowerCase().includes("text-similarity"));
+    } else if (type === "rerank") {
+      modelIds = modelIds.filter(id => id.toLowerCase().includes("rerank"));
+    } else if (type === "llm") {
+      modelIds = modelIds.filter(id => !id.toLowerCase().includes("embed") && !id.toLowerCase().includes("rerank"));
+    }
+
     return jsonResponse({ ok: true, models: modelIds.map((id) => ({ id })) });
   } catch (error) {
     return jsonResponse(

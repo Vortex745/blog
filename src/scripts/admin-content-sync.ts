@@ -1,15 +1,16 @@
 import { COVER_IMAGE_PLACEHOLDER } from "../lib/placeholder-images";
-
-type AdminArticle = {
-  id?: string;
-  title?: string;
-  content?: string;
-  description?: string;
-  coverImage?: string;
-  tags?: unknown;
-  date?: string;
-  updatedAt?: string;
-};
+import {
+  type AdminArticle,
+  articleCover,
+  articleSummary,
+  articleTags,
+  escapeHtml,
+  formatDate,
+  localArticleHref,
+  sortByDateDesc,
+  splitTags,
+  unique,
+} from "../lib/client-content";
 
 type AdminHome = {
   generatedDate?: string;
@@ -36,66 +37,6 @@ function readHomeData(): AdminHome | null {
   } catch {
     return null;
   }
-}
-
-function escapeHtml(value: unknown): string {
-  return String(value ?? "").replace(/[&<>"']/g, (char) => {
-    const entities: Record<string, string> = {
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#39;",
-    };
-    return entities[char] ?? char;
-  });
-}
-
-function formatDate(value: unknown): string {
-  const date = value ? new Date(String(value)) : new Date();
-  const validDate = Number.isNaN(date.getTime()) ? new Date() : date;
-  return validDate.toLocaleDateString("zh-CN", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
-
-function splitTags(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value.map((item) => String(item).trim()).filter(Boolean);
-  }
-
-  return String(value ?? "")
-    .split(/[,，]/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function unique(values: string[]): string[] {
-  return [...new Set(values.filter(Boolean))];
-}
-
-function stripMarkdown(value: string): string {
-  return value
-    .replace(/!\[[^\]]*]\([^)]*\)/g, "")
-    .replace(/\[[^\]]+]\([^)]*\)/g, (match) => match.replace(/^\[|\]\([^)]*\)$/g, ""))
-    .replace(/[`*_>#-]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function articleSummary(article: AdminArticle): string {
-  const source = article.description || stripMarkdown(article.content || "");
-  return source.length > 110 ? `${source.slice(0, 110)}...` : source;
-}
-
-function sortByDateDesc<T extends { date?: string; updatedAt?: string }>(items: T[]): T[] {
-  return [...items].sort((a, b) => {
-    const aTime = new Date(a.date || a.updatedAt || 0).getTime();
-    const bTime = new Date(b.date || b.updatedAt || 0).getTime();
-    return bTime - aTime;
-  });
 }
 
 function hasPage(pathname: string, expected: string): boolean {
@@ -199,26 +140,6 @@ function splitTagsFromDataset(item: HTMLElement): string[] {
   } catch {
     return [];
   }
-}
-
-function articleTags(article: AdminArticle): string[] {
-  return splitTags(article.tags);
-}
-
-function articleCover(article: AdminArticle): string {
-  return String(article.coverImage || COVER_PLACEHOLDER);
-}
-
-function localItemKey(
-  item: { id?: string; title?: string },
-  index: number
-): string {
-  const raw = String(item.id || item.title || index).trim() || String(index);
-  return encodeURIComponent(raw);
-}
-
-function localArticleHref(article: AdminArticle, index: number): string {
-  return `/articles/local-${localItemKey(article, index)}`;
 }
 
 function renderArticleRow(article: AdminArticle, index: number): string {
@@ -354,6 +275,12 @@ function resetArchiveYearCounts(list: HTMLElement): void {
     const count = group.querySelector<HTMLElement>("[data-archive-year-count]");
     if (count) count.textContent = `${parseCount(group.dataset.staticCount)} 篇`;
   });
+}
+
+function itemYear(item: { date?: string; updatedAt?: string }): string {
+  const date = new Date(item.date || item.updatedAt || Date.now());
+  const validDate = Number.isNaN(date.getTime()) ? new Date() : date;
+  return String(validDate.getFullYear());
 }
 
 function getArchiveYears(list: HTMLElement): string[] {

@@ -1,21 +1,12 @@
 import type { APIRoute } from "astro";
 import { buildOpenAiCompatibleEndpoint } from "../../lib/llm-endpoint";
+import { jsonResponse, readString } from "../../lib/api-utils";
+import { readServerEnv } from "../../lib/env";
 
 type LlmMessage = {
   role: "system" | "user" | "assistant";
   content: string;
 };
-
-function jsonResponse(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json; charset=utf-8" },
-  });
-}
-
-function readString(value: unknown): string {
-  return typeof value === "string" ? value.trim() : "";
-}
 
 function isMessageList(value: unknown): value is LlmMessage[] {
   return Array.isArray(value) && value.every((item) => {
@@ -37,15 +28,19 @@ export const POST: APIRoute = async ({ request }) => {
     return jsonResponse({ ok: false, message: "请求内容不是有效的 JSON" }, 400);
   }
 
-  const baseUrlRaw = readString(payload.baseUrl).replace(/\/+$/, "");
-  const apiKey = readString(payload.apiKey);
-  const model = readString(payload.model);
+  const baseUrlRaw = (readString(payload.baseUrl) || readServerEnv("LLM_BASE_URL") || "").replace(/\/+$/, "");
+  const model = readString(payload.model) || readServerEnv("LLM_MODEL") || "";
   const messages = payload.messages;
   const temperature = typeof payload.temperature === "number" ? payload.temperature : 0.7;
   const maxTokens = typeof payload.maxTokens === "number" ? payload.maxTokens : undefined;
 
-  if (!baseUrlRaw || !apiKey || !model) {
+  const apiKey = readString(payload.apiKey) || readServerEnv("LLM_API_KEY");
+  if (!baseUrlRaw || !model) {
     return jsonResponse({ ok: false, message: "LLM API 设置不完整" }, 400);
+  }
+
+  if (!apiKey) {
+    return jsonResponse({ ok: false, message: "未提供 API Key 且服务端未配置" }, 500);
   }
 
   if (!isMessageList(messages)) {
@@ -84,12 +79,13 @@ export const POST: APIRoute = async ({ request }) => {
     if (!response.ok) {
       return jsonResponse(
         { ok: false, message: data.error?.message || text || `LLM API 请求失败 (HTTP ${response.status})` },
-        response.status,
+        502,
       );
     }
 
-    const content = data.choices?.[0]?.message?.content;
-    if (!content || typeof content !== "string") {
+    const choice = data.choices?.[0];
+    const content = choice?.message?.content;
+    if (typeof content !== "string") {
       return jsonResponse({ ok: false, message: "LLM API 返回内容为空" }, 502);
     }
 
