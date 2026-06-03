@@ -27,7 +27,7 @@ export function buildOpenAiCompatibleEndpoint(
     }
   }
 
-  if (!pathname && baseUrl.hostname === "api.openai.com") {
+  if (!pathname && (baseUrl.hostname === "api.openai.com" || baseUrl.hostname === "api.deepseek.com")) {
     pathname = "/v1";
   }
 

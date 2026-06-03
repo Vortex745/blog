@@ -2,12 +2,21 @@ node_modules/
 dist/
 .astro/
 .vercel/
+.trae/
+data/*.sqlite
+data/*.sqlite-*
+data/*.db
 .env
 .env.local
 .env.*
 !.env.example
 .DS_Store
 *.local
+*.log
+logs/
+trace*.json
+verify.json
+profile.js
 .omx/
 .omc/
 .claude/
@@ -29,6 +38,10 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# Markdown notes and generated docs (keep GitHub README)
+*.md
+!README.md
 
 # Playwright MCP browser cache
 .playwright-mcp/

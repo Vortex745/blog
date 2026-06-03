@@ -1,8 +1,7 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { getCollection } from "astro:content";
-import { articleDate, readNeonArticles } from "../lib/neon-articles";
-import { projectDate, readNeonProjects } from "../lib/neon-content";
+import { articleDate, projectDate, readContentArticles, readContentProjects } from "../lib/content-store";
 
 const localArticles = (await getCollection("articles"))
   .filter((a) => !a.data.draft)
@@ -10,10 +9,10 @@ const localArticles = (await getCollection("articles"))
 
 const allProjects = (await getCollection("projects"))
   .sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
-const neonArticles = await readNeonArticles().catch(() => []);
-const neonProjects = await readNeonProjects().catch(() => []);
+const sqliteArticles = await readContentArticles().catch(() => []);
+const sqliteProjects = await readContentProjects().catch(() => []);
 const articleItems = [
-  ...neonArticles.map((article, index) => ({
+  ...sqliteArticles.map((article, index) => ({
     title: article.title || "未命名文章",
     date: articleDate(article),
     href: `/articles/local-${encodeURIComponent(article.id || article.title || String(index))}`,
@@ -25,7 +24,7 @@ const articleItems = [
   })),
 ].sort((a, b) => b.date.getTime() - a.date.getTime());
 const projectItems = [
-  ...neonProjects.map((project, index) => ({
+  ...sqliteProjects.map((project, index) => ({
     title: project.title || "未命名项目",
     date: projectDate(project),
     href: `/projects/local-${encodeURIComponent(project.id || project.title || String(index))}`,

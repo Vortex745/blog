@@ -1,7 +1,9 @@
 /* Tailwind CSS v4 */
 @import "tailwindcss";
+@import "tw-animate-css";
 @plugin "@tailwindcss/typography";
 @import "@fontsource-variable/inter" layer(base);
+@import "katex/dist/katex.min.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -19,6 +21,8 @@
   --motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --motion-ease-press: cubic-bezier(0.2, 0, 0, 1);
   --motion-ease-lift: cubic-bezier(0.22, 1, 0.36, 1);
+  --admin-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --admin-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --motion-duration-fast: 140ms;
   --motion-duration-standard: 200ms;
 
@@ -135,19 +139,19 @@
   --panel-blur: 2px;
   --panel-ease: cubic-bezier(0.22, 1, 0.36, 1);
   /* Page side-by-side */
-  --page-slide-dur: 200ms;
-  --page-fade-dur: 200ms;
+  --page-slide-dur: 300ms;
+  --page-fade-dur: 300ms;
   --page-slide-distance: 8px;
-  --page-blur: 3px;
+  --page-blur: 4px;
   --page-stagger: 0ms;
   --page-exit-enabled: 1;
-  --page-slide-ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --page-fade-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --page-slide-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --page-fade-ease: cubic-bezier(0.16, 1, 0.3, 1);
   /* Icon swap */
   --icon-swap-dur: 200ms;
   --icon-swap-blur: 2px;
   --icon-swap-start-scale: 0.25;
-  --icon-swap-ease: ease-in-out;
+  --icon-swap-ease: var(--admin-ease-out);
 }
 
 .t-panel-slide {
@@ -203,6 +207,71 @@
 
 @media (prefers-reduced-motion: reduce) {
   .t-icon-swap .t-icon { transition: none !important; }
+}
+
+/* Text states swap */
+.t-text-swap {
+  display: inline-block;
+  transform: translateY(0);
+  filter: blur(0);
+  opacity: 1;
+  transition:
+    transform var(--text-swap-dur) var(--text-swap-ease),
+    filter    var(--text-swap-dur) var(--text-swap-ease),
+    opacity   var(--text-swap-dur) var(--text-swap-ease);
+  will-change: transform, filter, opacity;
+}
+.t-text-swap.is-exit {
+  transform: translateY(calc(var(--text-swap-translate-y) * -1));
+  filter: blur(var(--text-swap-blur));
+  opacity: 0;
+}
+.t-text-swap.is-enter-start {
+  transform: translateY(var(--text-swap-translate-y));
+  filter: blur(var(--text-swap-blur));
+  opacity: 0;
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-text-swap { transition: none !important; }
+}
+
+/* Shimmer text (transitions-dev style) */
+:root {
+  --shimmer-dur: 2s;
+}
+
+.t-shimmer-text {
+  background-image: linear-gradient(
+    110deg,
+    currentColor 45%,
+    color-mix(in srgb, currentColor 10%, white) 50%,
+    currentColor 55%
+  );
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer-text var(--shimmer-dur) linear infinite;
+}
+.dark .t-shimmer-text {
+  background-image: linear-gradient(
+    110deg,
+    currentColor 45%,
+    color-mix(in srgb, currentColor 10%, white) 50%,
+    currentColor 55%
+  );
+}
+
+@keyframes shimmer-text {
+  to {
+    background-position: -200% center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-shimmer-text { animation: none !important; }
 }
 
 /* Dark mode overrides */
@@ -2047,4 +2116,17 @@ body {
   .hero-panel__screen {
     min-height: 420px;
   }
+}
+
+/* ---- GSAP Performance Optimization ---- */
+[data-animate='hero-item'],
+[data-animate='fade-up'],
+[data-animate='scale-in'],
+.admin-page-title,
+.admin-page-desc,
+.toolbar,
+.modal-panel,
+.modal-backdrop,
+#nav-pill {
+  will-change: transform, opacity;
 }

@@ -1,14 +1,8 @@
 import type { APIRoute } from "astro";
+import { jsonResponse } from "../../lib/api-utils";
 
 const ALLOWED_PROTOCOLS = new Set(["http:", "https:"]);
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif", "image/bmp", "image/tiff"]);
-
-function jsonResponse(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json; charset=utf-8" },
-  });
-}
 
 export const GET: APIRoute = async ({ request }) => {
   const url = new URL(request.url).searchParams.get("url")?.trim() || "";

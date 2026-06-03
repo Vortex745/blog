@@ -15,20 +15,20 @@ import { gsap } from "gsap";
 const EASE = {
   out: "power2.out",
   outStrong: "power3.out",
-  inOut: "power2.inOut",
-  press: "power1.out",
+  inOut: "power3.inOut",
+  press: "power2.out",
 };
 
 const DURATION = {
-  fast: 0.16,
-  standard: 0.28,
-  entrance: 0.42,
+  fast: 0.15,
+  standard: 0.25,
+  entrance: 0.35,
   slow: 0.5,
 };
 
 const STAGGER = {
-  tight: 0.035,
-  standard: 0.045,
+  tight: 0.03,
+  standard: 0.04,
   loose: 0.06,
 };
 
@@ -51,7 +51,7 @@ function animateHero(container: Element) {
   const children = container.querySelectorAll("[data-animate='hero-item']");
   if (children.length === 0) return;
 
-  gsap.set(children, { opacity: 0, y: 12, scale: 0.98 });
+  gsap.set(children, { opacity: 0, y: 16, scale: 0.98 });
 
   gsap.to(children, {
     opacity: 1,
@@ -73,7 +73,7 @@ function animateFadeUp(el: Element) {
   const delay = getDelay(el);
   gsap.fromTo(
     el,
-    { opacity: 0, y: 14, scale: 0.98 },
+    { opacity: 0, y: 20, scale: 0.98 },
     {
       opacity: 1,
       y: 0,
@@ -96,7 +96,7 @@ function animateStagger(container: Element) {
 
   gsap.fromTo(
     children,
-    { opacity: 0, y: 10 },
+    { opacity: 0, y: 16 },
     {
       opacity: 1,
       y: 0,
@@ -117,7 +117,7 @@ function animateScaleIn(el: Element) {
   const delay = getDelay(el);
   gsap.fromTo(
     el,
-    { opacity: 0, y: 10, scale: 0.98 },
+    { opacity: 0, y: 16, scale: 0.96 },
     {
       opacity: 1,
       y: 0,
@@ -158,11 +158,11 @@ function setInitialScrollStates() {
 
   document
     .querySelectorAll("[data-animate='fade-up']")
-    .forEach((el) => gsap.set(el, { opacity: 0, y: 14, scale: 0.98 }));
+    .forEach((el) => gsap.set(el, { opacity: 0, y: 20, scale: 0.98 }));
 
   document
     .querySelectorAll("[data-animate='scale-in']")
-    .forEach((el) => gsap.set(el, { opacity: 0, y: 10, scale: 0.98 }));
+    .forEach((el) => gsap.set(el, { opacity: 0, y: 16, scale: 0.96 }));
 }
 
 /**
@@ -217,7 +217,7 @@ export function initAnimations() {
     // Set children initial state immediately
     const children = container.children;
     if (children.length > 0) {
-      gsap.set(children, { opacity: 0, y: 10 });
+      gsap.set(children, { opacity: 0, y: 16 });
     }
 
     const obs = new IntersectionObserver(
@@ -245,34 +245,43 @@ export function initAnimations() {
  * transition and compensated with scale to avoid per-frame layout thrashing.
  */
 export function initDockPill() {
-  const nav = document.getElementById("desktop-nav");
-  const pill = document.getElementById("nav-pill");
-  if (!nav || !pill) return;
-  const navEl = nav;
-  const pillEl = pill;
+  const navEl = document.getElementById("desktop-nav");
+  const pillEl = document.getElementById("nav-pill");
+  if (!navEl || !pillEl) return;
 
   const links = navEl.querySelectorAll<HTMLElement>(".editorial-nav-link");
-  let activeLink = navEl.querySelector<HTMLElement>(".editorial-nav-link.is-active");
   const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+  // Determine actual active link based on current URL
+  const currentPath = window.location.pathname;
+  let activeLink: HTMLElement | null = null;
+  
+  links.forEach((link) => {
+    const href = link.getAttribute("href") || "/";
+    const isActive = currentPath === href || (href !== "/" && currentPath.startsWith(href));
+    if (isActive) {
+      activeLink = link;
+    }
+  });
+
+  if (!activeLink && links.length > 0) activeLink = links[0];
+
   function getMetrics(target: HTMLElement) {
-    const navRect = navEl.getBoundingClientRect();
+    const navRect = navEl!.getBoundingClientRect();
     const targetRect = target.getBoundingClientRect();
     return {
       width: targetRect.width,
       height: targetRect.height,
-      x: targetRect.left - navRect.left + navEl.scrollLeft,
-      y: targetRect.top - navRect.top + navEl.scrollTop,
+      x: targetRect.left - navRect.left + navEl!.scrollLeft,
+      y: targetRect.top - navRect.top + navEl!.scrollTop,
     };
   }
-
-  // gsap.quickTo reuses a single opacity tween instead of allocating on each move.
-  const pillOpacityTo = gsap.quickTo(pillEl, "opacity", { duration: DURATION.fast, ease: EASE.out });
 
   function movePillTo(target: HTMLElement, animate = true) {
     const m = getMetrics(target);
 
     if (!animate || prefersReduced) {
+      gsap.killTweensOf(pillEl);
       gsap.set(pillEl, {
         width: m.width,
         height: m.height,
@@ -285,66 +294,90 @@ export function initDockPill() {
       return;
     }
 
-    // --- Performance trick ---
-    // Read current layout size once (batched read)
-    const curW = pillEl.offsetWidth;
-    const curH = pillEl.offsetHeight;
+    // --- GPU-Accelerated FLIP + Smooth Slide ---
+    const currentX = (gsap.getProperty(pillEl, "x") as number) || m.x;
+    const travel = Math.abs(m.x - currentX);
+    
+    // Stretch max 1.08 (subtle), squash gentle
+    const stretch = Math.min(1.08, 1 + travel / 1200);
+    const squash = Math.max(0.92, 1 - (stretch - 1) * 0.5);
+    const slideDuration = 0.25;
 
-    // Set new layout dimensions instantly (single layout write),
-    // then compensate with inverse scale so it *visually* stays the same
+    let curW = pillEl!.offsetWidth;
+    let curH = pillEl!.offsetHeight;
+    if (curW === 0) curW = m.width;
+    if (curH === 0) curH = m.height;
+
+    // FLIP: instantly set layout to final size, inverse scale to match previous size
     gsap.set(pillEl, {
       width: m.width,
       height: m.height,
       scaleX: curW / m.width,
       scaleY: curH / m.height,
+      opacity: 1,
+      transformOrigin: "50% 50%",
+      willChange: "transform",
     });
 
-    // Now animate ONLY compositor properties: x, y, scaleX, scaleY
-    // This keeps everything on the GPU — no layout/paint per frame
-    gsap.to(pillEl, {
+    const tl = gsap.timeline({
+      defaults: { overwrite: "auto" },
+      onComplete: () => {
+        gsap.set(pillEl, { clearProps: "willChange" });
+      }
+    });
+
+    // Animate X/Y with smooth ease
+    tl.to(pillEl, {
       x: m.x,
       y: m.y,
-      scaleX: 1,
-      scaleY: 1,
-      duration: DURATION.standard,
-      ease: EASE.outStrong,
-      overwrite: true,
-    });
+      duration: slideDuration,
+      ease: "power4.out",
+    }, 0);
 
-    // Opacity via quickTo (reuses tween)
-    pillOpacityTo(1);
+    if (stretch > 1.01) {
+      const targetStretchX = stretch * (curW / m.width);
+      const targetSquashY = squash * (curH / m.height);
+      
+      tl.to(pillEl, { scaleX: targetStretchX, scaleY: targetSquashY, duration: slideDuration * 0.3, ease: "power2.out" }, 0);
+      tl.to(pillEl, { scaleX: 1, scaleY: 1, duration: slideDuration * 0.7, ease: "power4.out" }, slideDuration * 0.3);
+    } else {
+      tl.to(pillEl, { scaleX: 1, scaleY: 1, duration: slideDuration, ease: "power4.out" }, 0);
+    }
   }
 
-  // Initial position — no animation
+  // Sync is-active classes
+  links.forEach(l => l.classList.toggle("is-active", l === activeLink));
+
+  const isFirstLoad = !navEl.hasAttribute("data-pill-init");
   if (activeLink) {
-    movePillTo(activeLink, false);
+    movePillTo(activeLink, !isFirstLoad);
   }
+  navEl.setAttribute("data-pill-init", "true");
 
   links.forEach((link) => {
+    if (link.hasAttribute("data-pill-click")) return;
+    link.setAttribute("data-pill-click", "true");
+    
     link.addEventListener("click", () => {
-      const href = link.getAttribute("href");
-
+      if (link === activeLink) return;
       links.forEach((l) => l.classList.remove("is-active"));
       link.classList.add("is-active");
       activeLink = link;
-
-      // Move pill instantly (no animate — the page will navigate immediately anyway)
-      movePillTo(link, false);
-
-      // Navigate immediately — no delay
-      if (href) window.location.href = href;
+      
+      movePillTo(link, true);
     });
   });
 
-  // Debounced resize handler
-  let resizeTimer: ReturnType<typeof setTimeout>;
-  window.addEventListener("resize", () => {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => {
-      const current = navEl.querySelector<HTMLElement>(".editorial-nav-link.is-active");
-      if (current) movePillTo(current, false);
-    }, 100);
-  });
+  if (!navEl.hasAttribute("data-pill-resize")) {
+    navEl.setAttribute("data-pill-resize", "true");
+    let resizeTimer: ReturnType<typeof setTimeout>;
+    window.addEventListener("resize", () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        if (activeLink) movePillTo(activeLink, false);
+      }, 100);
+    });
+  }
 }
 
 /**

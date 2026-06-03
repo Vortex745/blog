@@ -1,4 +1,5 @@
 ---
+import { ClientRouter } from "astro:transitions";
 import "../styles/globals.css";
 
 export interface Props {
@@ -28,11 +29,8 @@ const navItems = [
     <meta name="theme-color" content="#f4f6fa" />
     <link rel="icon" type="image/jpeg" href="/favicon.jpg" />
     <title>{adminBrowserTitle}</title>
-    <!--
-      Admin pages contain page-local management scripts (forms, modals, uploads).
-      Keep the back office on normal browser navigation so those scripts are
-      initialized on every page load, including production/Vercel deployments.
-    -->
+    <ClientRouter fallback="swap" />
+    
     <!-- Inline critical CSS to prevent FOUC and reduce CLS -->
     <style is:inline>{`
       .admin-body{margin:0;padding:0;background:#f4f6fa;font-family:"Inter","SF Pro Text","Helvetica Neue",Helvetica,Arial,sans-serif;color:#181c23;min-height:100vh}
@@ -48,6 +46,24 @@ const navItems = [
         var redirect = encodeURIComponent(window.location.pathname);
         window.location.replace("/admin/login?redirect=" + redirect);
       }
+
+      // Global Fetch Interceptor for 401 Unauthorized
+      var originalFetch = window.fetch;
+      window.fetch = function() {
+        var args = arguments;
+        return originalFetch.apply(this, args).then(function(response) {
+          if (response.status === 401) {
+            var url = args[0] ? args[0].toString() : "";
+            if (url.indexOf("/api/login") === -1) {
+              localStorage.removeItem("admin-auth");
+              localStorage.removeItem("admin-auth-time");
+              document.cookie = "admin-auth=; path=/; max-age=0; SameSite=Lax";
+              window.location.replace("/admin/login?redirect=" + encodeURIComponent(window.location.pathname) + "&reason=unauthorized");
+            }
+          }
+          return response;
+        });
+      };
     </script>
   </head>
   <body class="admin-body">
@@ -71,7 +87,7 @@ const navItems = [
 
     <div class="admin-shell admin-shell--hidden">
       <!-- Sidebar -->
-      <aside class="admin-sidebar">
+      <aside class="admin-sidebar" transition:persist="admin-sidebar">
         <div class="admin-sidebar-header">
           <a href="/" class="admin-logo">子衿</a>
           <span class="admin-badge">管理后台</span>
@@ -82,11 +98,11 @@ const navItems = [
             navItems.map((item) => {
               const isActive = current === item.id;
               return (
-                <a
-                  href={item.href}
-                  class={`admin-nav-link ${isActive ? "is-active" : ""}`}
-                  data-prefetch
-                >
+                  <a
+                    href={item.href}
+                    class={`admin-nav-link ${isActive ? "is-active" : ""}`}
+                    data-astro-prefetch
+                  >
                   {item.label}
                 </a>
               );
@@ -106,7 +122,7 @@ const navItems = [
       </aside>
 
       <!-- Main -->
-      <main class="admin-main" data-admin-module={current}>
+      <main class="admin-main" data-admin-module={current} transition:animate="none">
         <slot />
       </main>
     </div>
@@ -168,10 +184,11 @@ const navItems = [
       (window as any).showConfirmDialog = showConfirmDialog;
 
       function setupAdminPage() {
-        // Show shell immediately (auth check already done in <head>)
         revealShell();
 
-        adminRuntime.__adminLayoutAbort?.abort();
+        if (adminRuntime.__adminLayoutAbort) {
+          adminRuntime.__adminLayoutAbort.abort();
+        }
         const controller = new AbortController();
         adminRuntime.__adminLayoutAbort = controller;
 
@@ -190,18 +207,8 @@ const navItems = [
         initAdminAnimations();
       }
 
-      // First load
-      setupAdminPage();
-      if (!adminRuntime.__adminLayoutReady) {
-        adminRuntime.__adminLayoutReady = true;
-        // Before swap: ensure incoming shell is visible immediately (no opacity:0 flash)
-        document.addEventListener("astro:before-swap", (e) => {
-          const newDoc = (e as CustomEvent).detail?.newDocument as Document | undefined;
-          if (newDoc) revealShell(newDoc);
-        });
-        // After swap: re-bind events and animations
-        document.addEventListener("astro:after-swap", setupAdminPage);
-      }
+      // Re-run setup on every SPA page load
+      document.addEventListener("astro:page-load", setupAdminPage);
     </script>
   </body>
 </html>
@@ -226,24 +233,12 @@ const navItems = [
   .admin-shell--hidden {
     opacity: 0;
   }
-  /* Override Astro's default fade keyframes with slide-enhanced version */
-  @keyframes astroFadeOut {
-    from { opacity: 1; transform: translateY(0); }
-    to { opacity: 0; transform: translateY(-2px); }
-  }
-  @keyframes astroFadeIn {
-    from { opacity: 0; transform: translateY(4px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    @keyframes astroFadeOut {
-      from { opacity: 1; }
-      to { opacity: 0; }
-    }
-    @keyframes astroFadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
+  /* Disable Astro's default root crossfade.
+   * GSAP fully manages the page entrance and exit animations via
+   * the astro:before-preparation and astro:page-load events. */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
   }
   .admin-sidebar {
     width: 220px;
@@ -387,14 +382,18 @@ const navItems = [
     padding: 32px 40px;
     overflow-y: auto;
     contain: inline-size;
+    /* will-change removed: opacity-only view-transitions do NOT
+     * need a permanent compositor layer on admin-main.
+     * Promoting it permanently wastes GPU memory every page load. */
   }
   :global(.admin-main > .form-section),
   :global(.admin-main > .admin-card),
   :global(.admin-main .project-card),
   :global(.admin-main .article-card),
   :global(.admin-main .gallery-card) {
-    content-visibility: auto;
-    contain-intrinsic-size: auto 220px;
+    /* content-visibility:auto removed: it causes repeated intrinsic-size
+     * recalculations on every page-transition repaint, fighting
+     * GSAP's entrance animations and adding jank. */
   }
   :global(.markdown-renderer) {
     display: grid;
@@ -661,7 +660,7 @@ const navItems = [
     font-size: 13px;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.15s cubic-bezier(0.23, 1, 0.32, 1);
+    transition: background-color 150ms var(--admin-ease-out), color 150ms var(--admin-ease-out), border-color 150ms var(--admin-ease-out), transform 150ms var(--admin-ease-out);
     min-height: 36px;
     border: 1px solid transparent;
   }

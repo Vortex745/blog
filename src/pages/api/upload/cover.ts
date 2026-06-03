@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
-import { jsonResponse, readImageFormData, saveUploadedImage } from "./_shared";
+import { jsonResponse } from "../../../lib/api-utils";
+import { readImageFormData, saveUploadedImage } from "./_shared";
 
 export const POST: APIRoute = async ({ request }) => {
   try {

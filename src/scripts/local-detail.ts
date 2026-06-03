@@ -1,28 +1,17 @@
-import { escapeHtml, renderMarkdown, renderMarkdownDocument, stripMarkdown } from "../lib/markdown";
-
-type AdminArticle = {
-  id?: string;
-  title?: string;
-  content?: string;
-  description?: string;
-  coverImage?: string;
-  tags?: unknown;
-  date?: string;
-  updatedAt?: string;
-};
-
-type AdminProject = {
-  id?: string;
-  title?: string;
-  category?: string;
-  tech?: string;
-  url?: string;
-  description?: string;
-  coverImage?: string;
-  imageData?: string;
-  date?: string;
-  updatedAt?: string;
-};
+import { renderMarkdown, renderMarkdownDocument } from "../lib/markdown";
+import {
+  type AdminArticle,
+  type AdminProject,
+  articleSummary,
+  articleTags,
+  escapeHtml,
+  formatDate,
+  itemMatchesSlug,
+  localSlugToken,
+  projectTags,
+  safeAssetUrl,
+  stripMarkdown,
+} from "../lib/client-content";
 
 type TocItem = {
   depth: number;
@@ -33,6 +22,7 @@ type TocItem = {
 const ARTICLE_KEY = "admin-articles-data";
 const PROJECT_KEY = "admin-projects-data";
 const ARTICLE_API = "/api/articles";
+
 function readList<T>(key: string): T[] {
   try {
     const raw = localStorage.getItem(key);
@@ -57,79 +47,6 @@ async function readRemoteArticles(): Promise<AdminArticle[]> {
   } catch {
     return [];
   }
-}
-
-function splitTags(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value.map((item) => String(item).trim()).filter(Boolean);
-  }
-
-  return String(value ?? "")
-    .split(/[,，]/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function unique(values: string[]): string[] {
-  return [...new Set(values.filter(Boolean))];
-}
-
-function formatDate(value: unknown): string {
-  const date = value ? new Date(String(value)) : new Date();
-  const validDate = Number.isNaN(date.getTime()) ? new Date() : date;
-  return validDate.toLocaleDateString("zh-CN", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-}
-
-function localSlugToken(slug: string | undefined): { decoded: string; encoded: string } | null {
-  if (!slug?.startsWith("local-")) return null;
-  const encoded = slug.slice("local-".length);
-  try {
-    return { decoded: decodeURIComponent(encoded), encoded };
-  } catch {
-    return { decoded: encoded, encoded };
-  }
-}
-
-function itemMatchesSlug(
-  item: { id?: string; title?: string },
-  index: number,
-  token: { decoded: string; encoded: string }
-): boolean {
-  return [item.id, item.title, String(index)].some((candidate) => {
-    const key = String(candidate || "").trim();
-    return key === token.decoded || encodeURIComponent(key) === token.encoded;
-  });
-}
-
-function articleSummary(article: AdminArticle): string {
-  const source = article.description || stripMarkdown(article.content || "");
-  return source.length > 140 ? `${source.slice(0, 140)}...` : source;
-}
-
-function articleTags(article: AdminArticle): string[] {
-  return splitTags(article.tags);
-}
-
-function projectTags(project: AdminProject): string[] {
-  return unique([project.category || "", ...splitTags(project.tech)]);
-}
-
-function safeAssetUrl(value: unknown, fallback = ""): string {
-  const raw = String(value || "").trim();
-  if (!raw) return fallback;
-  if (raw.startsWith("/") || raw.startsWith("#")) return raw;
-  if (/^data:image\//i.test(raw)) return raw;
-
-  try {
-    const url = new URL(raw, window.location.origin);
-    if (url.protocol === "http:" || url.protocol === "https:") return raw;
-  } catch {}
-
-  return fallback;
 }
 
 function setText(root: ParentNode, selector: string, value: string): void {
@@ -194,14 +111,14 @@ async function hydrateLocalArticleDetail(): Promise<void> {
 
   const tags = articleTags(article);
   const title = article.title || "未命名文章";
-  const summary = articleSummary(article);
+  const summary = articleSummary(article, 140);
   const cover = safeAssetUrl(article.coverImage, "");
   const content = article.content || summary;
   const readingMinutes = Math.max(1, Math.ceil(stripMarkdown(content).split(/\s+/).length / 240));
 
   document.title = `${title} - 子衿的个人博客网站`;
   setText(root, "[data-local-title]", title);
-  setText(root, "[data-local-date]", formatDate(article.date || article.updatedAt));
+  setText(root, "[data-local-date]", formatDate(article.date || article.updatedAt, "long"));
   setText(root, "[data-local-reading]", `${readingMinutes} 分钟阅读`);
   setHtml(root, "[data-local-tags]", renderTags(tags));
   const renderedContent = renderMarkdownDocument(content, {
@@ -252,7 +169,7 @@ export function initLocalProjectDetail(): void {
 
   document.title = `${title} - 子衿的个人博客网站`;
   setText(root, "[data-local-title]", title);
-  setText(root, "[data-local-date]", formatDate(project.date || project.updatedAt));
+  setText(root, "[data-local-date]", formatDate(project.date || project.updatedAt, "long"));
   setText(root, "[data-local-tag-count]", `${tags.length} 个标签`);
   setHtml(root, "[data-local-tags]", renderTags(tags));
   setHtml(root, "[data-local-sidebar-tags]", renderTags(tags));

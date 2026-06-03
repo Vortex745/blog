@@ -71,10 +71,13 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
 </AdminLayout>
 
 <script>
-  import { getLlmSettings, requestLlmChat } from "../../scripts/admin-llm";
+  import { getLlmSettings, hasLlmSettings, requestLlmChat } from "../../scripts/admin-llm";
 
-  const HOME_KEY = "admin-home-data";
-  const form = document.getElementById("home-form");
+  document.addEventListener("astro:page-load", () => {
+    const form = document.getElementById("home-form");
+    if (!form) return;
+
+    const HOME_KEY = "admin-home-data";
   const guidanceInput = document.getElementById("generation-guidance");
   const previewTitle = document.getElementById("preview-title");
   const previewLead = document.getElementById("preview-lead");
@@ -174,7 +177,7 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
 
   btnGenerate?.addEventListener("click", async () => {
     const settings = getLlmSettings();
-    if (!settings?.baseUrl || !settings?.apiKey || !settings?.model) {
+    if (!hasLlmSettings(settings)) {
       showStatus("请先在 API 管理中配置 LLM API", "error");
       return;
     }
@@ -257,6 +260,7 @@ JSON 字段：heroTitle, heroLead, quoteText, quoteAuthor。`;
 
   loadHomeData();
   updatePreview();
+  });
 </script>
 
 <style>

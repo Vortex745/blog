@@ -1,19 +1,19 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { getCollection } from "astro:content";
-import { articleCover, articleDate, articleSummary, articleTags, readNeonArticles } from "../../lib/neon-articles";
+import { articleCover, articleDate, articleSummary, articleTags, readContentArticles } from "../../lib/content-store";
 import { COVER_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
 
-const [contentArticles, neonArticles] = await Promise.all([
+const [contentArticles, sqliteArticles] = await Promise.all([
   getCollection("articles"),
-  readNeonArticles().catch(() => []),
+  readContentArticles().catch(() => []),
 ]);
 
 const sortedContentArticles = contentArticles.sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
 
 const COVER_PLACEHOLDER = COVER_IMAGE_PLACEHOLDER;
 const articleItems = [
-  ...neonArticles.map((article, index) => ({
+  ...sqliteArticles.map((article, index) => ({
     title: article.title || "未命名文章",
     description: articleSummary(article),
     date: articleDate(article),

@@ -1,17 +1,20 @@
 ---
 import AdminLayout from "../../layouts/AdminLayout.astro";
-import { neonContentStorageConfigured, projectTags, readNeonProjects } from "../../lib/neon-content";
+import { projectTags, readContentProjects } from "../../lib/content-store";
 import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
 
-const projectsStorageConfigured = neonContentStorageConfigured();
+let projects = [];
 let projectsReadFailed = false;
-const projects = await readNeonProjects().catch(() => {
+
+try {
+  projects = await readContentProjects();
+} catch (e) {
   projectsReadFailed = true;
-  return [];
-});
+}
+
 const initialProjectsPayload = JSON.stringify({
   projects,
-  storageConfigured: projectsStorageConfigured,
+  storageConfigured: true,
   readFailed: projectsReadFailed,
 }).replace(/</g, "\\u003c");
 ---
@@ -210,15 +213,18 @@ const initialProjectsPayload = JSON.stringify({
   import { initMarkdownRenderers, refreshMarkdownRendererFor } from "../../scripts/admin-markdown-renderer";
   import { getLlmSettings, requestLlmChat } from "../../scripts/admin-llm";
 
-  // LocalStorage key
-  const STORAGE_KEY = "admin-projects-data";
-  const PROJECTS_API = "/api/projects";
+  document.addEventListener("astro:page-load", () => {
+    const listEl = document.getElementById("project-list");
+    if (!listEl) return; // Only run on projects page
+
+    // LocalStorage key
+    const STORAGE_KEY = "admin-projects-data";
+    const PROJECTS_API = "/api/projects";
 
   // Elements
   const modal = document.getElementById("project-modal");
   const modalTitle = document.getElementById("modal-title");
   const form = document.getElementById("project-form");
-  const listEl = document.getElementById("project-list");
   const countEl = document.getElementById("project-count");
   const statusMsg = document.getElementById("status-msg");
   let handlingInvalid = false;
@@ -1025,6 +1031,7 @@ const initialProjectsPayload = JSON.stringify({
   renderProjectTags();
   renderList();
   void hydrateProjectsFromCloud();
+  });
 </script>
 
 <style>
@@ -1450,8 +1457,9 @@ const initialProjectsPayload = JSON.stringify({
     font-size: 13px;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: background-color 150ms var(--admin-ease-out), color 150ms var(--admin-ease-out), border-color 150ms var(--admin-ease-out), transform 150ms var(--admin-ease-out);
   }
+  .polish-preset:active { transform: scale(0.97); }
   .polish-preset:hover {
     border-color: #7c3aed;
     color: #7c3aed;

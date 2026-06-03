@@ -5,7 +5,6 @@ export type LlmMessage = {
 
 export type LlmSettings = {
   baseUrl?: string;
-  apiKey?: string;
   model?: string;
 };
 
@@ -20,7 +19,7 @@ export function getLlmSettings(): LlmSettings | null {
 }
 
 export function hasLlmSettings(settings: LlmSettings | null): settings is Required<LlmSettings> {
-  return Boolean(settings?.baseUrl && settings?.apiKey && settings?.model);
+  return Boolean(settings?.baseUrl && settings?.model);
 }
 
 export async function requestLlmChat(options: {
@@ -29,10 +28,16 @@ export async function requestLlmChat(options: {
   maxTokens?: number;
   slowMs?: number;
   onSlow?: () => void;
+  baseUrl?: string;
+  model?: string;
+  apiKey?: string;
 }): Promise<string> {
   const settings = getLlmSettings();
-  if (!hasLlmSettings(settings)) {
-    throw new Error("LLM API 未配置，请先在 API 管理中填写并保存设置");
+  const baseUrl = options.baseUrl ?? settings?.baseUrl;
+  const model = options.model ?? settings?.model;
+
+  if (!baseUrl || !model) {
+    throw new Error("LLM API 未配置，请先在 API 管理中填写设置");
   }
 
   const slowMs = options.slowMs ?? 8000;
@@ -45,9 +50,9 @@ export async function requestLlmChat(options: {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        baseUrl: settings.baseUrl,
-        apiKey: settings.apiKey,
-        model: settings.model,
+        baseUrl,
+        model,
+        apiKey: options.apiKey,
         messages: options.messages,
         temperature: options.temperature ?? 0.7,
         maxTokens: options.maxTokens,
@@ -59,9 +64,10 @@ export async function requestLlmChat(options: {
       throw new Error(result.message || `LLM API 请求失败 (HTTP ${response.status})`);
     }
 
-    const content = typeof result.content === "string" ? result.content.trim() : "";
-    if (!content) throw new Error("LLM API 返回内容为空");
+    const content = typeof result.content === "string" ? result.content.trim() : null;
+    if (content === null) throw new Error("LLM API 返回内容为空");
     return content;
+
   } finally {
     if (slowTimer) window.clearTimeout(slowTimer);
   }

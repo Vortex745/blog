@@ -1,10 +1,10 @@
 ---
 import AdminLayout from "../../layouts/AdminLayout.astro";
-import { normalizeAbout, readNeonAbout } from "../../lib/neon-content";
+import { normalizeAbout, readContentAbout } from "../../lib/content-store";
 import { ABOUT_AVATAR_PLACEHOLDER } from "../../lib/placeholder-images";
 
 const DEFAULT_AVATAR = ABOUT_AVATAR_PLACEHOLDER;
-const initialAbout = (await readNeonAbout().catch(() => null)) ?? normalizeAbout({});
+const initialAbout = (await readContentAbout().catch(() => null)) ?? normalizeAbout({});
 const initialAvatar = initialAbout.avatar || DEFAULT_AVATAR;
 ---
 
@@ -187,16 +187,21 @@ const initialAvatar = initialAbout.avatar || DEFAULT_AVATAR;
 <script>
   import { initMarkdownRenderers } from "../../scripts/admin-markdown-renderer";
 
-  initMarkdownRenderers();
+  document.addEventListener("astro:page-load", () => {
+    initMarkdownRenderers();
+  });
 </script>
 
 <script define:vars={{ defaultAvatar: DEFAULT_AVATAR, initialAbout }}>
-  const ABOUT_KEY = "admin-about-data";
-  const ABOUT_API = "/api/about";
-  const DEFAULT_AVATAR = defaultAvatar;
+  document.addEventListener("astro:page-load", () => {
+    const form = document.getElementById("about-form");
+    if (!form) return;
 
-  // ===== Elements =====
-  const form = document.getElementById("about-form");
+    const ABOUT_KEY = "admin-about-data";
+    const ABOUT_API = "/api/about";
+    const DEFAULT_AVATAR = defaultAvatar;
+
+    // ===== Elements =====
   const saveStatus = document.getElementById("save-status");
 
   // Avatar
@@ -580,7 +585,7 @@ const initialAvatar = initialAbout.avatar || DEFAULT_AVATAR;
         method: "PUT",
         headers: {
           "content-type": "application/json",
-          "x-admin-auth": localStorage.getItem("admin-auth") || "",
+          "x-admin-token": localStorage.getItem("admin-token") || "",
         },
         body: JSON.stringify({ about: data }),
       });
@@ -593,7 +598,7 @@ const initialAvatar = initialAbout.avatar || DEFAULT_AVATAR;
         localStorage.setItem(ABOUT_KEY, JSON.stringify(result.about));
         notifyContentChanged();
       }
-      showStatus("已保存到 Neon", "success");
+      showStatus("已保存到 SQLite", "success");
       return true;
     } catch (err) {
       showStatus(err instanceof Error ? `云端同步失败：${err.message}` : "云端同步失败", "error");
@@ -690,7 +695,7 @@ const initialAvatar = initialAbout.avatar || DEFAULT_AVATAR;
       return;
     }
     const s = getLlmSettings();
-    if (!s || !s.baseUrl || !s.apiKey || !s.model) {
+    if (!s || !s.baseUrl || !s.model) {
       showStatus("请先在 API 管理中配置 LLM API", "error");
       return;
     }
@@ -712,7 +717,7 @@ const initialAvatar = initialAbout.avatar || DEFAULT_AVATAR;
       return;
     }
     const s = getLlmSettings();
-    if (!s || !s.baseUrl || !s.apiKey || !s.model) {
+    if (!s || !s.baseUrl || !s.model) {
       showPolishStatus("LLM API 未配置，请前往 API 管理页面配置", "error");
       return;
     }
@@ -735,7 +740,6 @@ const initialAvatar = initialAbout.avatar || DEFAULT_AVATAR;
         },
         body: JSON.stringify({
           baseUrl: s.baseUrl,
-          apiKey: s.apiKey,
           model: s.model,
           messages: [
             { role: "system", content: systemPrompt },
@@ -786,6 +790,7 @@ const initialAvatar = initialAbout.avatar || DEFAULT_AVATAR;
     if (polishDiff) polishDiff.classList.add("hidden");
     polishedContent = "";
     showPolishStatus("已放弃润色结果", "info");
+  });
   });
 </script>
 
@@ -974,8 +979,9 @@ const initialAvatar = initialAbout.avatar || DEFAULT_AVATAR;
     font-size: 13px;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: background-color 150ms var(--admin-ease-out), color 150ms var(--admin-ease-out), border-color 150ms var(--admin-ease-out), transform 150ms var(--admin-ease-out);
   }
+  .polish-preset:active { transform: scale(0.97); }
   .polish-preset:hover {
     border-color: #7c3aed;
     color: #7c3aed;
@@ -1157,9 +1163,10 @@ const initialAvatar = initialAbout.avatar || DEFAULT_AVATAR;
     align-items: center;
     justify-content: center;
     z-index: 3;
-    transition: all 0.15s ease;
+    transition: background-color 150ms var(--admin-ease-out), color 150ms var(--admin-ease-out), transform 150ms var(--admin-ease-out);
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
   }
+  .btn-remove-avatar:active { transform: scale(0.97); }
   .btn-remove-avatar:hover {
     background: #fff;
     color: #b91c1c;
@@ -1291,8 +1298,9 @@ const initialAvatar = initialAbout.avatar || DEFAULT_AVATAR;
     font-size: 15px;
     font-weight: 500;
     cursor: pointer;
-    transition: background-color 0.2s ease, transform 0.15s ease;
+    transition: background-color 200ms var(--admin-ease-out), transform 150ms var(--admin-ease-out);
   }
+  .btn-primary:active { transform: scale(0.97) !important; }
   .btn-primary:hover {
     background: #004a94;
     transform: translateY(-1px);
@@ -1309,8 +1317,9 @@ const initialAvatar = initialAbout.avatar || DEFAULT_AVATAR;
     font-size: 15px;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background-color 200ms var(--admin-ease-out), border-color 200ms var(--admin-ease-out), color 200ms var(--admin-ease-out), transform 150ms var(--admin-ease-out);
   }
+  .btn-secondary:active { transform: scale(0.97) !important; }
   .btn-secondary:hover {
     background: rgba(255,255,255,0.9);
     border-color: rgba(113,119,133,0.4);

@@ -187,14 +187,18 @@
 
     <script>
       (function() {
-        // If already logged in, redirect to admin dashboard
-        if (localStorage.getItem("admin-auth") === "1") {
-          const redirect = new URLSearchParams(window.location.search).get("redirect") || "/admin";
-          window.location.replace(redirect);
-          return;
-        }
+        (async function checkSession() {
+          try {
+            const res = await fetch("/api/login");
+            const data = await res.json();
+            if (data.authenticated) {
+              localStorage.setItem("admin-auth", "1");
+              const redirect = new URLSearchParams(window.location.search).get("redirect") || "/admin";
+              window.location.replace(redirect);
+            }
+          } catch {}
+        })();
 
-        // Entrance animation for login card
         const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         const card = document.querySelector(".login-card");
         if (card && !prefersReduced) {
@@ -212,26 +216,37 @@
         const usernameEl = document.getElementById("username");
         const passwordEl = document.getElementById("password");
 
-        form?.addEventListener("submit", function(e) {
+        form?.addEventListener("submit", async function(e) {
           e.preventDefault();
           const username = (usernameEl?.value || "").trim();
           const password = (passwordEl?.value || "").trim();
 
-          // Hard-coded credentials: admin / 1234
-          if (username === "admin" && password === "1234") {
-            localStorage.setItem("admin-auth", "1");
-            localStorage.setItem("admin-auth-time", String(Date.now()));
-            document.cookie = "admin-auth=1; path=/; max-age=604800; SameSite=Lax";
-            const redirect = new URLSearchParams(window.location.search).get("redirect") || "/admin";
-            window.location.replace(redirect);
-          } else {
+          try {
+            const res = await fetch("/api/login", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ username, password }),
+            });
+            const data = await res.json();
+
+            if (res.ok && data.success && data.token) {
+              localStorage.setItem("admin-token", data.token);
+              localStorage.setItem("admin-auth-time", String(Date.now()));
+              localStorage.setItem("admin-auth", "1");
+              const redirect = new URLSearchParams(window.location.search).get("redirect") || "/admin";
+              window.location.replace(redirect);
+            } else {
+              errorEl?.classList.add("is-visible");
+              passwordEl && (passwordEl.value = "");
+              passwordEl?.focus();
+            }
+          } catch {
             errorEl?.classList.add("is-visible");
             passwordEl && (passwordEl.value = "");
             passwordEl?.focus();
           }
         });
 
-        // Hide error on input
         [usernameEl, passwordEl].forEach(function(el) {
           el?.addEventListener("input", function() {
             errorEl?.classList.remove("is-visible");

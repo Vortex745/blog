@@ -1,11 +1,11 @@
 ---
 import AdminLayout from "../../layouts/AdminLayout.astro";
-import { neonArticlesStorageConfigured, readNeonArticles } from "../../lib/neon-articles";
+import { storageConfigured, readContentArticles } from "../../lib/content-store";
 import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
 
-const articlesStorageConfigured = neonArticlesStorageConfigured();
+const articlesStorageConfigured = storageConfigured();
 let articlesReadFailed = false;
-const articles = await readNeonArticles().catch(() => {
+const articles = await readContentArticles().catch(() => {
   articlesReadFailed = true;
   return [];
 });
@@ -310,9 +310,13 @@ function formatArticleDate(value: unknown): string {
 
 <script>
   import { initMarkdownRenderers, refreshMarkdownRendererFor } from "../../scripts/admin-markdown-renderer";
-  import { getLlmSettings, requestLlmChat } from "../../scripts/admin-llm";
+  import { getLlmSettings, hasLlmSettings, requestLlmChat } from "../../scripts/admin-llm";
 
-  // ===== Storage Keys =====
+  document.addEventListener("astro:page-load", () => {
+    const listEl = document.getElementById("article-list");
+    if (!listEl) return;
+
+    // ===== Storage Keys =====
   const ARTICLES_KEY = "admin-articles-data";
   const ARTICLES_API = "/api/articles";
 
@@ -320,7 +324,6 @@ function formatArticleDate(value: unknown): string {
   const modal = document.getElementById("article-modal");
   const modalTitle = document.getElementById("modal-title");
   const form = document.getElementById("article-form");
-  const listEl = document.getElementById("article-list");
   const countEl = document.getElementById("article-count");
   const statusMsg = document.getElementById("status-msg");
   let handlingInvalid = false;
@@ -405,7 +408,7 @@ function formatArticleDate(value: unknown): string {
         method: "PUT",
         headers: {
           "content-type": "application/json",
-          "x-admin-auth": localStorage.getItem("admin-auth") || "",
+          "x-admin-token": localStorage.getItem("admin-token") || "",
         },
         body: JSON.stringify({ articles: list }),
       });
@@ -429,7 +432,7 @@ function formatArticleDate(value: unknown): string {
 
   async function hydrateArticlesFromCloud() {
     const remote = await loadRemoteArticles();
-    if (!remote || remote.storage !== "neon") return;
+    if (!remote || remote.storage !== "sqlite") return;
 
     if (JSON.stringify(articles) === JSON.stringify(remote.articles)) {
       cacheArticles(remote.articles);
@@ -941,7 +944,7 @@ function formatArticleDate(value: unknown): string {
       return;
     }
     const s = getLlmSettings();
-    if (!s || !s.baseUrl || !s.apiKey || !s.model) {
+    if (!hasLlmSettings(s)) {
       const go = await (window as any).showConfirmDialog(
         "尚未配置大模型 API，无法使用 AI 润色功能。\n\n是否现在前往 API 管理页面进行配置？",
         { title: "提示", confirmText: "前往配置", cancelText: "稍后再说" }
@@ -975,7 +978,7 @@ function formatArticleDate(value: unknown): string {
       return;
     }
     const s = getLlmSettings();
-    if (!s || !s.baseUrl || !s.apiKey || !s.model) {
+    if (!hasLlmSettings(s)) {
       showPolishStatus("LLM API 未配置", "error");
       return;
     }
@@ -1256,6 +1259,7 @@ function formatArticleDate(value: unknown): string {
   // ===== Init =====
   renderList();
   void hydrateArticlesFromCloud();
+  });
 </script>
 
 <style>
@@ -1265,15 +1269,14 @@ function formatArticleDate(value: unknown): string {
   }
   .admin-page-title {
     font-family: var(--font-display);
-    font-size: 1.5rem;
-    font-weight: 600;
+    font-size: 28px;
+    font-weight: 700;
     color: #181c23;
-    margin: 0 0 6px;
+    margin-bottom: 6px;
   }
   .admin-page-desc {
-    font-size: 0.875rem;
+    font-size: 15px;
     color: #717785;
-    margin: 0;
   }
 
   /* Toolbar */
@@ -1282,6 +1285,28 @@ function formatArticleDate(value: unknown): string {
     align-items: center;
     gap: 12px;
     margin-bottom: 20px;
+  }
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 12px;
+    border: none;
+    background: #0059b5;
+    color: #ffffff;
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.15s cubic-bezier(0.23, 1, 0.32, 1);
+    transform: scale(1);
+  }
+  .btn-primary:hover {
+    background: #004a94;
+  }
+  .btn-primary:active {
+    transform: scale(0.97);
   }
   .btn-secondary {
     display: inline-flex;
@@ -1357,30 +1382,31 @@ function formatArticleDate(value: unknown): string {
 
   /* Section */
   .form-section {
-    background: #fff;
-    border: 1px solid rgba(193,198,214,0.4);
-    border-radius: 16px;
-    padding: 20px;
+    background: rgba(255,255,255,0.6);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(255,255,255,0.6);
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.03);
   }
   .section-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 12px;
     margin-bottom: 16px;
   }
   .section-title {
-    font-family: var(--font-display);
-    font-size: 1.1rem;
+    font-size: 18px;
     font-weight: 600;
     color: #181c23;
-    margin: 0;
   }
   .section-badge {
-    font-size: 13px;
-    color: #717785;
-    background: #f4f6fa;
-    padding: 4px 10px;
-    border-radius: 20px;
+    padding: 3px 10px;
+    border-radius: 8px;
+    background: rgba(0,89,181,0.08);
+    color: #0059b5;
+    font-size: 12px;
+    font-weight: 500;
   }
 
   /* Article List */
@@ -1746,7 +1772,7 @@ function formatArticleDate(value: unknown): string {
     align-items: center;
     justify-content: center;
     gap: 6px;
-    transition: all 0.15s ease;
+    transition: background-color 150ms var(--admin-ease-out), color 150ms var(--admin-ease-out), border-color 150ms var(--admin-ease-out), transform 150ms var(--admin-ease-out);
     border-bottom: 2px solid transparent;
     margin-bottom: -1px;
   }
@@ -1909,8 +1935,9 @@ function formatArticleDate(value: unknown): string {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.15s ease;
+    transition: background-color 150ms var(--admin-ease-out), color 150ms var(--admin-ease-out), transform 150ms var(--admin-ease-out);
   }
+  .btn-icon:active { transform: scale(0.97); }
   .btn-icon:hover {
     background: #f4f6fa;
     color: #181c23;
@@ -1974,8 +2001,9 @@ function formatArticleDate(value: unknown): string {
     font-size: 13px;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: background-color 150ms var(--admin-ease-out), color 150ms var(--admin-ease-out), border-color 150ms var(--admin-ease-out), transform 150ms var(--admin-ease-out);
   }
+  .polish-preset:active { transform: scale(0.97); }
   .polish-preset:hover {
     border-color: #7c3aed;
     color: #7c3aed;

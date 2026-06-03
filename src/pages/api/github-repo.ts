@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
-import { jsonResponse } from "./upload/_shared";
+import { jsonResponse } from "../../lib/api-utils";
+import { readServerEnv } from "../../lib/env";
 
 const REPO_PARAM_RE = /^[a-zA-Z0-9._-]+$/;
 
@@ -129,7 +130,7 @@ export const GET: APIRoute = async ({ url }) => {
     return jsonResponse({ ok: false, message: "缺少或无效的 repo 参数" }, 400);
   }
 
-  const githubToken = import.meta.env.GITHUB_TOKEN;
+  const githubToken = readServerEnv("GITHUB_TOKEN");
   const authHeaders: Record<string, string> = {
     "User-Agent": "changye-blog",
     "Accept": "application/vnd.github+json",

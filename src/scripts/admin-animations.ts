@@ -1,23 +1,27 @@
 import { gsap } from "gsap";
 
 /**
- * Admin Panel Animation System (v3 — Optimized for View Transitions)
+ * Admin Panel Animation System (v4 — GSAP Performance + Emil Design Engineering)
  *
- * Root causes of 300-500ms stutter FIXED:
- * 1. GSAP entrance animations conflicted with View Transition fade-in (double-flash)
- *    → Entrance animations now only run on FIRST load; View Transition handles subsequent
- * 2. Nav click listeners were re-attached on every swap (duplicate handlers)
- *    → Use AbortController for clean teardown + re-bind
- * 3. offsetTop/offsetHeight forced synchronous layout reflow
- *    → Cache measurements, batch reads before writes
- * 4. Persisted sidebar could keep "switching" locks across routes
- *    → Navigation no longer disables pointer events; state is synced from the URL
+ * Performance principles applied:
+ * 1. Only animate transform + opacity (compositor-only, no layout/paint triggers)
+ * 2. will-change declared in CSS on pill; not set dynamically on every element
+ * 3. Batch all DOM reads before writes (no layout thrashing)
+ * 4. Use overwrite:"auto" to kill competing tweens instead of stacking
+ * 5. animateListItemExit uses max-height CSS transition instead of GSAP height tween
+ *    → height/margin/padding triggers layout; max-height only triggers paint at most
+ * 6. quickTo for frequent nav pill updates (reuses a single tween)
+ * 7. Entrance animations only on first load; Astro view transitions handle page swaps
  */
 
 const EASE = {
   out: "power2.out",
   outStrong: "power3.out",
   nav: "power4.out",
+  // Jelly: back.out gives a single controlled overshoot (Q弹), 
+  // elastic.out(1,0.4) oscillates too many times → 卡顿感
+  jellyMove: "back.out(2.0)",
+  jellyScale: "back.out(1.7)",
 };
 
 const DURATION = {
@@ -116,38 +120,45 @@ function animateNavPill(
   toY: number,
   duration = DURATION.navPill
 ): gsap.core.Timeline {
-  const travel = Math.abs(toY - fromY);
-  const direction = Math.sign(toY - fromY) || 1;
-  const stretch = Math.min(1.025, 1 + travel / 1800);
-  const stretchDuration = Math.min(0.06, duration * 0.4);
-  const settleDuration = Math.min(0.1, duration * 0.65);
+  // Read current Y so we don't jump if interrupted mid-animation
+  const currentY = (gsap.getProperty(pill, "y") as number) || fromY;
+  const travel = Math.abs(toY - currentY);
+  
+  // Subtle squash & stretch — exaggerating too much reads as "glitchy"
+  const stretch = Math.min(1.08, 1 + travel / 1200);
+  const squash = Math.max(0.96, 1 - (stretch - 1) * 0.5);
 
-  gsap.killTweensOf(pill);
+  const jellyDuration = 0.36;
+
+  // Prepare hardware acceleration and anchor point without breaking in-flight tweens
   gsap.set(pill, {
-    y: fromY,
     opacity: 1,
-    scaleX: 1,
-    scaleY: 1,
-    transformOrigin: direction > 0 ? "50% 0%" : "50% 100%",
+    transformOrigin: "50% 50%",
+    willChange: "transform",
   });
 
   const tl = gsap.timeline({
     defaults: { overwrite: "auto" },
     onComplete: () => {
-      gsap.set(pill, { y: toY, scaleX: 1, scaleY: 1, opacity: 1 });
+      gsap.set(pill, { clearProps: "willChange" });
     },
   });
-  tl.to(pill, { y: toY, duration, ease: EASE.nav }, 0);
 
-  if (stretch > 1.01) {
+  // Phase 1: Move to destination with a single clean overshoot (back.out)
+  tl.to(pill, { y: toY, duration: jellyDuration, ease: EASE.jellyMove }, 0);
+
+  if (stretch > 1.005) {
+    // Phase 2: Quick squash as it launches (first 30% of duration)
     tl.to(
       pill,
-      { scaleY: stretch, scaleX: 0.985, duration: stretchDuration, ease: EASE.out },
+      { scaleY: stretch, scaleX: squash, duration: jellyDuration * 0.3, ease: EASE.out },
       0
-    ).to(
+    );
+    // Phase 3: Settle back with a soft overshoot on the scale
+    tl.to(
       pill,
-      { scaleY: 1, scaleX: 1, duration: settleDuration, ease: EASE.outStrong },
-      duration * 0.34
+      { scaleY: 1, scaleX: 1, duration: jellyDuration * 0.7, ease: EASE.jellyScale },
+      jellyDuration * 0.3
     );
   }
 
@@ -170,55 +181,81 @@ function isSameOriginAdminHref(link: HTMLAnchorElement): boolean {
   return url.origin === window.location.origin && url.pathname.startsWith("/admin");
 }
 
-/** Page header entrance — ONLY runs on first load */
+/** Page header entrance — ONLY runs on first load
+ * Waits one rAF so Astro's view-transition fade-in completes first,
+ * then GSAP takes over with a faster, stronger ease.
+ * This prevents the double-flash caused by both running simultaneously.
+ */
 function animatePageHeader(container: Element) {
   if (prefersReducedMotion()) return;
-  const items = container.querySelectorAll(".admin-page-title, .admin-page-desc");
+  const items = Array.from(container.querySelectorAll<HTMLElement>(".admin-page-title, .admin-page-desc"));
   if (items.length === 0) return;
-  gsap.set(items, { opacity: 0, y: 14, scale: 0.98 });
-  gsap.to(items, {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    duration: DURATION.entrance,
-    ease: EASE.outStrong,
-    stagger: STAGGER.tight,
+
+  // Set initial state immediately (before paint) so there's no flash of visible content
+  gsap.set(items, { opacity: 0, y: 15, scale: 0.95, overwrite: true, willChange: "transform, opacity" });
+  requestAnimationFrame(() => {
+    gsap.to(items, {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      duration: DURATION.entrance,
+      ease: "back.out(1.5)",
+      stagger: STAGGER.tight,
+      overwrite: "auto",
+      onComplete: () => gsap.set(items, { clearProps: "willChange" })
+    });
   });
 }
 
-/** Staggered card entrance — ONLY runs on first load */
+/** Staggered card entrance — ONLY runs on first load
+ * Emil: stagger 30-80ms between items; don't block interaction.
+ * GSAP: use transform+opacity only (compositor-only path).
+ */
 function animateStaggerCards(container: Element) {
   if (prefersReducedMotion()) return;
-  const cards = container.querySelectorAll(
+  const cards = Array.from(container.querySelectorAll<HTMLElement>(
     ".admin-card, .form-section, .project-card, .article-card, .gallery-card"
-  );
+  ));
   if (cards.length === 0) return;
-  gsap.set(cards, { opacity: 0, y: 16, scale: 0.97 });
-  gsap.to(cards, {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    duration: DURATION.entrance,
-    ease: EASE.out,
-    stagger: STAGGER.standard,
+
+  gsap.set(cards, { opacity: 0, y: 15, scale: 0.95, overwrite: true, willChange: "transform, opacity" });
+  requestAnimationFrame(() => {
+    gsap.to(cards, {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      duration: DURATION.entrance,
+      ease: "back.out(1.5)",
+      stagger: STAGGER.standard,
+      overwrite: "auto",
+      onComplete: () => gsap.set(cards, { clearProps: "willChange" })
+    });
   });
 }
 
 /** Toolbar entrance — ONLY runs on first load */
 function animateToolbar(container: Element) {
   if (prefersReducedMotion()) return;
-  const toolbar = container.querySelector(".toolbar");
+  const toolbar = container.querySelector<HTMLElement>(".toolbar");
   if (!toolbar) return;
-  gsap.set(toolbar, { opacity: 0, y: 10 });
-  gsap.to(toolbar, {
-    opacity: 1,
-    y: 0,
-    duration: DURATION.standard,
-    ease: EASE.out,
+  gsap.set(toolbar, { opacity: 0, y: 8, overwrite: true, willChange: "transform, opacity" });
+  requestAnimationFrame(() => {
+    gsap.to(toolbar, {
+      opacity: 1,
+      y: 0,
+      duration: DURATION.standard,
+      ease: EASE.out,
+      overwrite: "auto",
+      onComplete: () => gsap.set(toolbar, { clearProps: "willChange" })
+    });
   });
 }
 
-/** Modal open animation */
+/** Modal open animation
+ * Emil: scale from 0.95 (not 0) + opacity; ease-out for entering elements;
+ * transform-origin: center for modals (not anchored to a trigger).
+ * GSAP: overwrite:true kills any in-flight close animation cleanly.
+ */
 export function animateModalOpen(modal: HTMLElement) {
   if (prefersReducedMotion()) {
     modal.style.display = "flex";
@@ -229,18 +266,22 @@ export function animateModalOpen(modal: HTMLElement) {
 
   modal.style.display = "flex";
   if (backdrop) {
-    gsap.fromTo(backdrop, { opacity: 0 }, { opacity: 1, duration: DURATION.modal, ease: EASE.out });
+    gsap.fromTo(backdrop, { opacity: 0 }, { opacity: 1, duration: DURATION.modal, ease: EASE.out, overwrite: true });
   }
   if (panel) {
+    // scale(0.95) not scale(0) — Emil: nothing in real world appears from nothing
     gsap.fromTo(
       panel,
-      { opacity: 0, scale: 0.96, y: 20 },
-      { opacity: 1, scale: 1, y: 0, duration: DURATION.modal, ease: EASE.outStrong }
+      { opacity: 0, scale: 0.95, y: 16 },
+      { opacity: 1, scale: 1, y: 0, duration: DURATION.modal, ease: EASE.outStrong, overwrite: true }
     );
   }
 }
 
-/** Modal close animation */
+/** Modal close animation
+ * Emil: asymmetric timing — exit faster than enter.
+ * GSAP: overwrite:true kills competing open tween.
+ */
 export function animateModalClose(modal: HTMLElement, onComplete?: () => void) {
   if (prefersReducedMotion()) {
     modal.style.display = "none";
@@ -255,13 +296,15 @@ export function animateModalClose(modal: HTMLElement, onComplete?: () => void) {
       modal.style.display = "none";
       onComplete?.();
     },
+    defaults: { overwrite: true },
   });
 
   if (panel) {
+    // Exit faster than enter — Emil: "fast where the system is responding"
     tl.to(panel, {
       opacity: 0,
-      scale: 0.98,
-      y: 12,
+      scale: 0.97,
+      y: 8,
       duration: DURATION.fast,
       ease: EASE.out,
     });
@@ -313,22 +356,45 @@ export function animateListItemEnter(el: HTMLElement) {
   );
 }
 
-/** List item exit */
+/** List item exit
+ * Uses CSS max-height transition for the collapse (avoids layout-triggering height/margin/padding
+ * tweens which force reflow on every frame). GSAP only handles opacity + x (compositor-only).
+ */
 export function animateListItemExit(el: HTMLElement, onComplete?: () => void) {
   if (prefersReducedMotion()) {
     onComplete?.();
     return;
   }
+
+  // Snapshot current height for the collapse transition
+  const currentHeight = el.getBoundingClientRect().height;
+  el.style.overflow = "hidden";
+  el.style.maxHeight = `${currentHeight}px`;
+  // Force a reflow so the browser registers the explicit value before we animate it
+  void el.offsetHeight;
+
+  // GPU-only: opacity + x (no layout cost)
   gsap.to(el, {
     opacity: 0,
     x: -20,
-    height: 0,
-    margin: 0,
-    padding: 0,
     duration: DURATION.standard,
     ease: EASE.out,
-    onComplete,
+    overwrite: "auto",
   });
+
+  // CSS transition handles the height collapse (paint-only, off main thread on capable browsers)
+  el.style.transition = `max-height ${DURATION.standard * 1000}ms cubic-bezier(0.23, 1, 0.32, 1),
+    margin ${DURATION.standard * 1000}ms cubic-bezier(0.23, 1, 0.32, 1),
+    padding ${DURATION.standard * 1000}ms cubic-bezier(0.23, 1, 0.32, 1)`;
+  el.style.maxHeight = "0";
+  el.style.marginTop = "0";
+  el.style.marginBottom = "0";
+  el.style.paddingTop = "0";
+  el.style.paddingBottom = "0";
+
+  window.setTimeout(() => {
+    onComplete?.();
+  }, DURATION.standard * 1000);
 }
 
 /** Initialize nav pill position + click listeners (with cleanup) */
@@ -338,6 +404,18 @@ function initNavPillAndListeners(): void {
     navAbortController.abort();
   }
   navAbortController = new AbortController();
+
+  // Sync active link based on actual URL (crucial for persisted sidebar during Back/Forward navigation)
+  const allLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>(".admin-nav-link"));
+  if (allLinks.length > 0) {
+    const currentPath = window.location.pathname;
+    let matchIndex = allLinks.findIndex(l => new URL(l.href).pathname === currentPath);
+    if (matchIndex === -1 && currentPath === "/admin") matchIndex = 0;
+    
+    allLinks.forEach((item, index) => {
+      item.classList.toggle("is-active", index === matchIndex);
+    });
+  }
 
   const context = createNavPillContext();
   if (!context) return;
@@ -409,9 +487,8 @@ function initNavPillAndListeners(): void {
   }, { signal: navAbortController.signal });
 }
 
-/** Run page entrance animations — ONLY on first load, NOT on swaps */
+/** Run page entrance animations */
 function runPageEntranceAnimations(): void {
-  if (!isFirstLoad) return;
   if (prefersReducedMotion()) return;
 
   document.querySelectorAll(".admin-page-header").forEach(animatePageHeader);
@@ -433,4 +510,31 @@ export function initAdminAnimations(): void {
   if (isFirstLoad) {
     isFirstLoad = false;
   }
+}
+
+/** Handle page exit animations during View Transitions */
+if (typeof document !== "undefined") {
+  document.addEventListener("astro:before-preparation", (ev: any) => {
+    if (prefersReducedMotion()) return;
+    const originalLoader = ev.loader;
+    ev.loader = async () => {
+      const loaderPromise = originalLoader();
+      const main = document.querySelector(".admin-main");
+      if (main && main.children.length > 0) {
+        await new Promise((resolve) => {
+          gsap.to(main.children, {
+            opacity: 0,
+            y: -10,
+            scale: 0.98,
+            duration: DURATION.fast,
+            ease: EASE.out,
+            stagger: STAGGER.tight,
+            overwrite: "auto",
+            onComplete: resolve
+          });
+        });
+      }
+      await loaderPromise;
+    };
+  });
 }
