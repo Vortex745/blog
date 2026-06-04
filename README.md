@@ -119,12 +119,6 @@ IMGBB_API_KEY="your-imgbb-key"
 GITHUB_TOKEN="optional-github-token"
 ```
 
-## 后台登录
-
-| 字段 | 值 |
-|------|----|
-| 用户名 | `admin` |
-| 密码 | `1234` |
 
 ## 许可证
 
