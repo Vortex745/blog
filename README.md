@@ -1,6 +1,6 @@
 # 子衿博客
 
-> 基于 Astro + React + Tailwind CSS 的个人博客，内置完整后台管理系统
+> 基于 Astro + React + Tailwind CSS 构建的个人博客，带完整后台管理
 
 ![Astro](https://img.shields.io/badge/Astro-6.x-FF5D01?logo=astro&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
@@ -55,40 +55,42 @@ pnpm build
 pnpm preview
 ```
 
-开发服务器默认运行在 `http://localhost:4321`，后台地址 `http://localhost:4321/admin`。
+开发服务器默认跑在 `http://localhost:4321`，后台在 `http://localhost:4321/admin`。
 
-## 功能特性
+## 功能
 
-### 前台展示
-- **首页** — Hero 区域 + 文章/项目/图库概览
-- **文章** — Markdown 渲染、目录导航、代码高亮
-- **项目** — 作品展示卡片
-- **图库** — 瀑布流相册，按来源分类筛选
-- **关于** — 个人信息展示
+### 前台
+
+- 首页：Hero 区域 + 文章/项目/图库概览
+- 文章：Markdown 渲染、目录导航、代码高亮
+- 项目：作品展示卡片
+- 图库：瀑布流相册，按来源分类筛选
+- 关于：个人信息展示
 - 响应式设计 + 深色模式
 - GSAP 页面过渡与微交互动画
 
-### 后台管理
-- **登录认证** — 基于 localStorage 的会话管理
-- **首页管理** — Hero 文案与展示内容编辑
-- **文章管理** — Markdown 编辑器 + LLM 润色功能
-- **项目管理** — 封面图上传（ImgBB 图床）
-- **图库管理** — 批量上传、URL 导入、拖拽排序
-- **关于管理** — 头像与个人信息编辑
+### 后台
+
+- 登录认证：基于 localStorage 的会话管理
+- 首页管理：Hero 文案与展示内容编辑
+- 文章管理：Markdown 编辑器 + LLM 润色
+- 项目管理：封面图上传（ImgBB 图床）
+- 图库管理：批量上传、URL 导入、拖拽排序
+- 关于管理：头像与个人信息编辑
 
 ## 图床配置
 
-图片上传使用 [ImgBB](https://imgbb.com/) 图床，API Key 通过环境变量配置：
+图片上传使用 [ImgBB](https://imgbb.com/)，API Key 写入环境变量：
 
 ```bash
 IMGBB_API_KEY="your-api-key"
 ```
 
-支持的格式：JPG、PNG、GIF、WebP、BMP、TIFF，单张最大 32MB。
+格式支持 JPG、PNG、GIF、WebP、BMP、TIFF，单张最大 32MB。
 
 ## 数据库配置
 
-后台内容和 RAG 索引统一使用 SQLite + sqlite-vec。数据库入口只有 `SQLITE_DB_PATH`：
+后台内容和 RAG 索引统一存在 SQLite + sqlite-vec 里。数据库路径只有一个环境变量：
 
 ```bash
 SQLITE_DB_PATH="./data/blog.sqlite"
@@ -102,7 +104,7 @@ npm run rag:index
 
 ## API Key 配置
 
-所有服务端 API Key 都从 `.env` 读取。`.env.example` 提供完整模板：
+所有服务端密钥从 `.env` 读取，`.env.example` 提供完整模板：
 
 ```bash
 AI_GATEWAY_API_KEY="your-vercel-ai-gateway-key"

@@ -48,3 +48,17 @@ pnpm-debug.log*
 
 # Auto-generated docs (not README)
 FRONTEND_MOTION_GUIDELINES.md
+
+# TypeScript incremental build cache
+*.tsbuildinfo
+
+# Editor temporary files
+*.swp
+*.swo
+*~
+
+# Windows system files
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+desktop.ini
