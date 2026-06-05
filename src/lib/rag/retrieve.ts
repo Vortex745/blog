@@ -105,7 +105,7 @@ export async function retrieveRagContext(query: string, options: RetrieveRagCont
   });
 
   try {
-    if (!options.embedQuery && !config.gatewayApiKey) {
+    if (!options.embedQuery && !config.gatewayApiKey && !config.embeddingFallback) {
       const bm25Items = bm25Search(db, rewrittenQuery, limit);
       return buildRagContext(query, rewrittenQuery, bm25Items);
     }

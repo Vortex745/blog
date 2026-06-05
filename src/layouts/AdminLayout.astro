@@ -35,7 +35,6 @@ const navItems = [
     <style is:inline>{`
       .admin-body{margin:0;padding:0;background:#f4f6fa;font-family:"Inter","SF Pro Text","Helvetica Neue",Helvetica,Arial,sans-serif;color:#181c23;min-height:100vh}
       .admin-shell{display:flex;min-height:100vh;transition:opacity 0.12s cubic-bezier(0.23,1,0.32,1)}
-      .admin-shell--hidden{opacity:0}
       .admin-sidebar{width:220px;flex-shrink:0;background:rgba(255,255,255,0.7);border-right:1px solid rgba(193,198,214,0.4);display:flex;flex-direction:column;padding:24px 0;position:sticky;top:0;height:100vh}
       .admin-main{flex:1;padding:32px 40px;overflow-y:auto}
       @media(max-width:768px){.admin-sidebar{display:none}.admin-main{padding:24px}}
@@ -85,9 +84,9 @@ const navItems = [
       </div>
     </div>
 
-    <div class="admin-shell admin-shell--hidden">
+    <div class="admin-shell">
       <!-- Sidebar -->
-      <aside class="admin-sidebar" transition:persist="admin-sidebar">
+      <aside class="admin-sidebar" transition:persist="admin-sidebar" transition:animate="none">
         <div class="admin-sidebar-header">
           <a href="/" class="admin-logo">子衿</a>
           <span class="admin-badge">管理后台</span>
@@ -135,11 +134,6 @@ const navItems = [
         __adminLayoutAbort?: AbortController;
       };
 
-      function revealShell(doc: Document = document) {
-        const shell = doc.querySelector(".admin-shell");
-        if (shell) shell.classList.remove("admin-shell--hidden");
-      }
-
       // ===== Global Glass Confirm Dialog =====
       function showConfirmDialog(message: string, options?: { title?: string; confirmText?: string; cancelText?: string }): Promise<boolean> {
         return new Promise((resolve) => {
@@ -184,8 +178,6 @@ const navItems = [
       (window as any).showConfirmDialog = showConfirmDialog;
 
       function setupAdminPage() {
-        revealShell();
-
         if (adminRuntime.__adminLayoutAbort) {
           adminRuntime.__adminLayoutAbort.abort();
         }
@@ -196,8 +188,12 @@ const navItems = [
         const logoutBtn = document.getElementById("admin-logout");
         logoutBtn?.addEventListener("click", async function() {
           if (await showConfirmDialog("确定要退出登录吗？")) {
+            try {
+              await fetch("/api/login", { method: "DELETE" });
+            } catch (e) {}
             localStorage.removeItem("admin-auth");
             localStorage.removeItem("admin-auth-time");
+            localStorage.removeItem("admin-token");
             document.cookie = "admin-auth=; path=/; max-age=0; SameSite=Lax";
             window.location.replace("/admin/login");
           }
@@ -229,9 +225,6 @@ const navItems = [
     --admin-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
     --admin-duration-fast: 120ms;
     --admin-duration-standard: 180ms;
-  }
-  .admin-shell--hidden {
-    opacity: 0;
   }
   /* Disable Astro's default root crossfade.
    * GSAP fully manages the page entrance and exit animations via

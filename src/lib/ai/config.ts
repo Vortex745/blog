@@ -12,6 +12,18 @@ export type LlmFallbackConfig = {
   model: string;
 };
 
+export type EmbeddingFallbackConfig = {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+};
+
+export type RerankFallbackConfig = {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+};
+
 export type AssistantAiConfig = {
   model: string;
   temperature: number;
@@ -20,13 +32,14 @@ export type AssistantAiConfig = {
   embeddingDimensions: number;
   rerankModel: string;
   llmFallback?: LlmFallbackConfig;
+  embeddingFallback?: EmbeddingFallbackConfig;
+  rerankFallback?: RerankFallbackConfig;
 };
 
 export function getAssistantAiConfig(): AssistantAiConfig {
   const gatewayApiKey = readServerEnv("AI_GATEWAY_API_KEY");
 
-  // When no Gateway key is configured, try to fall back to the LLM_* settings
-  // that the user configured in the admin API management page.
+  // LLM fallback: used when no Gateway key, falls back to LLM_* admin settings
   let llmFallback: LlmFallbackConfig | undefined;
   if (!gatewayApiKey) {
     const baseUrl = readServerEnv("LLM_BASE_URL");
@@ -34,6 +47,28 @@ export function getAssistantAiConfig(): AssistantAiConfig {
     const model = readServerEnv("LLM_MODEL");
     if (baseUrl && apiKey && model) {
       llmFallback = { baseUrl, apiKey, model };
+    }
+  }
+
+  // Embedding fallback: independent embedding provider (e.g. SiliconFlow)
+  let embeddingFallback: EmbeddingFallbackConfig | undefined;
+  if (!gatewayApiKey) {
+    const baseUrl = readServerEnv("EMBEDDING_BASE_URL");
+    const apiKey = readServerEnv("EMBEDDING_API_KEY");
+    const model = readServerEnv("EMBEDDING_MODEL");
+    if (baseUrl && apiKey && model) {
+      embeddingFallback = { baseUrl, apiKey, model };
+    }
+  }
+
+  // Rerank fallback: independent rerank provider (e.g. SiliconFlow, Cohere direct)
+  let rerankFallback: RerankFallbackConfig | undefined;
+  if (!gatewayApiKey) {
+    const baseUrl = readServerEnv("RERANK_BASE_URL");
+    const apiKey = readServerEnv("RERANK_API_KEY");
+    const model = readServerEnv("RERANK_MODEL");
+    if (baseUrl && apiKey && model) {
+      rerankFallback = { baseUrl, apiKey, model };
     }
   }
 
@@ -45,6 +80,7 @@ export function getAssistantAiConfig(): AssistantAiConfig {
     embeddingDimensions: readNumberServerEnv("AI_EMBEDDING_DIMENSIONS", DEFAULT_EMBEDDING_DIMENSIONS),
     rerankModel: readServerEnv("AI_RERANK_MODEL") || DEFAULT_RERANK_MODEL,
     llmFallback,
+    embeddingFallback,
+    rerankFallback,
   };
 }
-

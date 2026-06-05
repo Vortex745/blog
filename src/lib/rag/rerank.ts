@@ -5,7 +5,7 @@ import type { RagSearchItem } from "./types";
 
 export async function rerankRagItems(query: string, items: RagSearchItem[], topN: number): Promise<RagSearchItem[]> {
   const config = getAssistantAiConfig();
-  if (!config.gatewayApiKey || items.length < 2) return items.slice(0, topN);
+  if ((!config.gatewayApiKey && !config.rerankFallback) || items.length < 2) return items.slice(0, topN);
 
   try {
     const result = await rerank({

@@ -32,7 +32,7 @@ export function cleanDocumentText(document: Pick<RagDocument, "content">): strin
 
 export async function cleanDocumentWithAi(document: RagDocument): Promise<RagDocument> {
   const config = getAssistantAiConfig();
-  if (!config.gatewayApiKey) {
+  if (!config.gatewayApiKey && !config.llmFallback) {
     return { ...document, cleanContent: cleanDocumentText(document) || document.cleanContent };
   }
 

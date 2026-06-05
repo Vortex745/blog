@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import { buildOpenAiCompatibleEndpoint } from "../../lib/llm-endpoint";
 import { jsonResponse, readString } from "../../lib/api-utils";
 import { readServerEnv } from "../../lib/env";
+import { filterModelsByType, getApiKeyEnvName } from "../../lib/llm-model-filter";
 
 function readErrorMessage(data: any, fallback: string) {
   return readString(data?.error?.message) || readString(data?.message) || fallback;
@@ -39,7 +40,9 @@ export const POST: APIRoute = async ({ request }) => {
     return jsonResponse({ ok: false, message: "请求内容不是有效的 JSON" }, 400);
   }
 
-  const apiKey = readString(payload.apiKey) || readServerEnv("LLM_API_KEY");
+  const type = readString(payload.type);
+  const apiKeyEnvName = getApiKeyEnvName(type);
+  const apiKey = readString(payload.apiKey) || readServerEnv(apiKeyEnvName);
   if (!apiKey) {
     return jsonResponse({ ok: false, message: "未提供 API Key 且服务端未配置" }, 400);
   }
@@ -77,16 +80,7 @@ export const POST: APIRoute = async ({ request }) => {
       );
     }
 
-    let modelIds = normalizeModelIds(data.data);
-    const type = readString(payload.type);
-
-    if (type === "embedding") {
-      modelIds = modelIds.filter(id => id.toLowerCase().includes("embed") || id.toLowerCase().includes("text-similarity"));
-    } else if (type === "rerank") {
-      modelIds = modelIds.filter(id => id.toLowerCase().includes("rerank"));
-    } else if (type === "llm") {
-      modelIds = modelIds.filter(id => !id.toLowerCase().includes("embed") && !id.toLowerCase().includes("rerank"));
-    }
+    const modelIds = filterModelsByType(normalizeModelIds(data.data), type);
 
     return jsonResponse({ ok: true, models: modelIds.map((id) => ({ id })) });
   } catch (error) {

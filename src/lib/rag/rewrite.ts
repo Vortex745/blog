@@ -16,7 +16,7 @@ export async function rewriteRagQuery(query: string): Promise<string> {
   if (!trimmed) return trimmed;
 
   const config = getAssistantAiConfig();
-  if (!config.gatewayApiKey) return trimmed;
+  if (!config.gatewayApiKey && !config.llmFallback) return trimmed;
 
   try {
     const result = await generateObject({
