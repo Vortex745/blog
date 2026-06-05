@@ -1,12 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import {
-  articleDate,
-  articleSummary,
-  articleTags,
   normalizeAbout,
-  projectDate,
-  projectTags,
   readContentAbout,
   readContentArticles,
   readContentProjects,
@@ -101,7 +96,7 @@ function markdownDocuments(root: string, sourceType: Extract<RagSourceType, "art
 function articleDocument(article: ContentArticle, index: number): RagDocument {
   const sourceId = String(article.id || article.title || index);
   const title = article.title || "未命名文章";
-  const content = article.content || article.description || articleSummary(article);
+  const content = article.content || article.description || article.summary;
   return {
     id: `article:${sourceId}`,
     sourceType: "article",
@@ -112,9 +107,9 @@ function articleDocument(article: ContentArticle, index: number): RagDocument {
     cleanContent: cleanDocumentText({ content }),
     metadata: {
       title,
-      tags: articleTags(article),
-      date: articleDate(article).toISOString(),
-      description: articleSummary(article),
+      tags: article.tags,
+      date: article.date.toISOString(),
+      description: article.summary,
       origin: "sqlite",
     },
   };
@@ -134,8 +129,8 @@ function projectDocument(project: ContentProject, index: number): RagDocument {
     cleanContent: cleanDocumentText({ content }),
     metadata: {
       title,
-      tags: projectTags(project),
-      date: projectDate(project).toISOString(),
+      tags: project.tags,
+      date: project.date.toISOString(),
       description: project.description,
       origin: "sqlite",
     },

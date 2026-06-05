@@ -1,13 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { getCollection, render } from "astro:content";
-import {
-  articleCover as getArticleCover,
-  articleDate,
-  articleSummary,
-  articleTags,
-  readContentArticles,
-} from "../../lib/content-store";
+import { readContentArticles } from "../../lib/content-store";
 import { renderMarkdownDocument, stripMarkdown } from "../../lib/markdown";
 
 const { slug = "" } = Astro.params;
@@ -49,11 +43,11 @@ if (article) {
   headings = rendered.headings as typeof headings;
 }
 
-const tags = article?.data.tags ?? (sqliteArticle ? articleTags(sqliteArticle) : []);
-const articleCover = article?.data.coverImage || (sqliteArticle ? getArticleCover(sqliteArticle) : "");
+const tags = article?.data.tags ?? (sqliteArticle ? sqliteArticle.tags : []);
+const articleCover = article?.data.coverImage || (sqliteArticle ? sqliteArticle.coverImage : "");
 const sqliteTitle = sqliteArticle?.title || "未命名文章";
-const sqliteContent = sqliteArticle?.content || (sqliteArticle ? articleSummary(sqliteArticle) : "");
-const sqliteDate = sqliteArticle ? articleDate(sqliteArticle) : null;
+const sqliteContent = sqliteArticle?.content || (sqliteArticle ? sqliteArticle.description : "");
+const sqliteDate = sqliteArticle ? sqliteArticle.date : null;
 const sqliteRendered = sqliteArticle
   ? renderMarkdownDocument(sqliteContent, {
       emptyHtml: "<p>暂无正文内容。</p>",
@@ -88,7 +82,7 @@ const sqliteToc = sqliteRendered?.toc.filter((heading) => heading.depth > 1 && h
 
 <BaseLayout
   title="子衿的个人博客网站"
-  description={article?.data.description ?? (sqliteArticle ? articleSummary(sqliteArticle) : "后台本地文章详情")}
+  description={article?.data.description ?? (sqliteArticle ? sqliteArticle.description : "后台本地文章详情")}
   image={articleCover}
   type="article"
   publishedTime={article ? article.data.date.toISOString() : sqliteDate?.toISOString()}

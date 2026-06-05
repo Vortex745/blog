@@ -43,6 +43,94 @@ export function stripMarkdown(value: string): string {
     .trim();
 }
 
+export function extractReadmeSummary(markdown: string): string | null {
+  if (!markdown || markdown.length < 20) return null;
+
+  let text = markdown.replace(/<!--[\s\S]*?-->/g, "");
+  text = text.replace(/\[!\[.*?\]\(.*?\)\]\(.*?\)/g, "");
+  text = text.replace(
+    /!\[.*?(?:badge|shield|coverage|build|ci|test|npm|download|version|license|stars|fork|commit|issues?|prs?|pipeline|status|release).*?\]\(.*?\)/gi,
+    "",
+  );
+  text = text.replace(/```[\s\S]*?```/g, "");
+  text = text.replace(/`[^`]*`/g, "");
+  text = text.replace(/<[^>]+>/g, "");
+
+  const lines = text.split("\n");
+  const headingRe = /^#{1,3}\s+/;
+  const stopRe =
+    /^#{1,3}\s*(installation|getting\s*started|contribut|license|usage|api\s*(reference|documentation)|setup|prerequisites|development|building|testing|deploy|changelog|acknowledg|credits|copyright|support|faq|table\s*of\s*contents|sponsor|roadmap|security|community)\b/i;
+
+  const parts: string[] = [];
+  const MAX = 500;
+  let foundTitle = false;
+  let inParagraph = false;
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+
+    if (/^[-*_]{3,}$/.test(line)) continue;
+    if (/^!\[.*\]\(.*\)$/.test(line)) continue;
+    if (/^\[!\[/.test(line)) continue;
+
+    if (!foundTitle && headingRe.test(line)) {
+      parts.push(line.replace(headingRe, "**") + "**");
+      foundTitle = true;
+      inParagraph = false;
+      continue;
+    }
+
+    if (stopRe.test(line)) break;
+    if (headingRe.test(line)) continue;
+
+    if (!line) {
+      if (inParagraph) {
+        parts.push("");
+        inParagraph = false;
+      }
+      continue;
+    }
+
+    const candidate = parts.join("\n") + (inParagraph ? " " : "\n") + line;
+    if (candidate.length > MAX) {
+      const remaining = MAX - parts.join("\n").length - 1;
+      if (remaining > 20) {
+        parts.push(line.slice(0, remaining - 3) + "...");
+      }
+      break;
+    }
+    if (inParagraph) {
+      parts[parts.length - 1] += " " + line;
+    } else {
+      parts.push(line);
+    }
+    inParagraph = true;
+  }
+
+  const result = parts.join("\n\n").trim();
+  return result.length > 10 ? result : null;
+}
+
+export function cleanReadmeContent(markdown: string): string | null {
+  if (!markdown || markdown.length < 20) return null;
+
+  let text = markdown.replace(/<!--[\s\S]*?-->/g, "");
+  text = text.replace(/\[!\[.*?\]\(.*?\)\]\(.*?\)/g, "");
+  text = text.replace(
+    /!\[.*?(?:badge|shield|coverage|build|ci|test|npm|download|version|license|stars|fork|commit|issues?|prs?|pipeline|status|release).*?\]\(.*?\)/gi,
+    "",
+  );
+  text = text.replace(/```[\s\S]*?```/g, "");
+  text = text.replace(/`[^`]*`/g, "");
+  text = text.replace(/<[^>]+>/g, "");
+  text = text.replace(/^!\[.*\]\(.*\)$/gm, "");
+  text = text.replace(/^\[!\[/gm, "");
+  text = text.replace(/\n{3,}/g, "\n\n");
+  text = text.trim();
+  
+  return text.length > 50 ? text.slice(0, 4000) : null;
+}
+
 function renderInline(value: string): string {
   const placeholders: string[] = [];
   const stash = (html: string) => {

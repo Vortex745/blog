@@ -27,16 +27,9 @@ export type AdminProject = {
 
 export { escapeHtml, stripMarkdown };
 
-export function splitTags(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value.map((item) => String(item).trim()).filter(Boolean);
-  }
+import { splitTags } from "./domain-types";
 
-  return String(value ?? "")
-    .split(/[,，]/)
-    .map((item) => item.trim().replace(/^#+/, "").trim())
-    .filter(Boolean);
-}
+export { splitTags };
 
 export function unique(values: string[]): string[] {
   return [...new Set(values.filter(Boolean))];
@@ -52,22 +45,7 @@ export function formatDate(value: unknown, style: "short" | "long" = "short"): s
   });
 }
 
-export function articleTags(article: AdminArticle): string[] {
-  return splitTags(article.tags);
-}
 
-export function articleCover(article: AdminArticle): string {
-  return String(article.coverImage || COVER_IMAGE_PLACEHOLDER);
-}
-
-export function articleSummary(article: AdminArticle, maxLength = 110): string {
-  const source = article.description || stripMarkdown(article.content || "");
-  return source.length > maxLength ? `${source.slice(0, maxLength)}...` : source;
-}
-
-export function projectTags(project: AdminProject): string[] {
-  return unique([project.category || "", ...splitTags(project.tech)]);
-}
 
 export function localItemKey(item: { id?: string; title?: string }, index: number): string {
   const raw = String(item.id || item.title || index).trim() || String(index);

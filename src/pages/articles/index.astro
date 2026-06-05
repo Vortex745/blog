@@ -1,7 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { getCollection } from "astro:content";
-import { articleCover, articleDate, articleSummary, articleTags, readContentArticles } from "../../lib/content-store";
+import { readContentArticles } from "../../lib/content-store";
 import { COVER_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
 
 const [contentArticles, sqliteArticles] = await Promise.all([
@@ -13,14 +13,7 @@ const sortedContentArticles = contentArticles.sort((a, b) => b.data.date.getTime
 
 const COVER_PLACEHOLDER = COVER_IMAGE_PLACEHOLDER;
 const articleItems = [
-  ...sqliteArticles.map((article, index) => ({
-    title: article.title || "未命名文章",
-    description: articleSummary(article),
-    date: articleDate(article),
-    tags: articleTags(article),
-    coverImage: articleCover(article),
-    href: `/articles/local-${encodeURIComponent(article.id || article.title || String(index))}`,
-  })),
+  ...sqliteArticles,
   ...sortedContentArticles.map((article) => ({
     title: article.data.title,
     description: article.data.description,

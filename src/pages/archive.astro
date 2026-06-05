@@ -1,7 +1,7 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { getCollection } from "astro:content";
-import { articleDate, projectDate, readContentArticles, readContentProjects } from "../lib/content-store";
+import { readContentArticles, readContentProjects } from "../lib/content-store";
 
 const localArticles = (await getCollection("articles"))
   .filter((a) => !a.data.draft)
@@ -14,7 +14,7 @@ const sqliteProjects = await readContentProjects().catch(() => []);
 const articleItems = [
   ...sqliteArticles.map((article, index) => ({
     title: article.title || "未命名文章",
-    date: articleDate(article),
+    date: article.date,
     href: `/articles/local-${encodeURIComponent(article.id || article.title || String(index))}`,
   })),
   ...localArticles.map((article) => ({
@@ -26,7 +26,7 @@ const articleItems = [
 const projectItems = [
   ...sqliteProjects.map((project, index) => ({
     title: project.title || "未命名项目",
-    date: projectDate(project),
+    date: project.date,
     href: `/projects/local-${encodeURIComponent(project.id || project.title || String(index))}`,
   })),
   ...allProjects.map((project) => ({

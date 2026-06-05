@@ -485,6 +485,16 @@ function initNavPillAndListeners(): void {
       animateNavPill(pill, getY(fromIndex), getY(index), DURATION.navPill);
     }
   }, { signal: navAbortController.signal });
+
+  // Re-sync pill after web fonts load to prevent layout shift misalignment
+  if (typeof document.fonts !== "undefined") {
+    document.fonts.ready.then(() => {
+      const freshContext = createNavPillContext();
+      if (freshContext && !prefersReducedMotion() && !gsap.isTweening(freshContext.pill)) {
+        gsap.set(freshContext.pill, { y: freshContext.getY(freshContext.current) });
+      }
+    });
+  }
 }
 
 /** Run page entrance animations */
@@ -494,10 +504,8 @@ function runPageEntranceAnimations(): void {
   document.querySelectorAll(".admin-page-header").forEach(animatePageHeader);
   document.querySelectorAll(".toolbar").forEach(animateToolbar);
 
-  requestAnimationFrame(() => {
-    document.querySelectorAll(".admin-main").forEach((main) => {
-      animateStaggerCards(main);
-    });
+  document.querySelectorAll(".admin-main").forEach((main) => {
+    animateStaggerCards(main);
   });
 }
 

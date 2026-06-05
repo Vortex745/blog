@@ -1,16 +1,14 @@
 import { COVER_IMAGE_PLACEHOLDER } from "../lib/placeholder-images";
 import {
   type AdminArticle,
-  articleCover,
-  articleSummary,
-  articleTags,
   escapeHtml,
   formatDate,
-  localArticleHref,
+  localItemKey,
   sortByDateDesc,
   splitTags,
   unique,
 } from "../lib/client-content";
+import { normalizeDomainArticle, type DomainArticle } from "../lib/domain-types";
 
 type AdminHome = {
   generatedDate?: string;
@@ -142,21 +140,21 @@ function splitTagsFromDataset(item: HTMLElement): string[] {
   }
 }
 
-function renderArticleRow(article: AdminArticle, index: number): string {
-  const tags = articleTags(article);
-  const href = localArticleHref(article, index);
+function renderArticleRow(domainArticle: DomainArticle, index: number): string {
+  const tags = domainArticle.tags;
+  const href = domainArticle.href;
   return `
     <a href="${escapeHtml(href)}" class="article-row admin-local-row" ${SYNCED_ATTR}="article" data-tags="${escapeHtml(JSON.stringify(tags))}" data-index="${index}">
       <div class="article-row-num">${String(index + 1).padStart(2, "0")}</div>
       <div class="front-cover front-cover--row">
-        <img src="${escapeHtml(articleCover(article))}" alt="" loading="lazy" />
+        <img src="${escapeHtml(domainArticle.coverImage)}" alt="" loading="lazy" />
       </div>
       <div class="article-row-main">
         <div class="article-row-top">
-          <h3 class="article-row-title">${escapeHtml(article.title || "未命名文章")}</h3>
-          <span class="article-row-date">${formatDate(article.date || article.updatedAt)}</span>
+          <h3 class="article-row-title">${escapeHtml(domainArticle.title)}</h3>
+          <span class="article-row-date">${formatDate(domainArticle.date || domainArticle.updatedAt)}</span>
         </div>
-        <p class="article-row-desc">${escapeHtml(articleSummary(article))}</p>
+        <p class="article-row-desc">${escapeHtml(domainArticle.summary)}</p>
         <div class="article-row-bottom">
           <div class="article-row-tags">
             ${tags.map((tag) => `<span class="article-row-tag">${escapeHtml(tag)}</span>`).join("")}
@@ -195,22 +193,22 @@ function renderArchiveGroup(year: string, items: string, count: number): string 
   `;
 }
 
-function renderHomeArticleCard(article: AdminArticle, index: number): string {
-  const tags = articleTags(article);
-  const href = localArticleHref(article, index);
+function renderHomeArticleCard(domainArticle: DomainArticle, index: number): string {
+  const tags = domainArticle.tags;
+  const href = domainArticle.href;
   return `
     <a href="${escapeHtml(href)}" class="article-card admin-local-row ${index === 0 ? "article-card-featured" : ""}" ${SYNCED_ATTR}="home-article">
       <div class="front-cover front-cover--card">
-        <img src="${escapeHtml(articleCover(article))}" alt="" loading="lazy" />
+        <img src="${escapeHtml(domainArticle.coverImage)}" alt="" loading="lazy" />
       </div>
       <div class="article-card-meta">
-        <span class="article-date">${formatDate(article.date || article.updatedAt)}</span>
+        <span class="article-date">${formatDate(domainArticle.date || domainArticle.updatedAt)}</span>
         <div class="article-tags-row">
           ${tags.slice(0, 3).map((tag) => `<span class="article-tag">${escapeHtml(tag)}</span>`).join("")}
         </div>
       </div>
-      <h3 class="article-card-title">${escapeHtml(article.title || "未命名文章")}</h3>
-      <p class="article-card-desc">${escapeHtml(articleSummary(article))}</p>
+      <h3 class="article-card-title">${escapeHtml(domainArticle.title)}</h3>
+      <p class="article-card-desc">${escapeHtml(domainArticle.summary)}</p>
     </a>
   `;
 }
@@ -234,7 +232,10 @@ function syncArticlesPage(articles: AdminArticle[]): void {
 
   const sorted = sortByDateDesc(articles).filter((article) => article.title);
   if (sorted.length > 0) {
-    const markup = sorted.map(renderArticleRow).join("");
+    const markup = sorted.map((article, index) => {
+      const domain = normalizeDomainArticle(article, index);
+      return domain ? renderArticleRow(domain, index) : "";
+    }).join("");
     list.insertAdjacentHTML("afterbegin", markup);
   }
 
@@ -359,7 +360,10 @@ function syncArchivePage(articles: AdminArticle[]): void {
     document.querySelector<HTMLElement>('[data-archive-list="articles"]'),
     document.querySelector<HTMLElement>('[data-archive-empty="articles"]'),
     articles,
-    localArticleHref
+    (item, index) => {
+      const domain = normalizeDomainArticle(item, index);
+      return domain ? domain.href : `/articles/local-${localItemKey(item, index)}`;
+    }
   );
   const projectYears = Array.from(
     document.querySelectorAll<HTMLElement>('[data-archive-list="projects"] .archive-year-group')

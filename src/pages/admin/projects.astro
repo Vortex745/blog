@@ -1,6 +1,6 @@
 ---
 import AdminLayout from "../../layouts/AdminLayout.astro";
-import { projectTags, readContentProjects } from "../../lib/content-store";
+import { readContentProjects } from "../../lib/content-store";
 import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
 
 let projects = [];
@@ -42,7 +42,7 @@ const initialProjectsPayload = JSON.stringify({
     </div>
     <div id="project-list" class="article-list">
       {projects.map((p, idx) => {
-        const allTags = projectTags(p);
+        const allTags = p.tags || [];
         return (
           <div class="admin-list-card" data-id={p.id} data-index={idx}>
             <div class="admin-list-card-main">

@@ -2,16 +2,14 @@ import { renderMarkdown, renderMarkdownDocument } from "../lib/markdown";
 import {
   type AdminArticle,
   type AdminProject,
-  articleSummary,
-  articleTags,
   escapeHtml,
   formatDate,
   itemMatchesSlug,
   localSlugToken,
-  projectTags,
   safeAssetUrl,
   stripMarkdown,
 } from "../lib/client-content";
+import { normalizeDomainArticle, normalizeDomainProject } from "../lib/domain-types";
 
 type TocItem = {
   depth: number;
@@ -98,20 +96,21 @@ async function hydrateLocalArticleDetail(): Promise<void> {
   if (!token) return;
 
   const articles = readList<AdminArticle>(ARTICLE_KEY);
-  let article = articles.find((item, index) => itemMatchesSlug(item, index, token));
-  if (!article) {
+  let articleRaw = articles.find((item, index) => itemMatchesSlug(item, index, token));
+  if (!articleRaw) {
     const remoteArticles = await readRemoteArticles();
-    article = remoteArticles.find((item, index) => itemMatchesSlug(item, index, token));
+    articleRaw = remoteArticles.find((item, index) => itemMatchesSlug(item, index, token));
   }
 
+  const article = articleRaw ? normalizeDomainArticle(articleRaw, 0) : null;
   if (!article) {
     showMissing(root, "文章");
     return;
   }
 
-  const tags = articleTags(article);
-  const title = article.title || "未命名文章";
-  const summary = articleSummary(article, 140);
+  const tags = article.tags;
+  const title = article.title;
+  const summary = article.summary;
   const cover = safeAssetUrl(article.coverImage, "");
   const content = article.content || summary;
   const readingMinutes = Math.max(1, Math.ceil(stripMarkdown(content).split(/\s+/).length / 240));
@@ -155,15 +154,16 @@ export function initLocalProjectDetail(): void {
   if (!token) return;
 
   const projects = readList<AdminProject>(PROJECT_KEY);
-  const project = projects.find((item, index) => itemMatchesSlug(item, index, token));
+  const projectRaw = projects.find((item, index) => itemMatchesSlug(item, index, token));
+  const project = projectRaw ? normalizeDomainProject(projectRaw, 0) : null;
   if (!project) {
     showMissing(root, "项目");
     return;
   }
 
-  const tags = projectTags(project);
-  const title = project.title || "未命名项目";
-  const description = project.description || "";
+  const tags = project.tags;
+  const title = project.title;
+  const description = project.description;
   const cover = safeAssetUrl(project.imageData || project.coverImage, "");
   const projectUrl = safeAssetUrl(project.url);
 

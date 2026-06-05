@@ -2,7 +2,7 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { getCollection } from "astro:content";
 import { COVER_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
-import { projectCover, projectDate, projectTags, readContentProjects } from "../../lib/content-store";
+import { readContentProjects } from "../../lib/content-store";
 
 const projects = await getCollection("projects");
 const sqliteProjects = await readContentProjects().catch(() => []);
@@ -18,9 +18,9 @@ const projectItems = [
     id: project.id || String(index),
     title: project.title || "未命名项目",
     description: project.description || "",
-    date: projectDate(project),
-    tags: projectTags(project),
-    coverImage: projectCover(project),
+    date: project.date,
+    tags: project.tags,
+    coverImage: project.coverImage,
     href: `/projects/local-${encodeURIComponent(project.id || project.title || String(index))}`,
     githubUrl: "",
     demoUrl: project.url || "",
