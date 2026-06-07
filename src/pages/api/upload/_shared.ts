@@ -1,12 +1,24 @@
 import type { APIRoute } from "astro";
 import { readServerEnv } from "../../../lib/env";
+import { writeFile, mkdir } from "node:fs/promises";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-// ── ImgBB Configuration ──────────────────────────────────────────────
-const IMGBB_API_KEY = readServerEnv("IMGBB_API_KEY");
-const IMGBB_ENDPOINT = "https://api.imgbb.com/1/upload";
+// ── Local Storage Configuration ───────────────────────────────────────
+// UPLOAD_DIR env var overrides the default path (useful for Docker/custom mounts)
+const UPLOAD_DIR_ENV = readServerEnv("UPLOAD_DIR");
+
+/** Absolute path to the uploads directory (defaults to <project-root>/public/uploads). */
+function getUploadDir(): string {
+  if (UPLOAD_DIR_ENV) return UPLOAD_DIR_ENV;
+  // Resolve relative to this file: src/pages/api/upload/ → project root → public/uploads
+  const thisFile = fileURLToPath(import.meta.url);
+  // Go up 5 levels: upload → api → pages → src → project root
+  return join(thisFile, "..", "..", "..", "..", "..", "public", "uploads");
+}
 
 // ── Validation ───────────────────────────────────────────────────────
-export const MAX_IMAGE_SIZE = 32 * 1024 * 1024; // 32MB (imgbb limit)
+export const MAX_IMAGE_SIZE = 32 * 1024 * 1024; // 32 MB
 export const ACCEPTED_IMAGE_TYPES = new Map([
   ["image/jpeg", "jpg"],
   ["image/png", "png"],
@@ -29,50 +41,33 @@ export function validateImageFile(file: File) {
   return "";
 }
 
-// ── Upload to ImgBB ──────────────────────────────────────────────────
+// ── Save to Local Disk ────────────────────────────────────────────────
 export async function saveUploadedImage(file: File, _bucket: string) {
-  if (!IMGBB_API_KEY) {
-    throw new Error("缺少 IMGBB_API_KEY 环境变量");
-  }
+  const uploadDir = getUploadDir();
 
-  // Read file as base64 for imgbb API
-  const arrayBuffer = await file.arrayBuffer();
-  const base64 = Buffer.from(arrayBuffer).toString("base64");
+  // Ensure uploads directory exists
+  await mkdir(uploadDir, { recursive: true });
+
   const extension = ACCEPTED_IMAGE_TYPES.get(file.type) || "jpg";
+  const filename = `${Date.now()}-${crypto.randomUUID()}.${extension}`;
+  const destPath = join(uploadDir, filename);
 
-  // Build multipart form for imgbb
-  const formData = new FormData();
-  formData.append("key", IMGBB_API_KEY);
-  formData.append("image", base64);
-  formData.append("name", `${Date.now()}-${crypto.randomUUID()}.${extension}`);
+  const arrayBuffer = await file.arrayBuffer();
+  await writeFile(destPath, Buffer.from(arrayBuffer));
 
-  const response = await fetch(IMGBB_ENDPOINT, {
-    method: "POST",
-    body: formData,
-  });
-
-  if (!response.ok) {
-    const text = await response.text().catch(() => "");
-    throw new Error(`图床上传失败 (HTTP ${response.status}): ${text}`);
-  }
-
-  const result = await response.json();
-
-  if (!result.success || !result.data) {
-    throw new Error(result.error?.message || "图床返回异常");
-  }
+  const url = `/uploads/${filename}`;
 
   return {
-    url: result.data.url as string,           // 原图直链
-    display_url: result.data.display_url as string,
-    thumb_url: result.data.thumb?.url as string || "",
-    medium_url: result.data.medium?.url as string || "",
-    filename: result.data.image?.filename || file.name,
-    size: result.data.size || file.size,
+    url,
+    display_url: url,
+    thumb_url: url,
+    medium_url: url,
+    filename,
+    size: file.size,
     type: file.type,
-    width: result.data.width as number,
-    height: result.data.height as number,
-    delete_url: result.data.delete_url as string,
+    width: 0,
+    height: 0,
+    delete_url: "",
   };
 }
 

@@ -617,7 +617,7 @@ const initialProjectsPayload = JSON.stringify({
       showStatus("请上传图片文件", "error");
       return;
     }
-    showStatus("正在上传封面到图床...", "info");
+    showStatus("正在上传封面...", "info");
     try {
       const image = await uploadImageToImgbb(file);
       showImagePreview(image.url);

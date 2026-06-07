@@ -2,8 +2,9 @@
 /// <reference types="astro/client" />
 
 interface ImportMetaEnv {
-  readonly IMGBB_API_KEY?: string;
   readonly SQLITE_DB_PATH?: string;
+  /** Optional: override default upload directory (public/uploads) */
+  readonly UPLOAD_DIR?: string;
   readonly ADMIN_USERNAME?: string;
   readonly ADMIN_PASSWORD?: string;
   readonly LLM_API_KEY?: string;
