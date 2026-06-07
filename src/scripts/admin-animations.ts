@@ -499,7 +499,7 @@ function initNavPillAndListeners(): void {
 
 /** Run page entrance animations */
 function runPageEntranceAnimations(): void {
-  if (prefersReducedMotion()) return;
+  if (prefersReducedMotion() || !isFirstLoad) return;
 
   document.querySelectorAll(".admin-page-header").forEach(animatePageHeader);
   document.querySelectorAll(".toolbar").forEach(animateToolbar);

@@ -195,6 +195,13 @@ const initialProjectsPayload = JSON.stringify({
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
               </button>
             </div>
+            <!-- Upload Progress -->
+            <div id="cover-progress" class="cover-progress hidden">
+              <div class="progress-bar">
+                <div class="progress-fill" id="cover-progress-fill"></div>
+              </div>
+              <span class="progress-text" id="cover-progress-text">0%</span>
+            </div>
           </div>
           <input type="hidden" id="p-image-data" name="imageData" value="" />
         </div>
@@ -236,6 +243,9 @@ const initialProjectsPayload = JSON.stringify({
   const imagePreview = document.getElementById("image-preview");
   const imageDataInput = document.getElementById("p-image-data");
   const btnRemoveImage = document.getElementById("btn-remove-image");
+  const coverProgress = document.getElementById("cover-progress");
+  const coverProgressFill = document.getElementById("cover-progress-fill");
+  const coverProgressText = document.getElementById("cover-progress-text");
   const projectTagInput = document.getElementById("project-tag-input");
   const projectTagList = document.getElementById("project-tag-list");
   const projectTagsHidden = document.getElementById("p-tech");
@@ -580,6 +590,13 @@ const initialProjectsPayload = JSON.stringify({
     if (placeholder) placeholder.style.display = "flex";
   }
 
+  function setCoverProgress(percent) {
+    if (coverProgressFill) coverProgressFill.style.width = `${percent}%`;
+    if (coverProgressText) coverProgressText.textContent = `${percent}%`;
+  }
+
+
+
   function showImagePreview(dataUrl) {
     if (!imagePreview || !btnRemoveImage) return;
     imagePreview.src = dataUrl;
@@ -617,28 +634,32 @@ const initialProjectsPayload = JSON.stringify({
       showStatus("请上传图片文件", "error");
       return;
     }
+    if (coverProgress) coverProgress.classList.remove("hidden");
+    setCoverProgress(0);
     showStatus("正在上传封面...", "info");
     try {
-      const image = await uploadImageToImgbb(file);
+      const image = await uploadImageWithProgress("/api/upload/cover", file, setCoverProgress);
+      setCoverProgress(100);
       showImagePreview(image.url);
       if (imageDataInput) imageDataInput.value = image.url;
       showStatus("封面上传成功", "success");
+      setTimeout(() => { if (coverProgress) coverProgress.classList.add("hidden"); }, 500);
     } catch (err) {
       showStatus(err instanceof Error ? err.message : "封面上传失败", "error");
+      if (coverProgress) coverProgress.classList.add("hidden");
     }
   }
 
-  function uploadImageToImgbb(file) {
+  function uploadImageWithProgress(endpoint, file, onProgress) {
     return new Promise((resolve, reject) => {
       const formData = new FormData();
       formData.append("image", file);
       const xhr = new XMLHttpRequest();
-      xhr.open("POST", "/api/upload/cover");
+      xhr.open("POST", endpoint);
       xhr.responseType = "json";
       xhr.upload.addEventListener("progress", (event) => {
         if (!event.lengthComputable) return;
-        const pct = Math.round((event.loaded / event.total) * 100);
-        showStatus(`正在上传封面... ${pct}%`, "info");
+        onProgress(Math.round((event.loaded / event.total) * 100));
       });
       xhr.addEventListener("load", () => {
         const response = xhr.response || {};
@@ -701,7 +722,7 @@ const initialProjectsPayload = JSON.stringify({
     }
     polishedProjectDescription = "";
     if (projectPolishOptions) projectPolishOptions.classList.remove("hidden");
-    if (projectPolishDiff) projectPolishDiff.classList.add("hidden");
+    if (projectPolishDiff) projectPolishDiff.classList.remove("hidden");
     showProjectPolishStatus("", "info");
   });
 
@@ -1592,12 +1613,49 @@ const initialProjectsPayload = JSON.stringify({
     color: #a0a5b1;
   }
   .image-preview {
-    display: none;
     width: 100%;
-    max-height: 240px;
+    height: 100%;
     object-fit: cover;
-    border-radius: 12px;
+    display: none;
+    border-radius: 4px;
   }
+
+  .cover-progress {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 12px;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    transition: opacity 0.3s;
+  }
+  .cover-progress.hidden {
+    opacity: 0;
+    pointer-events: none;
+    display: none;
+  }
+  .progress-bar {
+    flex: 1;
+    height: 6px;
+    background: #e9ecef;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--admin-primary);
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+  .progress-text {
+    font-size: 13px;
+    color: #495057;
+    font-variant-numeric: tabular-nums;
+    min-width: 36px;
+    text-align: right;
+  }
+
   .btn-remove-image {
     display: none;
     position: absolute;

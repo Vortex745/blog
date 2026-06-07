@@ -1,17 +1,20 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { getCollection } from "astro:content";
-import { normalizeAbout, readContentAbout, readContentArticles, readContentProjects } from "../lib/content-store";
+import { normalizeAbout, normalizeHome, readContentAbout, readContentArticles, readContentProjects, readContentHome } from "../lib/content-store";
 import { COVER_IMAGE_PLACEHOLDER } from "../lib/placeholder-images";
+import { stripMarkdown } from "../lib/markdown";
 
 const articles = await getCollection("articles");
 const projects = await getCollection("projects");
-const [about, sqliteProjects, sqliteArticles] = await Promise.all([
+const [about, homeData, sqliteProjects, sqliteArticles] = await Promise.all([
   readContentAbout().catch(() => null),
+  readContentHome().catch(() => null),
   readContentProjects().catch(() => []),
   readContentArticles().catch(() => []),
 ]);
 const profile = about ?? normalizeAbout({});
+const home = homeData ?? normalizeHome({});
 
 const COVER_PLACEHOLDER = COVER_IMAGE_PLACEHOLDER;
 const articleItems = [
@@ -61,7 +64,9 @@ const quotes = [
   { text: "Stay hungry, stay foolish.", author: "Steve Jobs" },
   { text: "好的设计让使用者感觉不到设计的存在。", author: "" },
 ];
-const quote = quotes[Math.floor(Math.random() * quotes.length)];
+const quote = home.quoteText 
+  ? { text: home.quoteText, author: home.quoteAuthor || "AI" } 
+  : quotes[Math.floor(Math.random() * quotes.length)];
 ---
 
 <BaseLayout title="子衿的个人博客网站">
@@ -72,10 +77,10 @@ const quote = quotes[Math.floor(Math.random() * quotes.length)];
       <div class="hero-grid">
         <div class="hero-content">
           <h1 class="hero-title" data-animate="hero-item">
-            每一次提交都是向前一步。
+            {home.heroTitle || "每一次提交都是向前一步。"}
           </h1>
           <p class="hero-desc" data-animate="hero-item">
-            {profile.bio}
+            {home.heroLead || profile.bio}
           </p>
           <div class="hero-actions" data-animate="hero-item">
             <a href="/projects" class="hero-btn hero-btn-primary">
@@ -137,7 +142,7 @@ const quote = quotes[Math.floor(Math.random() * quotes.length)];
                 </div>
               </div>
               <h3 class="article-card-title">{article.title}</h3>
-              <p class="article-card-desc">{article.description}</p>
+              <p class="article-card-desc">{stripMarkdown(article.description)}</p>
               {idx === 0 && (
                 <span class="article-read-more">
                   阅读全文
@@ -191,7 +196,7 @@ const quote = quotes[Math.floor(Math.random() * quotes.length)];
                 <span class="project-dense-date">{formatDate(project.date)}</span>
               </div>
               <h3 class="project-dense-title">{project.title}</h3>
-              <p class="project-dense-desc">{project.description}</p>
+              <p class="project-dense-desc">{stripMarkdown(project.description)}</p>
               <div class="project-dense-links">
                 {project.githubUrl && (
                   <span class="project-dense-link">

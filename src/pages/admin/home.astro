@@ -135,23 +135,35 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     updateBadges();
   }
 
-  function saveHomeData() {
-    localStorage.setItem(HOME_KEY, JSON.stringify(generatedData));
-    window.dispatchEvent(new CustomEvent("admin-content:changed", {
-      detail: { key: "home" },
-    }));
+  async function saveHomeData() {
+    try {
+      const res = await fetch("/api/home", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(generatedData),
+      });
+      if (!res.ok) throw new Error("保存失败");
+      window.dispatchEvent(new CustomEvent("admin-content:changed", {
+        detail: { key: "home" },
+      }));
+    } catch (err) {
+      console.error(err);
+    }
   }
 
-  function loadHomeData() {
+  async function loadHomeData() {
     try {
-      const saved = localStorage.getItem(HOME_KEY);
-      if (!saved) return;
-      const data = JSON.parse(saved);
-      generatedData = {
-        ...generatedData,
-        ...data,
-      };
-      if (guidanceInput) guidanceInput.value = generatedData.guidance || "";
+      const res = await fetch("/api/home");
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.home) {
+        generatedData = {
+          ...generatedData,
+          ...data.home,
+        };
+        if (guidanceInput) guidanceInput.value = generatedData.guidance || "";
+        updatePreview();
+      }
     } catch {}
   }
 
@@ -217,7 +229,7 @@ JSON 字段：heroTitle, heroLead, quoteText, quoteAuthor。`;
       };
       if (guidanceInput) guidanceInput.value = guidance;
       updatePreview();
-      saveHomeData();
+      await saveHomeData();
       showStatus("今日内容已生成并保存", "success");
     } catch (err) {
       showStatus("生成失败: " + (err instanceof Error ? err.message : String(err)), "error");
@@ -226,7 +238,7 @@ JSON 字段：heroTitle, heroLead, quoteText, quoteAuthor。`;
     }
   });
 
-  form?.addEventListener("submit", (e) => {
+  form?.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!generatedData.heroTitle && !generatedData.heroLead && !generatedData.quoteText) {
       showStatus("请先生成今日内容", "error");
@@ -234,14 +246,13 @@ JSON 字段：heroTitle, heroLead, quoteText, quoteAuthor。`;
     }
     generatedData.guidance = guidanceInput?.value?.trim() || generatedData.guidance || "";
     generatedData.generatedDate = generatedData.generatedDate || todayKey();
-    saveHomeData();
+    await saveHomeData();
     updatePreview();
     showStatus("已保存今日内容", "success");
   });
 
   btnReset?.addEventListener("click", async () => {
     if (!await (window as any).showConfirmDialog("确定要清除今日生成结果吗？")) return;
-    localStorage.removeItem(HOME_KEY);
     generatedData = {
       generatedDate: "",
       guidance: "",
@@ -252,6 +263,7 @@ JSON 字段：heroTitle, heroLead, quoteText, quoteAuthor。`;
     };
     if (guidanceInput) guidanceInput.value = "";
     updatePreview();
+    await saveHomeData();
     window.dispatchEvent(new CustomEvent("admin-content:changed", {
       detail: { key: "home" },
     }));

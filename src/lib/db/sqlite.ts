@@ -60,6 +60,17 @@ export function initializeBlogDatabase(db: BlogDatabase, options: Pick<SqliteCon
       updated_at text
     );
 
+    create table if not exists admin_home (
+      id text primary key,
+      generated_date text not null default '',
+      guidance text not null default '',
+      hero_title text not null default '',
+      hero_lead text not null default '',
+      quote_text text not null default '',
+      quote_author text not null default '',
+      updated_at text
+    );
+
     create table if not exists admin_gallery (
       id text primary key,
       title text not null default '',

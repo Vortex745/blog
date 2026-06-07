@@ -3,6 +3,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import { getCollection } from "astro:content";
 import { readContentArticles } from "../../lib/content-store";
 import { COVER_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
+import { stripMarkdown } from "../../lib/markdown";
 
 const [contentArticles, sqliteArticles] = await Promise.all([
   getCollection("articles"),
@@ -82,7 +83,7 @@ const formatDate = (date: Date) =>
                   <h3 class="article-row-title">{article.title}</h3>
                   <span class="article-row-date">{formatDate(article.date)}</span>
                 </div>
-                <p class="article-row-desc">{article.description}</p>
+                <p class="article-row-desc">{stripMarkdown(article.description)}</p>
                 <div class="article-row-bottom">
                   <div class="article-row-tags">
                     {article.tags.map((tag) => (

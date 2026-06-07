@@ -52,6 +52,16 @@ export type DomainGallery = {
   updatedAt?: Date;
 };
 
+export type DomainHome = {
+  generatedDate: string;
+  guidance: string;
+  heroTitle: string;
+  heroLead: string;
+  quoteText: string;
+  quoteAuthor: string;
+  updatedAt?: Date;
+};
+
 function parseJsonArray(value: unknown): unknown[] {
   if (Array.isArray(value)) return value;
   if (typeof value !== "string") return [];
@@ -211,6 +221,21 @@ export function normalizeDomainGallery(gallery: any, index: number): DomainGalle
     category: String(gallery.category ?? "").trim(),
     tags: splitTags(gallery.tags),
     date,
+    updatedAt,
+  };
+}
+
+export function normalizeDomainHome(home: any): DomainHome {
+  const parsedUpdated = home.updatedAt ? new Date(String(home.updatedAt)) : undefined;
+  const updatedAt = parsedUpdated && !Number.isNaN(parsedUpdated.getTime()) ? parsedUpdated : undefined;
+
+  return {
+    generatedDate: String(home.generatedDate ?? home.generated_date ?? "").trim(),
+    guidance: String(home.guidance ?? "").trim(),
+    heroTitle: String(home.heroTitle ?? home.hero_title ?? "").trim(),
+    heroLead: String(home.heroLead ?? home.hero_lead ?? "").trim(),
+    quoteText: String(home.quoteText ?? home.quote_text ?? "").trim(),
+    quoteAuthor: String(home.quoteAuthor ?? home.quote_author ?? "").trim(),
     updatedAt,
   };
 }

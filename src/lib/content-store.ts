@@ -6,17 +6,19 @@ import type {
   DomainProject,
   DomainAbout,
   DomainGallery,
+  DomainHome,
 } from "./domain-types";
 import {
   normalizeDomainArticle,
   normalizeDomainProject,
   normalizeDomainAbout,
   normalizeDomainGallery,
+  normalizeDomainHome,
   splitTags,
 } from "./domain-types";
 
 // Re-export domain types for convenience of callers
-export type { DomainArticle as ContentArticle, DomainProject as ContentProject, DomainAbout as ContentAbout, DomainGallery as ContentGallery };
+export type { DomainArticle as ContentArticle, DomainProject as ContentProject, DomainAbout as ContentAbout, DomainGallery as ContentGallery, DomainHome as ContentHome };
 
 export type ContentStoreOptions = {
   db?: BlogDatabase;
@@ -55,6 +57,17 @@ type AboutRow = {
   description: string;
   philosophy: string;
   skills: string;
+  updated_at: string | null;
+};
+
+type HomeRow = {
+  id: string;
+  generated_date: string;
+  guidance: string;
+  hero_title: string;
+  hero_lead: string;
+  quote_text: string;
+  quote_author: string;
   updated_at: string | null;
 };
 
@@ -112,6 +125,10 @@ export function normalizeAbout(value: unknown): DomainAbout {
   return normalizeDomainAbout(value, profile);
 }
 
+export function normalizeHome(value: unknown): DomainHome {
+  return normalizeDomainHome(value);
+}
+
 export function normalizeGallery(value: unknown): DomainGallery[] {
   const list = Array.isArray(value)
     ? value
@@ -164,6 +181,18 @@ function rowToAbout(row: AboutRow): DomainAbout {
     skills: row.skills,
     updatedAt: row.updated_at,
   }, profile);
+}
+
+function rowToHome(row: HomeRow): DomainHome {
+  return normalizeDomainHome({
+    generatedDate: row.generated_date,
+    guidance: row.guidance,
+    heroTitle: row.hero_title,
+    heroLead: row.hero_lead,
+    quoteText: row.quote_text,
+    quoteAuthor: row.quote_author,
+    updatedAt: row.updated_at,
+  });
 }
 
 function rowToGallery(row: GalleryRow, index: number): DomainGallery | null {
@@ -323,6 +352,38 @@ export async function writeContentGallery(gallery: unknown, options?: ContentSto
           date: item.date.toISOString(),
           updatedAt: item.updatedAt ? item.updatedAt.toISOString() : null,
         });
+      });
+    });
+    replace(normalized);
+  });
+
+  return normalized;
+}
+
+export async function readContentHome(options?: ContentStoreOptions): Promise<DomainHome> {
+  return withDatabase(options, (db) => {
+    const row = db.prepare("select generated_date, guidance, hero_title, hero_lead, quote_text, quote_author, updated_at from admin_home limit 1").get();
+    return row ? rowToHome(row as HomeRow) : normalizeHome({});
+  });
+}
+
+export async function writeContentHome(home: unknown, options?: ContentStoreOptions): Promise<DomainHome> {
+  const normalized = normalizeHome(home);
+
+  withDatabase(options, (db) => {
+    const replace = db.transaction((item: DomainHome) => {
+      db.prepare("delete from admin_home").run();
+      db.prepare(`
+        insert into admin_home (id, generated_date, guidance, hero_title, hero_lead, quote_text, quote_author, updated_at)
+        values ('home', @generatedDate, @guidance, @heroTitle, @heroLead, @quoteText, @quoteAuthor, @updatedAt)
+      `).run({
+        generatedDate: item.generatedDate,
+        guidance: item.guidance,
+        heroTitle: item.heroTitle,
+        heroLead: item.heroLead,
+        quoteText: item.quoteText,
+        quoteAuthor: item.quoteAuthor,
+        updatedAt: item.updatedAt ? item.updatedAt.toISOString() : null,
       });
     });
     replace(normalized);

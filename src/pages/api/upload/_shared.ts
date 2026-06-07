@@ -11,10 +11,8 @@ const UPLOAD_DIR_ENV = readServerEnv("UPLOAD_DIR");
 /** Absolute path to the uploads directory (defaults to <project-root>/public/uploads). */
 function getUploadDir(): string {
   if (UPLOAD_DIR_ENV) return UPLOAD_DIR_ENV;
-  // Resolve relative to this file: src/pages/api/upload/ → project root → public/uploads
-  const thisFile = fileURLToPath(import.meta.url);
-  // Go up 5 levels: upload → api → pages → src → project root
-  return join(thisFile, "..", "..", "..", "..", "..", "public", "uploads");
+  // Use robust absolute path resolution based on the process working directory
+  return join(process.cwd(), "public", "uploads");
 }
 
 // ── Validation ───────────────────────────────────────────────────────
