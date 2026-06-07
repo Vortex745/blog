@@ -3,7 +3,7 @@ import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
-import { Bot, User, Send, Sparkles } from "lucide-react";
+import { Bot, User, Send } from "lucide-react";
 import { forwardRef } from "react";
 import { cn } from "../../lib/utils";
 
@@ -59,7 +59,7 @@ const MyUserMessage = forwardRef<HTMLDivElement, any>((props, ref) => {
       className="flex self-end flex-row-reverse max-w-[85%]"
       {...props}
     >
-      <div className="bg-muted rounded-2xl rounded-tr-sm px-4 py-2.5 text-[15px] whitespace-pre-wrap wrap-break-word">
+      <div className="bg-muted rounded-2xl rounded-tr-sm px-4 py-2.5 chat-bubble-text">
         <MessagePrimitive.Content />
       </div>
     </MessagePrimitive.Root>
@@ -78,7 +78,7 @@ const MyAssistantMessage = forwardRef<HTMLDivElement, any>((props, ref) => {
       className="flex self-start max-w-[85%]"
       {...props}
     >
-      <div className="bg-blue-50/50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50 rounded-2xl rounded-tl-sm px-4 py-2 text-[15px] whitespace-pre-wrap wrap-break-word prose dark:prose-invert prose-p:leading-relaxed prose-pre:p-0 w-full max-w-full overflow-x-auto">
+      <div className="bg-blue-50/50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50 rounded-2xl rounded-tl-sm px-4 py-2 prose prose-chat prose-apple dark:prose-invert w-full max-w-full overflow-x-auto">
         <ThinkingIndicator />
         <MessagePrimitive.Content components={{ Text: MarkdownText }} />
       </div>
@@ -104,13 +104,7 @@ const ThinkingIndicator = () => {
       
       {isThinking && (
         <div className="flex items-center gap-2 text-blue-600/80 dark:text-blue-400/80">
-          <Sparkles className="w-4 h-4 animate-pulse" />
           <span className="text-sm font-medium t-shimmer-text">模型思考中</span>
-          <span className="flex items-center gap-1 ml-1">
-            <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce [animation-delay:-0.3s]" />
-            <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce [animation-delay:-0.15s]" />
-            <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" />
-          </span>
         </div>
       )}
     </div>

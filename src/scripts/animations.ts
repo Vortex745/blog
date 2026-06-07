@@ -167,7 +167,7 @@ function setInitialScrollStates() {
 
 /**
  * Intersection Observer for scroll-triggered animations.
- * Uses a single observer instance for efficiency.
+ * Single observer instance handles all animation types including stagger.
  */
 let observer: IntersectionObserver | null = null;
 
@@ -175,7 +175,7 @@ function initScrollAnimations() {
   if (prefersReducedMotion()) return;
 
   const animated = document.querySelectorAll(
-    "[data-animate='fade-up'], [data-animate='scale-in'], [data-animate='counter']"
+    "[data-animate='fade-up'], [data-animate='scale-in'], [data-animate='counter'], [data-animate='stagger']"
   );
   if (animated.length === 0) return;
 
@@ -189,6 +189,7 @@ function initScrollAnimations() {
         if (type === "fade-up") animateFadeUp(el);
         else if (type === "scale-in") animateScaleIn(el);
         else if (type === "counter") animateCounter(el);
+        else if (type === "stagger") animateStagger(el);
 
         observer?.unobserve(el);
       });
@@ -212,37 +213,24 @@ export function initAnimations() {
   // Hero animations (immediate, above the fold)
   document.querySelectorAll("[data-animate='hero']").forEach(animateHero);
 
-  // Stagger containers (scroll-triggered)
+  // Stagger containers: set children initial state (observer handles trigger)
   document.querySelectorAll("[data-animate='stagger']").forEach((container) => {
-    // Set children initial state immediately
     const children = container.children;
     if (children.length > 0) {
       gsap.set(children, { opacity: 0, y: 16 });
     }
-
-    const obs = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            animateStagger(entry.target);
-            obs.unobserve(entry.target);
-          }
-        });
-      },
-      { threshold: 0.1, rootMargin: "0px 0px -40px 0px" }
-    );
-    obs.observe(container);
   });
 
   // Scroll-triggered individual animations
   initScrollAnimations();
 }
 
+// 全局记录跨页前的 pill 动画状态 (已被移除，因为 nav 是 persist 的，不需要打断动画)
+// 之前这里有 astro:before-swap 监听器，现在移除了，避免破坏跨页连续动画
+
 /**
- * GSAP-driven sliding pill for dock navigation.
- * Performance-optimized: only animates compositor-friendly properties
- * (x, y, scaleX, scaleY, opacity). Width/height are set once per
- * transition and compensated with scale to avoid per-frame layout thrashing.
+ * Transitions.dev - Tabs sliding (GSAP Core)
+ * Uses GSAP to animate width and transform (x/y).
  */
 export function initDockPill() {
   const navEl = document.getElementById("desktop-nav");
@@ -252,7 +240,6 @@ export function initDockPill() {
   const links = navEl.querySelectorAll<HTMLElement>(".editorial-nav-link");
   const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  // Determine actual active link based on current URL
   const currentPath = window.location.pathname;
   let activeLink: HTMLElement | null = null;
   
@@ -266,115 +253,80 @@ export function initDockPill() {
 
   if (!activeLink && links.length > 0) activeLink = links[0];
 
-  function getMetrics(target: HTMLElement) {
-    const navRect = navEl!.getBoundingClientRect();
-    const targetRect = target.getBoundingClientRect();
-    return {
-      width: targetRect.width,
-      height: targetRect.height,
-      x: targetRect.left - navRect.left + navEl!.scrollLeft,
-      y: targetRect.top - navRect.top + navEl!.scrollTop,
-    };
-  }
+  let isPillHeightSet = pillEl.style.height !== "";
+
+  // [Performance] 使用 gsap.quickTo 缓存动画实例，避免每次调用重复创建 Tween 造成 GC 和性能损耗
+  const xTo = gsap.quickTo(pillEl, "x", { duration: 0.25, ease: "power2.out" });
+  const widthTo = gsap.quickTo(pillEl, "width", { duration: 0.25, ease: "power2.out" });
 
   function movePillTo(target: HTMLElement, animate = true) {
-    const m = getMetrics(target);
+    if (!target || !pillEl) return;
+    
+    // [Performance] 集中 DOM Reads，获取最新的几何属性
+    const left = target.offsetLeft;
+    const width = target.offsetWidth;
 
-    if (!animate || prefersReduced) {
-      gsap.killTweensOf(pillEl);
-      gsap.set(pillEl, {
-        width: m.width,
-        height: m.height,
-        x: m.x,
-        y: m.y,
-        scaleX: 1,
-        scaleY: 1,
-        opacity: 1,
-      });
-      return;
+    // [Performance] 垂直属性保持静态，仅在初始化时设定，不参与动画循环
+    if (!isPillHeightSet) {
+      gsap.set(pillEl, { height: target.offsetHeight, y: target.offsetTop });
+      isPillHeightSet = true;
     }
 
-    // --- GPU-Accelerated FLIP + Smooth Slide ---
-    const currentX = (gsap.getProperty(pillEl, "x") as number) || m.x;
-    const travel = Math.abs(m.x - currentX);
-    
-    // Stretch max 1.08 (subtle), squash gentle
-    const stretch = Math.min(1.08, 1 + travel / 1200);
-    const squash = Math.max(0.92, 1 - (stretch - 1) * 0.5);
-    const slideDuration = 0.25;
-
-    let curW = pillEl!.offsetWidth;
-    let curH = pillEl!.offsetHeight;
-    if (curW === 0) curW = m.width;
-    if (curH === 0) curH = m.height;
-
-    // FLIP: instantly set layout to final size, inverse scale to match previous size
-    gsap.set(pillEl, {
-      width: m.width,
-      height: m.height,
-      scaleX: curW / m.width,
-      scaleY: curH / m.height,
-      opacity: 1,
-      transformOrigin: "50% 50%",
-      willChange: "transform",
-    });
-
-    const tl = gsap.timeline({
-      defaults: { overwrite: "auto" },
-      onComplete: () => {
-        gsap.set(pillEl, { clearProps: "willChange" });
-      }
-    });
-
-    // Animate X/Y with smooth ease
-    tl.to(pillEl, {
-      x: m.x,
-      y: m.y,
-      duration: slideDuration,
-      ease: "power4.out",
-    }, 0);
-
-    if (stretch > 1.01) {
-      const targetStretchX = stretch * (curW / m.width);
-      const targetSquashY = squash * (curH / m.height);
-      
-      tl.to(pillEl, { scaleX: targetStretchX, scaleY: targetSquashY, duration: slideDuration * 0.3, ease: "power2.out" }, 0);
-      tl.to(pillEl, { scaleX: 1, scaleY: 1, duration: slideDuration * 0.7, ease: "power4.out" }, slideDuration * 0.3);
+    if (!animate || prefersReduced) {
+      gsap.set(pillEl, {
+        x: left,
+        width,
+        opacity: 1
+      });
     } else {
-      tl.to(pillEl, { scaleX: 1, scaleY: 1, duration: slideDuration, ease: "power4.out" }, 0);
+      gsap.set(pillEl, { opacity: 1 }); // 透明度直接渐变到位
+      xTo(left);
+      widthTo(width);
     }
   }
 
-  // Sync is-active classes
+  // 判断当前 DOM 状态，是否已经激活了对应的链接
+  const alreadyActive = activeLink?.classList.contains("is-active");
+
   links.forEach(l => l.classList.toggle("is-active", l === activeLink));
 
   const isFirstLoad = !navEl.hasAttribute("data-pill-init");
-  if (activeLink) {
-    movePillTo(activeLink, !isFirstLoad);
-  }
   navEl.setAttribute("data-pill-init", "true");
+
+  if (activeLink) {
+    if (isFirstLoad) {
+      movePillTo(activeLink, false);
+    } else if (!alreadyActive) {
+      // 只有当活动链接真正发生改变时（例如点击了浏览器的前进/后退），才触发动画
+      // 如果是用户点击了链接，点击事件的回调已经触发了动画，这里不需要重复触发，从而避免打断正在进行的过渡
+      movePillTo(activeLink, true);
+    }
+  }
 
   links.forEach((link) => {
     if (link.hasAttribute("data-pill-click")) return;
     link.setAttribute("data-pill-click", "true");
     
     link.addEventListener("click", () => {
-      if (link === activeLink) return;
+      if (link.classList.contains("is-active")) return;
       links.forEach((l) => l.classList.remove("is-active"));
       link.classList.add("is-active");
-      activeLink = link;
       
+      // 立即触发动画，提供点击即时反馈，因为 nav 被 persist，动画会跨页面无缝继续
       movePillTo(link, true);
     });
   });
 
   if (!navEl.hasAttribute("data-pill-resize")) {
     navEl.setAttribute("data-pill-resize", "true");
-    let resizeTimer: ReturnType<typeof setTimeout>;
+    
+    // [Performance] 针对 resize 必须加防抖（Debounce），避免连续高频触发导致严重的 Layout Thrashing
+    let resizeTimer: number;
     window.addEventListener("resize", () => {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => {
-        if (activeLink) movePillTo(activeLink, false);
+      window.clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(() => {
+        const currentActive = navEl.querySelector<HTMLElement>(".editorial-nav-link.is-active");
+        if (currentActive) movePillTo(currentActive, false);
       }, 100);
     });
   }

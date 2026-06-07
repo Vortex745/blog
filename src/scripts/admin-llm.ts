@@ -10,10 +10,34 @@ export type LlmSettings = {
 
 export const LLM_SETTINGS_KEY = "admin-llm-settings";
 
+let cachedServerSettings: LlmSettings | null | undefined = undefined;
+
 export function getLlmSettings(): LlmSettings | null {
+  // Prefer localStorage (fast, synchronous)
   try {
     const raw = localStorage.getItem(LLM_SETTINGS_KEY);
     if (raw) return JSON.parse(raw) as LlmSettings;
+  } catch {}
+  // Fallback to cached server settings
+  return cachedServerSettings ?? null;
+}
+
+export async function fetchLlmSettings(): Promise<LlmSettings | null> {
+  try {
+    const res = await fetch("/api/env-config");
+    const data = await res.json();
+    if (data.ok && data.config) {
+      const settings: LlmSettings = {
+        baseUrl: data.config.LLM_BASE_URL || undefined,
+        model: data.config.LLM_MODEL || undefined,
+      };
+      cachedServerSettings = settings;
+      // Also sync to localStorage for next time
+      if (settings.baseUrl && settings.model) {
+        localStorage.setItem(LLM_SETTINGS_KEY, JSON.stringify(settings));
+      }
+      return settings;
+    }
   } catch {}
   return null;
 }

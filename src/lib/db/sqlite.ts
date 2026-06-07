@@ -137,6 +137,27 @@ export function openBlogDatabase(options: OpenBlogDatabaseOptions = {}): BlogDat
   return db;
 }
 
+const sharedDbCache = new Map<string, BlogDatabase>();
+
+export function getSharedDatabase(options: OpenBlogDatabaseOptions = {}): BlogDatabase {
+  const config = getSqliteConfig(options);
+  const key = config.dbPath;
+
+  const cached = sharedDbCache.get(key);
+  if (cached) return cached;
+
+  const db = openBlogDatabase(options);
+  sharedDbCache.set(key, db);
+  return db;
+}
+
+export function closeSharedDatabases(): void {
+  for (const db of sharedDbCache.values()) {
+    try { db.close(); } catch { /* ignore */ }
+  }
+  sharedDbCache.clear();
+}
+
 export function sqliteStorageConfigured(): boolean {
   return true;
 }

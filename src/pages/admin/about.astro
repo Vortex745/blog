@@ -663,12 +663,12 @@ const initialAvatar = initialAbout.avatar || DEFAULT_AVATAR;
     translate: "请将以下 Markdown 文本翻译为英文，保持 Markdown 格式不变。只输出翻译后的内容，不要解释。",
   };
 
-  function getLlmSettings() {
-    try {
-      const raw = localStorage.getItem(LLM_KEY);
-      if (raw) return JSON.parse(raw);
-    } catch {}
-    return null;
+  import { getLlmSettings as getSharedLlmSettings, fetchLlmSettings } from "../../scripts/admin-llm";
+
+  async function getLlmSettings() {
+    const cached = getSharedLlmSettings();
+    if (cached?.baseUrl && cached?.model) return cached;
+    return await fetchLlmSettings();
   }
 
   function escapeHtml(str) {
@@ -689,12 +689,12 @@ const initialAvatar = initialAbout.avatar || DEFAULT_AVATAR;
     });
   });
 
-  btnPolish?.addEventListener("click", () => {
+  btnPolish?.addEventListener("click", async () => {
     if (!philosophyInput?.value?.trim()) {
       showStatus("请先输入理念内容", "error");
       return;
     }
-    const s = getLlmSettings();
+    const s = await getLlmSettings();
     if (!s || !s.baseUrl || !s.model) {
       showStatus("请先在 API 管理中配置 LLM API", "error");
       return;
@@ -716,7 +716,7 @@ const initialAvatar = initialAbout.avatar || DEFAULT_AVATAR;
       showPolishStatus("没有可润色的内容", "error");
       return;
     }
-    const s = getLlmSettings();
+    const s = await getLlmSettings();
     if (!s || !s.baseUrl || !s.model) {
       showPolishStatus("LLM API 未配置，请前往 API 管理页面配置", "error");
       return;

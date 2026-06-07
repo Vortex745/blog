@@ -310,7 +310,7 @@ function formatArticleDate(value: unknown): string {
 
 <script>
   import { initMarkdownRenderers, refreshMarkdownRendererFor } from "../../scripts/admin-markdown-renderer";
-  import { getLlmSettings, hasLlmSettings, requestLlmChat } from "../../scripts/admin-llm";
+  import { getLlmSettings, hasLlmSettings, fetchLlmSettings, requestLlmChat } from "../../scripts/admin-llm";
 
   document.addEventListener("astro:page-load", () => {
     const listEl = document.getElementById("article-list");
@@ -943,7 +943,10 @@ function formatArticleDate(value: unknown): string {
       showStatus("请先输入文章内容", "error");
       return;
     }
-    const s = getLlmSettings();
+    let s = getLlmSettings();
+    if (!hasLlmSettings(s)) {
+      s = await fetchLlmSettings();
+    }
     if (!hasLlmSettings(s)) {
       const go = await (window as any).showConfirmDialog(
         "尚未配置大模型 API，无法使用 AI 润色功能。\n\n是否现在前往 API 管理页面进行配置？",
@@ -977,7 +980,10 @@ function formatArticleDate(value: unknown): string {
       showPolishStatus("没有可润色的内容", "error");
       return;
     }
-    const s = getLlmSettings();
+    let s = getLlmSettings();
+    if (!hasLlmSettings(s)) {
+      s = await fetchLlmSettings();
+    }
     if (!hasLlmSettings(s)) {
       showPolishStatus("LLM API 未配置", "error");
       return;

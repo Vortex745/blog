@@ -239,15 +239,17 @@
 
 /* Shimmer text (transitions-dev style) */
 :root {
-  --shimmer-dur: 2s;
+  --shimmer-dur: 2.5s;
 }
 
 .t-shimmer-text {
   background-image: linear-gradient(
     110deg,
-    currentColor 45%,
-    color-mix(in srgb, currentColor 10%, white) 50%,
-    currentColor 55%
+    color-mix(in srgb, currentColor 40%, transparent) 0%,
+    color-mix(in srgb, currentColor 40%, transparent) 40%,
+    currentColor 50%,
+    color-mix(in srgb, currentColor 40%, transparent) 60%,
+    color-mix(in srgb, currentColor 40%, transparent) 100%
   );
   background-size: 200% auto;
   background-clip: text;
@@ -255,16 +257,11 @@
   -webkit-text-fill-color: transparent;
   animation: shimmer-text var(--shimmer-dur) linear infinite;
 }
-.dark .t-shimmer-text {
-  background-image: linear-gradient(
-    110deg,
-    currentColor 45%,
-    color-mix(in srgb, currentColor 10%, white) 50%,
-    currentColor 55%
-  );
-}
 
 @keyframes shimmer-text {
+  from {
+    background-position: 200% center;
+  }
   to {
     background-position: -200% center;
   }
@@ -308,6 +305,43 @@
   --tw-prose-quotes: rgba(255, 255, 255, 0.8);
   --tw-prose-code: #f5f5f7;
   --tw-prose-hr: rgba(255, 255, 255, 0.1);
+}
+
+/* Assistant UI Chat Typography */
+.chat-bubble-text {
+  font-family: var(--font-body);
+  font-size: 0.9375rem; /* 15px */
+  line-height: 1.5;
+  letter-spacing: -0.24px;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.prose-chat {
+  font-family: var(--font-body);
+  font-size: 0.9375rem; /* 15px */
+  line-height: 1.5;
+  letter-spacing: -0.24px;
+  word-break: break-word;
+}
+
+.prose-chat p {
+  margin-top: 0.6em;
+  margin-bottom: 0.6em;
+}
+
+.prose-chat pre {
+  padding: 0;
+  margin-top: 0.8em;
+  margin-bottom: 0.8em;
+}
+
+.prose-chat > :first-child {
+  margin-top: 0 !important;
+}
+
+.prose-chat > :last-child {
+  margin-bottom: 0 !important;
 }
 
 html {

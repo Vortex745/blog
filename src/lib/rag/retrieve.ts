@@ -1,5 +1,5 @@
 import type { BlogDatabase } from "../db/sqlite";
-import { openBlogDatabase } from "../db/sqlite";
+import { getSharedDatabase } from "../db/sqlite";
 import { getAssistantAiConfig } from "../ai/config";
 import { buildRagContext } from "./context";
 import { embedQueryWithAi, type EmbedQuery } from "./embeddings";
@@ -99,7 +99,7 @@ export async function retrieveRagContext(query: string, options: RetrieveRagCont
   const config = getAssistantAiConfig();
   const rewrittenQuery = options.skipAiRewrite ? query : await rewriteRagQuery(query);
 
-  const db = options.db ?? openBlogDatabase({
+  const db = options.db ?? getSharedDatabase({
     dbPath: options.dbPath,
     embeddingDimensions: options.embeddingDimensions ?? config.embeddingDimensions,
   });
@@ -111,9 +111,10 @@ export async function retrieveRagContext(query: string, options: RetrieveRagCont
     }
 
     const embedQuery = options.embedQuery ?? ((value: string) => embedQueryWithAi(value, options.embeddingModel || config.embeddingModel));
-    const embedding = await embedQuery(rewrittenQuery);
-    const vectorItems = vectorSearch(db, embedding, Math.max(limit * 4, 12));
+    const embeddingPromise = embedQuery(rewrittenQuery);
     const bm25Items = bm25Search(db, rewrittenQuery, Math.max(limit * 4, 12));
+    const embedding = await embeddingPromise;
+    const vectorItems = vectorSearch(db, embedding, Math.max(limit * 4, 12));
     const fused = reciprocalRankFusion([vectorItems, bm25Items]).map((item) => ({
       ...item,
       rrfScore: item.rrfScore,
@@ -123,7 +124,5 @@ export async function retrieveRagContext(query: string, options: RetrieveRagCont
   } catch {
     const bm25Items = bm25Search(db, rewrittenQuery, limit);
     return buildRagContext(query, rewrittenQuery, bm25Items);
-  } finally {
-    if (!options.db) db.close();
   }
 }

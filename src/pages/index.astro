@@ -1,18 +1,21 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { getCollection } from "astro:content";
-import { normalizeAbout, normalizeHome, readContentAbout, readContentArticles, readContentProjects, readContentHome } from "../lib/content-store";
+import { normalizeAbout, normalizeHome, readContentAbout, readContentArticles, readContentProjects, readContentHome, hasAnyContent } from "../lib/content-store";
 import { COVER_IMAGE_PLACEHOLDER } from "../lib/placeholder-images";
 import { stripMarkdown } from "../lib/markdown";
 
 const articles = await getCollection("articles");
 const projects = await getCollection("projects");
-const [about, homeData, sqliteProjects, sqliteArticles] = await Promise.all([
-  readContentAbout().catch(() => null),
-  readContentHome().catch(() => null),
-  readContentProjects().catch(() => []),
-  readContentArticles().catch(() => []),
-]);
+const hasSqlite = hasAnyContent();
+const [about, homeData, sqliteProjects, sqliteArticles] = hasSqlite
+  ? await Promise.all([
+      readContentAbout().catch(() => null),
+      readContentHome().catch(() => null),
+      readContentProjects().catch(() => []),
+      readContentArticles().catch(() => []),
+    ])
+  : [null, null, [], []];
 const profile = about ?? normalizeAbout({});
 const home = homeData ?? normalizeHome({});
 

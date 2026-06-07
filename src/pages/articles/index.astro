@@ -1,14 +1,16 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { getCollection } from "astro:content";
-import { readContentArticles } from "../../lib/content-store";
+import { readContentArticles, hasAnyContent } from "../../lib/content-store";
 import { COVER_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
 import { stripMarkdown } from "../../lib/markdown";
 
-const [contentArticles, sqliteArticles] = await Promise.all([
-  getCollection("articles"),
-  readContentArticles().catch(() => []),
-]);
+const [contentArticles, sqliteArticles] = hasAnyContent()
+  ? await Promise.all([
+      getCollection("articles"),
+      readContentArticles().catch(() => []),
+    ])
+  : [await getCollection("articles"), []];
 
 const sortedContentArticles = contentArticles.sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
 

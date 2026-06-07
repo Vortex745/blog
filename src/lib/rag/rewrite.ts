@@ -11,9 +11,28 @@ const rewriteSchema = jsonSchema<{ query: string }>({
   required: ["query"],
 });
 
+export function shouldSkipRewrite(query: string): boolean {
+  const trimmed = query.trim();
+  if (!trimmed) return true;
+
+  const hasCJK = /[\u4e00-\u9fff\u3400-\u4dbf]/.test(trimmed);
+
+  if (hasCJK) {
+    // CJK: ≤3 characters is a single concept, skip rewrite
+    return trimmed.length <= 3;
+  }
+
+  // Latin: ≤6 chars or single word ≤10 chars, skip rewrite
+  if (trimmed.length <= 6) return true;
+  if (trimmed.length <= 10 && !trimmed.includes(" ")) return true;
+  return false;
+}
+
 export async function rewriteRagQuery(query: string): Promise<string> {
   const trimmed = query.trim();
   if (!trimmed) return trimmed;
+
+  if (shouldSkipRewrite(trimmed)) return trimmed;
 
   const config = getAssistantAiConfig();
   if (!config.gatewayApiKey && !config.llmFallback) return trimmed;

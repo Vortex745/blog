@@ -71,7 +71,7 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
 </AdminLayout>
 
 <script>
-  import { getLlmSettings, hasLlmSettings, requestLlmChat } from "../../scripts/admin-llm";
+  import { getLlmSettings, hasLlmSettings, fetchLlmSettings, requestLlmChat } from "../../scripts/admin-llm";
 
   document.addEventListener("astro:page-load", () => {
     const form = document.getElementById("home-form");
@@ -188,7 +188,10 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
   }
 
   btnGenerate?.addEventListener("click", async () => {
-    const settings = getLlmSettings();
+    let settings = getLlmSettings();
+    if (!hasLlmSettings(settings)) {
+      settings = await fetchLlmSettings();
+    }
     if (!hasLlmSettings(settings)) {
       showStatus("请先在 API 管理中配置 LLM API", "error");
       return;

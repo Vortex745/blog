@@ -1,5 +1,5 @@
 import type { BlogDatabase } from "../db/sqlite";
-import { openBlogDatabase } from "../db/sqlite";
+import { getSharedDatabase } from "../db/sqlite";
 import { getAssistantAiConfig } from "../ai/config";
 import { cleanDocumentWithAi } from "./clean";
 import { documentMetadata, hybridChunkDocument, type HybridChunkOptions } from "./chunkers";
@@ -90,27 +90,75 @@ export async function indexRagDocuments(options: IndexRagDocumentsOptions = {}):
   const config = getAssistantAiConfig();
   const embeddingModel = options.embeddingModel || config.embeddingModel;
   const documents = await prepareDocuments(options);
-  const chunks = documents.flatMap((document) => hybridChunkDocument(document, options.chunkOptions));
-  const embedTexts = options.embedTexts ?? ((texts: string[]) => embedTextsWithAi(texts, embeddingModel));
-  const embeddings = await embedTexts(chunks.map((chunk) => chunk.text));
 
-  const db = options.db ?? openBlogDatabase({
+  const db = options.db ?? getSharedDatabase({
     dbPath: options.dbPath,
     embeddingDimensions: options.embeddingDimensions ?? config.embeddingDimensions,
   });
 
-  try {
-    db.transaction(() => {
-      db.prepare("delete from rag_chunk_vectors").run();
-      db.prepare("delete from rag_chunks_fts").run();
-      db.prepare("delete from rag_chunks").run();
-      db.prepare("delete from rag_documents").run();
+  // Compute new content hashes
+  const newHashes = new Map(documents.map((d) => [d.id, sha256(d.cleanContent || d.content)]));
 
-      documents.forEach((document) => insertDocument(db, document));
-      chunks.forEach((chunk, index) => insertChunk(db, chunk, embeddings[index], embeddingModel));
-    })();
+  // Find existing hashes to determine what changed
+  const existingRows = db.prepare("select id, content_hash from rag_documents").all() as Array<{ id: string; content_hash: string }>;
+  const existingHashes = new Map(existingRows.map((r) => [r.id, r.content_hash]));
+
+  const changedIds = new Set<string>();
+  const removedIds = new Set(existingHashes.keys());
+
+  for (const [id, hash] of newHashes) {
+    removedIds.delete(id);
+    if (existingHashes.get(id) !== hash) {
+      changedIds.add(id);
+    }
+  }
+
+  // If all documents are new or changed, or if any were removed, do full rebuild
+  const needsFullRebuild = changedIds.size === documents.length || removedIds.size > 0;
+
+  if (!needsFullRebuild && changedIds.size === 0) {
+    return {
+      documentCount: documents.length,
+      chunkCount: db.prepare("select count(*) as c from rag_chunks").get() as number ? (db.prepare("select count(*) as c from rag_chunks").get() as { c: number }).c : 0,
+      embeddingModel,
+    };
+  }
+
+  const docsToIndex = needsFullRebuild ? documents : documents.filter((d) => changedIds.has(d.id));
+  const chunks = docsToIndex.flatMap((document) => hybridChunkDocument(document, options.chunkOptions));
+  const embedTexts = options.embedTexts ?? ((texts: string[]) => embedTextsWithAi(texts, embeddingModel));
+  const embeddings = await embedTexts(chunks.map((chunk) => chunk.text));
+
+  try {
+    if (needsFullRebuild) {
+      db.transaction(() => {
+        db.prepare("delete from rag_chunk_vectors").run();
+        db.prepare("delete from rag_chunks_fts").run();
+        db.prepare("delete from rag_chunks").run();
+        db.prepare("delete from rag_documents").run();
+
+        documents.forEach((document) => insertDocument(db, document));
+        chunks.forEach((chunk, index) => insertChunk(db, chunk, embeddings[index], embeddingModel));
+      })();
+    } else {
+      // Incremental: delete old chunks for changed docs, re-insert
+      db.transaction(() => {
+        for (const id of changedIds) {
+          const chunkIds = db.prepare("select id from rag_chunks where document_id = ?").all(id) as Array<{ id: number }>;
+          for (const { id: chunkId } of chunkIds) {
+            db.prepare("delete from rag_chunk_vectors where rowid = ?").run(BigInt(chunkId));
+            db.prepare("delete from rag_chunks_fts where rowid = ?").run(chunkId);
+          }
+          db.prepare("delete from rag_chunks where document_id = ?").run(id);
+          db.prepare("delete from rag_documents where id = ?").run(id);
+        }
+
+        docsToIndex.forEach((document) => insertDocument(db, document));
+        chunks.forEach((chunk, index) => insertChunk(db, chunk, embeddings[index], embeddingModel));
+      })();
+    }
   } finally {
-    if (!options.db) db.close();
+    // Shared connection — lifecycle managed by getSharedDatabase
   }
 
   return {

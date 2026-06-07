@@ -1,5 +1,5 @@
 import type { BlogDatabase } from "./db/sqlite";
-import { openBlogDatabase, sqliteStorageConfigured } from "./db/sqlite";
+import { getSharedDatabase, sqliteStorageConfigured } from "./db/sqlite";
 import { profile } from "../data/profile";
 import type {
   DomainArticle,
@@ -86,15 +86,25 @@ export function storageConfigured(): boolean {
   return sqliteStorageConfigured();
 }
 
+export function hasAnyContent(options?: ContentStoreOptions): boolean {
+  return withDatabase(options, (db) => {
+    const row = db.prepare(`
+      select
+        (select count(*) from admin_articles) +
+        (select count(*) from admin_projects) +
+        (select count(*) from admin_about) +
+        (select count(*) from admin_home) +
+        (select count(*) from admin_gallery) as total
+    `).get() as { total: number } | undefined;
+    return (row?.total ?? 0) > 0;
+  });
+}
+
 function withDatabase<T>(options: ContentStoreOptions | undefined, run: (db: BlogDatabase) => T): T {
   if (options?.db) return run(options.db);
 
-  const db = openBlogDatabase({ dbPath: options?.dbPath });
-  try {
-    return run(db);
-  } finally {
-    db.close();
-  }
+  const db = getSharedDatabase({ dbPath: options?.dbPath });
+  return run(db);
 }
 
 export function normalizeArticles(value: unknown): DomainArticle[] {
@@ -223,13 +233,21 @@ export async function writeContentArticles(articles: unknown, options?: ContentS
 
   withDatabase(options, (db) => {
     const replace = db.transaction((items: DomainArticle[]) => {
-      db.prepare("delete from admin_articles").run();
-      const insert = db.prepare(`
-        insert into admin_articles (id, title, content, description, cover_image, tags, date, updated_at)
+      // Delete rows no longer in the new set
+      const newIds = items.map((i) => i.id);
+      if (newIds.length > 0) {
+        const placeholders = newIds.map(() => "?").join(",");
+        db.prepare(`delete from admin_articles where id not in (${placeholders})`).run(...newIds);
+      } else {
+        db.prepare("delete from admin_articles").run();
+      }
+
+      const upsert = db.prepare(`
+        insert or replace into admin_articles (id, title, content, description, cover_image, tags, date, updated_at)
         values (@id, @title, @content, @description, @coverImage, @tags, @date, @updatedAt)
       `);
       items.forEach((item) => {
-        insert.run({
+        upsert.run({
           id: item.id,
           title: item.title,
           content: item.content,
@@ -262,13 +280,20 @@ export async function writeContentProjects(projects: unknown, options?: ContentS
 
   withDatabase(options, (db) => {
     const replace = db.transaction((items: DomainProject[]) => {
-      db.prepare("delete from admin_projects").run();
-      const insert = db.prepare(`
-        insert into admin_projects (id, title, category, tech, url, description, image_data, tags, date, updated_at)
+      const newIds = items.map((i) => i.id);
+      if (newIds.length > 0) {
+        const placeholders = newIds.map(() => "?").join(",");
+        db.prepare(`delete from admin_projects where id not in (${placeholders})`).run(...newIds);
+      } else {
+        db.prepare("delete from admin_projects").run();
+      }
+
+      const upsert = db.prepare(`
+        insert or replace into admin_projects (id, title, category, tech, url, description, image_data, tags, date, updated_at)
         values (@id, @title, @category, @tech, @url, @description, @imageData, @tags, @date, @updatedAt)
       `);
       items.forEach((item) => {
-        insert.run({
+        upsert.run({
           id: item.id,
           title: item.title,
           category: item.category,
@@ -299,23 +324,19 @@ export async function writeContentAbout(about: unknown, options?: ContentStoreOp
   const normalized = normalizeAbout(about);
 
   withDatabase(options, (db) => {
-    const replace = db.transaction((item: DomainAbout) => {
-      db.prepare("delete from admin_about").run();
-      db.prepare(`
-        insert into admin_about (name, role, avatar, bio, description, philosophy, skills, updated_at)
-        values (@name, @role, @avatar, @bio, @description, @philosophy, @skills, @updatedAt)
-      `).run({
-        name: item.name,
-        role: item.role,
-        avatar: item.avatar,
-        bio: item.bio,
-        description: item.description,
-        philosophy: JSON.stringify(item.philosophy),
-        skills: JSON.stringify(item.skills),
-        updatedAt: item.updatedAt ? item.updatedAt.toISOString() : null,
-      });
+    db.prepare(`
+      insert or replace into admin_about (id, name, role, avatar, bio, description, philosophy, skills, updated_at)
+      values ('about', @name, @role, @avatar, @bio, @description, @philosophy, @skills, @updatedAt)
+    `).run({
+      name: normalized.name,
+      role: normalized.role,
+      avatar: normalized.avatar,
+      bio: normalized.bio,
+      description: normalized.description,
+      philosophy: JSON.stringify(normalized.philosophy),
+      skills: JSON.stringify(normalized.skills),
+      updatedAt: normalized.updatedAt ? normalized.updatedAt.toISOString() : null,
     });
-    replace(normalized);
   });
 
   return normalized;
@@ -336,13 +357,20 @@ export async function writeContentGallery(gallery: unknown, options?: ContentSto
 
   withDatabase(options, (db) => {
     const replace = db.transaction((items: DomainGallery[]) => {
-      db.prepare("delete from admin_gallery").run();
-      const insert = db.prepare(`
-        insert into admin_gallery (id, title, image_data, description, category, tags, date, updated_at)
+      const newIds = items.map((i) => i.id);
+      if (newIds.length > 0) {
+        const placeholders = newIds.map(() => "?").join(",");
+        db.prepare(`delete from admin_gallery where id not in (${placeholders})`).run(...newIds);
+      } else {
+        db.prepare("delete from admin_gallery").run();
+      }
+
+      const upsert = db.prepare(`
+        insert or replace into admin_gallery (id, title, image_data, description, category, tags, date, updated_at)
         values (@id, @title, @imageData, @description, @category, @tags, @date, @updatedAt)
       `);
       items.forEach((item) => {
-        insert.run({
+        upsert.run({
           id: item.id,
           title: item.title,
           imageData: item.imageData,
@@ -371,22 +399,18 @@ export async function writeContentHome(home: unknown, options?: ContentStoreOpti
   const normalized = normalizeHome(home);
 
   withDatabase(options, (db) => {
-    const replace = db.transaction((item: DomainHome) => {
-      db.prepare("delete from admin_home").run();
-      db.prepare(`
-        insert into admin_home (id, generated_date, guidance, hero_title, hero_lead, quote_text, quote_author, updated_at)
-        values ('home', @generatedDate, @guidance, @heroTitle, @heroLead, @quoteText, @quoteAuthor, @updatedAt)
-      `).run({
-        generatedDate: item.generatedDate,
-        guidance: item.guidance,
-        heroTitle: item.heroTitle,
-        heroLead: item.heroLead,
-        quoteText: item.quoteText,
-        quoteAuthor: item.quoteAuthor,
-        updatedAt: item.updatedAt ? item.updatedAt.toISOString() : null,
-      });
+    db.prepare(`
+      insert or replace into admin_home (id, generated_date, guidance, hero_title, hero_lead, quote_text, quote_author, updated_at)
+      values ('home', @generatedDate, @guidance, @heroTitle, @heroLead, @quoteText, @quoteAuthor, @updatedAt)
+    `).run({
+      generatedDate: normalized.generatedDate,
+      guidance: normalized.guidance,
+      heroTitle: normalized.heroTitle,
+      heroLead: normalized.heroLead,
+      quoteText: normalized.quoteText,
+      quoteAuthor: normalized.quoteAuthor,
+      updatedAt: normalized.updatedAt ? normalized.updatedAt.toISOString() : null,
     });
-    replace(normalized);
   });
 
   return normalized;
