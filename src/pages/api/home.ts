@@ -29,7 +29,7 @@ export const GET: APIRoute = async () => {
 };
 
 export const PUT: APIRoute = async ({ request }) => {
-  if (!hasAdminWriteAccess(request)) {
+  if (!await hasAdminWriteAccess(request)) {
     return jsonResponse({ ok: false, message: "请先登录后台" }, 401);
   }
 

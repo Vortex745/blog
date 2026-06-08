@@ -189,12 +189,18 @@
       (function() {
         (async function checkSession() {
           try {
-            const res = await fetch("/api/login");
+            const res = await fetch("/api/login", {
+              headers: { "x-admin-token": localStorage.getItem("admin-token") || "" },
+            });
             const data = await res.json();
             if (data.authenticated) {
               localStorage.setItem("admin-auth", "1");
               const redirect = new URLSearchParams(window.location.search).get("redirect") || "/admin";
               window.location.replace(redirect);
+            } else {
+              localStorage.removeItem("admin-auth");
+              localStorage.removeItem("admin-auth-time");
+              localStorage.removeItem("admin-token");
             }
           } catch {}
         })();

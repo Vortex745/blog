@@ -4,7 +4,7 @@ import { hasAdminWriteAccess } from "../../lib/auth";
 import { readEnvFile, writeEnvFile, maskSensitiveValues, CONFIGURABLE_KEYS } from "../../lib/env-writer";
 
 export const GET: APIRoute = async ({ request }) => {
-  if (!hasAdminWriteAccess(request)) {
+  if (!await hasAdminWriteAccess(request)) {
     return jsonResponse({ ok: false, message: "未授权" }, 401);
   }
 
@@ -18,7 +18,7 @@ export const GET: APIRoute = async ({ request }) => {
 };
 
 export const POST: APIRoute = async ({ request }) => {
-  if (!hasAdminWriteAccess(request)) {
+  if (!await hasAdminWriteAccess(request)) {
     return jsonResponse({ ok: false, message: "未授权" }, 401);
   }
 

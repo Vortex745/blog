@@ -406,7 +406,7 @@ const initialProjectsPayload = JSON.stringify({
         method: "PUT",
         headers: {
           "content-type": "application/json",
-          "x-admin-auth": localStorage.getItem("admin-auth") || "",
+          "x-admin-token": localStorage.getItem("admin-token") || "",
         },
         body: JSON.stringify({ projects: list }),
       });

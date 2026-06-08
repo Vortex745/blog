@@ -35,15 +35,46 @@ const navItems = [
     <style is:inline>{`
       .admin-body{margin:0;padding:0;background:#f4f6fa;font-family:"Inter","SF Pro Text","Helvetica Neue",Helvetica,Arial,sans-serif;color:#181c23;min-height:100vh}
       .admin-shell{display:flex;min-height:100vh;transition:opacity 0.12s cubic-bezier(0.23,1,0.32,1)}
+      html[data-admin-auth-checking="1"] .admin-shell{visibility:hidden}
       .admin-sidebar{width:220px;flex-shrink:0;background:rgba(255,255,255,0.7);border-right:1px solid rgba(193,198,214,0.4);display:flex;flex-direction:column;padding:24px 0;position:sticky;top:0;height:100vh}
       .admin-main{flex:1;padding:32px 40px;overflow-y:auto}
       @media(max-width:768px){.admin-sidebar{display:none}.admin-main{padding:24px}}
     `}</style>
     <script is:inline>
-      // Auth guard: redirect BEFORE paint to prevent flash of admin content
-      if (localStorage.getItem("admin-auth") !== "1") {
+      var loginPath = "/admin/login";
+      function clearAdminAuth() {
+        localStorage.removeItem("admin-auth");
+        localStorage.removeItem("admin-auth-time");
+        localStorage.removeItem("admin-token");
+        document.cookie = "admin-token=; path=/; max-age=0; SameSite=Strict";
+      }
+      function redirectToLogin(reason) {
         var redirect = encodeURIComponent(window.location.pathname);
-        window.location.replace("/admin/login?redirect=" + redirect);
+        window.location.replace(loginPath + "?redirect=" + redirect + (reason ? "&reason=" + reason : ""));
+      }
+
+      // Auth guard: redirect BEFORE paint when no local session marker exists.
+      if (localStorage.getItem("admin-auth") !== "1") {
+        clearAdminAuth();
+        redirectToLogin("");
+      } else {
+        document.documentElement.dataset.adminAuthChecking = "1";
+        fetch("/api/login", {
+          headers: { "x-admin-token": localStorage.getItem("admin-token") || "" },
+        })
+          .then(function(response) { return response.ok ? response.json() : { authenticated: false }; })
+          .then(function(data) {
+            if (!data.authenticated) {
+              clearAdminAuth();
+              redirectToLogin("expired");
+            } else {
+              delete document.documentElement.dataset.adminAuthChecking;
+            }
+          })
+          .catch(function() {
+            clearAdminAuth();
+            redirectToLogin("auth-check-failed");
+          });
       }
 
       // Global Fetch Interceptor for 401 Unauthorized
@@ -54,10 +85,8 @@ const navItems = [
           if (response.status === 401) {
             var url = args[0] ? args[0].toString() : "";
             if (url.indexOf("/api/login") === -1) {
-              localStorage.removeItem("admin-auth");
-              localStorage.removeItem("admin-auth-time");
-              document.cookie = "admin-auth=; path=/; max-age=0; SameSite=Lax";
-              window.location.replace("/admin/login?redirect=" + encodeURIComponent(window.location.pathname) + "&reason=unauthorized");
+              clearAdminAuth();
+              redirectToLogin("unauthorized");
             }
           }
           return response;
@@ -194,7 +223,7 @@ const navItems = [
             localStorage.removeItem("admin-auth");
             localStorage.removeItem("admin-auth-time");
             localStorage.removeItem("admin-token");
-            document.cookie = "admin-auth=; path=/; max-age=0; SameSite=Lax";
+            document.cookie = "admin-token=; path=/; max-age=0; SameSite=Strict";
             window.location.replace("/admin/login");
           }
         }, { signal: controller.signal });

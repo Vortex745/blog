@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
 import {
+  ADMIN_SESSION_MAX_AGE_SECONDS,
   createSessionToken,
   getAdminTokenFromRequest,
   hasAdminWriteAccess,
@@ -20,13 +21,13 @@ export const POST: APIRoute = async ({ request }) => {
       });
     }
 
-    const token = createSessionToken();
+    const token = await createSessionToken();
 
     return new Response(JSON.stringify({ success: true, token }), {
       status: 200,
       headers: {
         "content-type": "application/json; charset=utf-8",
-        "Set-Cookie": `admin-token=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=86400`,
+        "Set-Cookie": `admin-token=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${ADMIN_SESSION_MAX_AGE_SECONDS}`,
       },
     });
   } catch {
@@ -38,7 +39,7 @@ export const POST: APIRoute = async ({ request }) => {
 };
 
 export const DELETE: APIRoute = async ({ request }) => {
-  const token = getAdminTokenFromRequest(request);
+  const token = await getAdminTokenFromRequest(request);
   if (token) {
     revokeSessionToken(token);
   }
@@ -53,7 +54,7 @@ export const DELETE: APIRoute = async ({ request }) => {
 };
 
 export const GET: APIRoute = async ({ request }) => {
-  const authenticated = hasAdminWriteAccess(request);
+  const authenticated = await hasAdminWriteAccess(request);
   return new Response(JSON.stringify({ authenticated }), {
     status: 200,
     headers: { "content-type": "application/json; charset=utf-8" },
