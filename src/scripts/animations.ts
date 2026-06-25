@@ -229,8 +229,11 @@ export function initAnimations() {
 // 之前这里有 astro:before-swap 监听器，现在移除了，避免破坏跨页连续动画
 
 /**
- * Transitions.dev - Tabs sliding (GSAP Core)
- * Uses GSAP to animate width and transform (x/y).
+ * Transitions.dev - Tabs sliding (CSS-driven)
+ * JS writes the active link's offsetLeft / offsetWidth onto the pill;
+ * CSS owns the tween (transform + width, --tabs-dur / --tabs-ease).
+ * First paint and resize write values WITHOUT a transition (suspend with
+ * `transition: none`, force a reflow, restore) so the pill snaps to position.
  */
 export function initDockPill() {
   const navEl = document.getElementById("desktop-nav");
@@ -242,7 +245,7 @@ export function initDockPill() {
 
   const currentPath = window.location.pathname;
   let activeLink: HTMLElement | null = null;
-  
+
   links.forEach((link) => {
     const href = link.getAttribute("href") || "/";
     const isActive = currentPath === href || (href !== "/" && currentPath.startsWith(href));
@@ -253,35 +256,35 @@ export function initDockPill() {
 
   if (!activeLink && links.length > 0) activeLink = links[0];
 
-  let isPillHeightSet = pillEl.style.height !== "";
-
-  // [Performance] 使用 gsap.quickTo 缓存动画实例，避免每次调用重复创建 Tween 造成 GC 和性能损耗
-  const xTo = gsap.quickTo(pillEl, "x", { duration: 0.25, ease: "power2.out" });
-  const widthTo = gsap.quickTo(pillEl, "width", { duration: 0.25, ease: "power2.out" });
+  // 垂直属性保持静态，仅在初始化时设定，不参与动画循环
+  let isPillGeometrySet = pillEl.style.height !== "";
 
   function movePillTo(target: HTMLElement, animate = true) {
     if (!target || !pillEl) return;
-    
+
     // [Performance] 集中 DOM Reads，获取最新的几何属性
     const left = target.offsetLeft;
     const width = target.offsetWidth;
 
-    // [Performance] 垂直属性保持静态，仅在初始化时设定，不参与动画循环
-    if (!isPillHeightSet) {
-      gsap.set(pillEl, { height: target.offsetHeight, y: target.offsetTop });
-      isPillHeightSet = true;
+    if (!isPillGeometrySet) {
+      pillEl.style.top = `${target.offsetTop}px`;
+      pillEl.style.height = `${target.offsetHeight}px`;
+      isPillGeometrySet = true;
     }
 
     if (!animate || prefersReduced) {
-      gsap.set(pillEl, {
-        x: left,
-        width,
-        opacity: 1
-      });
+      // 首次绘制和 resize：写入值时挂起 transition，强制 reflow 后恢复，避免从 0 动画进来
+      const prev = pillEl.style.transition;
+      pillEl.style.transition = "none";
+      pillEl.style.transform = `translateX(${left}px)`;
+      pillEl.style.width = `${width}px`;
+      pillEl.style.opacity = "1";
+      void pillEl.offsetWidth;
+      pillEl.style.transition = prev;
     } else {
-      gsap.set(pillEl, { opacity: 1 }); // 透明度直接渐变到位
-      xTo(left);
-      widthTo(width);
+      pillEl.style.opacity = "1";
+      pillEl.style.transform = `translateX(${left}px)`;
+      pillEl.style.width = `${width}px`;
     }
   }
 
@@ -306,12 +309,12 @@ export function initDockPill() {
   links.forEach((link) => {
     if (link.hasAttribute("data-pill-click")) return;
     link.setAttribute("data-pill-click", "true");
-    
+
     link.addEventListener("click", () => {
       if (link.classList.contains("is-active")) return;
       links.forEach((l) => l.classList.remove("is-active"));
       link.classList.add("is-active");
-      
+
       // 立即触发动画，提供点击即时反馈，因为 nav 被 persist，动画会跨页面无缝继续
       movePillTo(link, true);
     });
@@ -319,7 +322,7 @@ export function initDockPill() {
 
   if (!navEl.hasAttribute("data-pill-resize")) {
     navEl.setAttribute("data-pill-resize", "true");
-    
+
     // [Performance] 针对 resize 必须加防抖（Debounce），避免连续高频触发导致严重的 Layout Thrashing
     let resizeTimer: number;
     window.addEventListener("resize", () => {

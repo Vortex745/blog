@@ -2160,8 +2160,7 @@ body {
 .admin-page-title,
 .admin-page-desc,
 .toolbar,
-.modal-panel,
-.modal-backdrop,
-#nav-pill {
+.modal_panel,
+.modal-backdrop {
   will-change: transform, opacity;
 }
