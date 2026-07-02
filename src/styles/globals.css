@@ -2164,3 +2164,181 @@ body {
 .modal-backdrop {
   will-change: transform, opacity;
 }
+
+/* ---- Hero Opening Animation ---- */
+.hero-opening {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-white);
+  opacity: 1;
+  visibility: visible;
+}
+
+.hero-opening__title {
+  margin: 0;
+  padding: 0 24px;
+  color: #181c23;
+  font-family: var(--font-display);
+  font-size: clamp(40px, 8vw, 96px);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  text-align: center;
+  perspective: 800px;
+  transform-style: preserve-3d;
+}
+
+.hero-opening__char {
+  display: inline-block;
+  opacity: 0;
+  transform-origin: center bottom;
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-opening {
+    display: none !important;
+  }
+
+  .hero-opening__char {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* AI Assistant Modal Morph Styles (Transitions.dev)                          */
+/* Moved here to survive Astro View Transitions without dynamic injection     */
+/* -------------------------------------------------------------------------- */
+:root {
+  --ai-morph-open-dur: 500ms;
+  --ai-morph-close-dur: 400ms;
+  --ai-morph-ease: cubic-bezier(0.34, 1.25, 0.64, 1);
+  --ai-morph-close-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ai-morph-r-closed: 28px;
+  --ai-morph-r-open: 20px;
+  --ai-morph-fade-dur: 250ms;
+  --ai-morph-slide: 40px;
+  --ai-morph-rotate: 135deg;
+  --ai-morph-scale: 0.97;
+  --ai-morph-blur: 2px;
+}
+
+.ai-morph {
+  position: fixed;
+  right: 32px;
+  bottom: 24px;
+  z-index: 50;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--ai-morph-r-closed);
+  overflow: hidden;
+  background-color: #0059b5;
+  box-shadow: 0 8px 30px rgba(0, 89, 181, 0.25);
+  transition:
+    width var(--ai-morph-close-dur) var(--ai-morph-close-ease),
+    height var(--ai-morph-close-dur) var(--ai-morph-close-ease),
+    border-radius var(--ai-morph-close-dur) var(--ai-morph-close-ease),
+    background-color var(--ai-morph-close-dur) var(--ai-morph-close-ease);
+}
+
+.ai-morph[data-open="true"] {
+  width: 360px;
+  height: 520px;
+  border-radius: var(--ai-morph-r-open);
+  background-color: var(--background, #ffffff);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
+  transition:
+    width var(--ai-morph-open-dur) var(--ai-morph-ease),
+    height var(--ai-morph-open-dur) var(--ai-morph-ease),
+    border-radius var(--ai-morph-open-dur) var(--ai-morph-ease),
+    background-color var(--ai-morph-open-dur) var(--ai-morph-ease);
+}
+
+@media (max-width: 640px) {
+  .ai-morph {
+    right: 16px;
+    bottom: 16px;
+  }
+
+  .ai-morph[data-open="true"] {
+    width: calc(100vw - 32px);
+    height: calc(100vh - 96px);
+  }
+}
+
+/* Trigger button: shows a message icon; morphs into a close icon on open. */
+.ai-morph__trigger {
+  position: absolute;
+  inset: auto 0 0 auto;
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: white;
+  cursor: pointer;
+  transition:
+    opacity var(--ai-morph-fade-dur) var(--ai-morph-close-ease),
+    transform var(--ai-morph-open-dur) var(--ai-morph-close-ease),
+    filter var(--ai-morph-fade-dur) var(--ai-morph-close-ease);
+}
+
+.ai-morph__trigger svg {
+  grid-area: 1 / 1;
+  transition: transform var(--ai-morph-open-dur) var(--ai-morph-close-ease);
+}
+
+.ai-morph[data-open="true"] .ai-morph__trigger {
+  opacity: 0;
+  transform: translateX(calc(-1 * var(--ai-morph-slide)));
+  filter: blur(var(--ai-morph-blur));
+  pointer-events: none;
+}
+
+.ai-morph[data-open="true"] .ai-morph__trigger svg {
+  transform: scale(var(--ai-morph-scale)) rotate(var(--ai-morph-rotate));
+}
+
+/* Panel: starts slid in + scaled + blurred; reveals on open. */
+.ai-morph__panel {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  filter: blur(var(--ai-morph-blur));
+  pointer-events: none;
+  transition:
+    opacity var(--ai-morph-fade-dur) var(--ai-morph-close-ease),
+    filter var(--ai-morph-fade-dur) var(--ai-morph-close-ease);
+}
+
+.ai-morph[data-open="true"] .ai-morph__panel {
+  opacity: 1;
+  filter: blur(0);
+  pointer-events: auto;
+}
+
+/* Hide scrollbar during animations */
+.ai-morph__viewport {
+  overflow-y: hidden;
+}
+
+.ai-morph[data-open="true"] .ai-morph__viewport {
+  animation: ai-morph-enable-scroll 0s forwards;
+  animation-delay: var(--ai-morph-open-dur);
+}
+
+@keyframes ai-morph-enable-scroll {
+  to { overflow-y: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-morph,
+  .ai-morph__trigger,
+  .ai-morph__panel { transition: none !important; }
+}

@@ -3,14 +3,20 @@ import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
-import { Bot, User, Send } from "lucide-react";
+import { Bot, User, Send, Plus } from "lucide-react";
 import { forwardRef } from "react";
 import { cn } from "../../lib/utils";
 
-export const MyThread = () => {
+export const MyThread = ({ onReset }: { onReset: () => void }) => {
   return (
-    <ThreadPrimitive.Root className="h-full flex flex-col bg-background text-foreground relative overflow-hidden">
-      <ThreadPrimitive.Viewport className="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-4">
+    <ThreadPrimitive.Root className="w-full h-full flex flex-col bg-background text-foreground relative overflow-hidden">
+      <div className="flex justify-between items-center px-4 py-3 border-b border-border bg-background z-10 shrink-0">
+         <h3 className="text-sm font-medium">AI 助手</h3>
+         <button onClick={onReset} title="新建对话" className="p-1.5 text-muted-foreground hover:bg-muted rounded-md transition-colors">
+            <Plus className="w-4 h-4" />
+         </button>
+      </div>
+      <ThreadPrimitive.Viewport className="ai-morph__viewport flex-1 px-4 py-4 flex flex-col gap-4">
         <ThreadPrimitive.Empty>
           <div className="flex flex-col items-center justify-center h-full gap-4 text-center mt-12">
             {/* Gemini glow effect */}
@@ -36,6 +42,8 @@ export const MyThread = () => {
             aria-label="聊天输入"
             placeholder="问我任何问题..."
             className="flex-1 bg-transparent px-3 py-2 outline-none max-h-32 min-h-10 resize-none text-[15px]"
+            minRows={1}
+            maxRows={1}
             autoFocus
           />
           <ComposerPrimitive.Send asChild>
@@ -78,35 +86,30 @@ const MyAssistantMessage = forwardRef<HTMLDivElement, any>((props, ref) => {
       className="flex self-start max-w-[85%]"
       {...props}
     >
-      <div className="bg-blue-50/50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50 rounded-2xl rounded-tl-sm px-4 py-2 prose prose-chat prose-apple dark:prose-invert w-full max-w-full overflow-x-auto">
-        <ThinkingIndicator />
-        <MessagePrimitive.Content components={{ Text: MarkdownText }} />
-      </div>
+      <AssistantMessageContent />
     </MessagePrimitive.Root>
   );
 });
 MyAssistantMessage.displayName = "MyAssistantMessage";
 
-const ThinkingIndicator = () => {
+const AssistantMessageContent = () => {
   const { status, content } = useMessage();
   const hasText = content.some((p: any) => p.type === "text" && typeof p.text === "string" && p.text.trim().length > 0);
-  
   const isThinking = !hasText && status?.type !== "complete";
 
-  // When there is text, don't show the thinking indicator anymore.
-  // Exception: you might want to show reasoning, but we hide it for now.
-  if (hasText) return null;
-
-  return (
-    <div className="flex flex-col gap-2">
-      {/* Temporary DEBUG line to see what state assistant-ui reports */}
-      {/* <div className="text-xs text-red-500 font-mono">DEBUG: status={String(status)}, hasText={String(hasText)}, contentLen={content.length}</div> */}
-      
-      {isThinking && (
+  if (isThinking) {
+    return (
+      <div className="px-2 py-2">
         <div className="flex items-center gap-2 text-blue-600/80 dark:text-blue-400/80">
           <span className="text-sm font-medium t-shimmer-text">模型思考中</span>
         </div>
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-blue-50/50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50 rounded-2xl rounded-tl-sm px-4 py-2 prose prose-chat prose-apple dark:prose-invert w-full max-w-full overflow-x-auto">
+      <MessagePrimitive.Content components={{ Text: MarkdownText }} />
     </div>
   );
 };

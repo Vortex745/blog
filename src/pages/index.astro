@@ -1,5 +1,6 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
+import { HeroOpening } from "../components/HeroOpening";
 import { getCollection } from "astro:content";
 import { normalizeAbout, normalizeHome, readContentAbout, readContentArticles, readContentProjects, readContentHome, hasAnyContent } from "../lib/content-store";
 import { COVER_IMAGE_PLACEHOLDER } from "../lib/placeholder-images";
@@ -73,6 +74,8 @@ const quote = home.quoteText
 ---
 
 <BaseLayout title="子衿的个人博客网站">
+  <HeroOpening title="子衿的个人博客网站" client:load />
+
   {/* Hero Section */}
   {/* Hero Section */}
   <section class="hero-section" data-animate="hero">

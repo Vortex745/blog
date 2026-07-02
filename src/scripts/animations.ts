@@ -1,4 +1,5 @@
 import { gsap } from "gsap";
+import { shouldPlayHeroOpening } from "./hero-opening";
 
 /**
  * Editorial Animation System
@@ -211,7 +212,16 @@ export function initAnimations() {
   setInitialScrollStates();
 
   // Hero animations (immediate, above the fold)
-  document.querySelectorAll("[data-animate='hero']").forEach(animateHero);
+  // Skip on homepage when the opening animation will handle the reveal.
+  const isHomePage = typeof window !== "undefined" && window.location.pathname === "/";
+  const openingWillPlay = isHomePage && shouldPlayHeroOpening();
+  if (openingWillPlay) {
+    document
+      .querySelectorAll("[data-animate='hero-item']")
+      .forEach((el) => gsap.set(el, { opacity: 0, y: 16, scale: 0.98 }));
+  } else {
+    document.querySelectorAll("[data-animate='hero']").forEach(animateHero);
+  }
 
   // Stagger containers: set children initial state (observer handles trigger)
   document.querySelectorAll("[data-animate='stagger']").forEach((container) => {
