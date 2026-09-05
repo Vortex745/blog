@@ -45,6 +45,9 @@ pnpm-debug.log*
 # Playwright MCP browser cache
 .playwright-mcp/
 
+# Local smoke-test artifacts
+.scratch/
+
 # Auto-generated docs (not README)
 FRONTEND_MOTION_GUIDELINES.md
 
