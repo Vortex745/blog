@@ -62,8 +62,10 @@ const sqliteGalleryPayload = JSON.stringify(sqliteGallery).replace(/</g, "\\u003
 <script type="application/json" id="sqlite-gallery-data" set:html={sqliteGalleryPayload}></script>
 
 <script>
-  const GALLERY_KEY = "admin-gallery-data";
-  const SYNC_EVENT = "admin-content:changed";
+  import { CONTENT_CHANGED_EVENT, CONTENT_STORAGE_KEYS, dispatchContentChanged } from "../../lib/content-channel";
+
+  const GALLERY_KEY = CONTENT_STORAGE_KEYS.gallery;
+  const SYNC_EVENT = CONTENT_CHANGED_EVENT;
   const galleryGrid = document.getElementById("gallery-grid");
   const sortBar = document.getElementById("gallery-sort");
   const emptyInitial = document.getElementById("empty-initial");
@@ -109,9 +111,7 @@ const sqliteGalleryPayload = JSON.stringify(sqliteGallery).replace(/</g, "\\u003
 
   function saveGalleryImages() {
     localStorage.setItem(GALLERY_KEY, JSON.stringify(galleryImages));
-    window.dispatchEvent(new CustomEvent(SYNC_EVENT, {
-      detail: { key: GALLERY_KEY, module: "gallery" },
-    }));
+    dispatchContentChanged("gallery");
   }
 
   function escapeHtml(value) {
@@ -372,7 +372,7 @@ const sqliteGalleryPayload = JSON.stringify(sqliteGallery).replace(/</g, "\\u003
   });
   window.addEventListener(SYNC_EVENT, (event) => {
     const detail = event instanceof CustomEvent ? event.detail : null;
-    if (detail?.key === GALLERY_KEY) reloadGalleryFromStorage();
+    if (detail?.module === "gallery") reloadGalleryFromStorage();
   });
 
   render();

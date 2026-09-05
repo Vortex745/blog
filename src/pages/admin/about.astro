@@ -6,6 +6,7 @@ import { ABOUT_AVATAR_PLACEHOLDER } from "../../lib/placeholder-images";
 const DEFAULT_AVATAR = ABOUT_AVATAR_PLACEHOLDER;
 const initialAbout = (await readContentAbout().catch(() => null)) ?? normalizeAbout({});
 const initialAvatar = initialAbout.avatar || DEFAULT_AVATAR;
+const initialAboutPayload = JSON.stringify(initialAbout).replace(/</g, "\\u003c");
 ---
 
 <AdminLayout title="关于管理" current="about">
@@ -192,14 +193,30 @@ const initialAvatar = initialAbout.avatar || DEFAULT_AVATAR;
   });
 </script>
 
-<script define:vars={{ defaultAvatar: DEFAULT_AVATAR, initialAbout }}>
+<script type="application/json" id="initial-about-data" set:html={initialAboutPayload}></script>
+
+<script>
+  import { ABOUT_AVATAR_PLACEHOLDER } from "../../lib/placeholder-images";
+  import { CONTENT_STORAGE_KEYS, dispatchContentChanged } from "../../lib/content-channel";
+  import { getLlmSettings as getSharedLlmSettings, fetchLlmSettings } from "../../scripts/admin-llm";
+
   document.addEventListener("astro:page-load", () => {
     const form = document.getElementById("about-form");
     if (!form) return;
 
-    const ABOUT_KEY = "admin-about-data";
+    const ABOUT_KEY = CONTENT_STORAGE_KEYS.about;
     const ABOUT_API = "/api/about";
-    const DEFAULT_AVATAR = defaultAvatar;
+    const DEFAULT_AVATAR = ABOUT_AVATAR_PLACEHOLDER;
+
+    const initialAbout = (() => {
+      try {
+        const source = document.getElementById("initial-about-data")?.textContent;
+        const parsed = source ? JSON.parse(source) : null;
+        return parsed && typeof parsed === "object" ? parsed : {};
+      } catch {
+        return {};
+      }
+    })();
 
     // ===== Elements =====
   const saveStatus = document.getElementById("save-status");
@@ -250,9 +267,7 @@ const initialAvatar = initialAbout.avatar || DEFAULT_AVATAR;
   }
 
   function notifyContentChanged() {
-    window.dispatchEvent(new CustomEvent("admin-content:changed", {
-      detail: { key: ABOUT_KEY, module: "about" },
-    }));
+    dispatchContentChanged("about");
   }
 
   function applyAboutData(data) {
@@ -662,8 +677,6 @@ const initialAvatar = initialAbout.avatar || DEFAULT_AVATAR;
     expand: ANTI_AI_RULES + " 请扩写以下 Markdown 文本，在保留原意的基础上增加更多细节和论述，使内容更加丰富充实，Markdown 格式不变。只输出扩写后的内容，不要解释。",
     translate: "请将以下 Markdown 文本翻译为英文，保持 Markdown 格式不变。只输出翻译后的内容，不要解释。",
   };
-
-  import { getLlmSettings as getSharedLlmSettings, fetchLlmSettings } from "../../scripts/admin-llm";
 
   async function getLlmSettings() {
     const cached = getSharedLlmSettings();

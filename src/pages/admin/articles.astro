@@ -311,13 +311,14 @@ function formatArticleDate(value: unknown): string {
 <script>
   import { initMarkdownRenderers, refreshMarkdownRendererFor } from "../../scripts/admin-markdown-renderer";
   import { getLlmSettings, hasLlmSettings, fetchLlmSettings, requestLlmChat } from "../../scripts/admin-llm";
+  import { CONTENT_STORAGE_KEYS, dispatchContentChanged } from "../../lib/content-channel";
 
   document.addEventListener("astro:page-load", () => {
     const listEl = document.getElementById("article-list");
     if (!listEl) return;
 
     // ===== Storage Keys =====
-  const ARTICLES_KEY = "admin-articles-data";
+  const ARTICLES_KEY = CONTENT_STORAGE_KEYS.articles;
   const ARTICLES_API = "/api/articles";
 
   // ===== Elements =====
@@ -386,9 +387,7 @@ function formatArticleDate(value: unknown): string {
   }
 
   function notifyContentChanged() {
-    window.dispatchEvent(new CustomEvent("admin-content:changed", {
-      detail: { key: ARTICLES_KEY, module: "articles" },
-    }));
+    dispatchContentChanged("articles");
   }
 
   function cacheArticles(list) {

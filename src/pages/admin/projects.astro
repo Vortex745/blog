@@ -248,14 +248,15 @@ const initialProjectsPayload = JSON.stringify({
 
 <script>
   import { initMarkdownRenderers, refreshMarkdownRendererFor } from "../../scripts/admin-markdown-renderer";
-  import { getLlmSettings, fetchLlmSettings, requestLlmChat } from "../../scripts/admin-llm";
+  import { getLlmSettings, hasLlmSettings, fetchLlmSettings, requestLlmChat } from "../../scripts/admin-llm";
+  import { CONTENT_STORAGE_KEYS, dispatchContentChanged } from "../../lib/content-channel";
 
   document.addEventListener("astro:page-load", () => {
     const listEl = document.getElementById("project-list");
     if (!listEl) return; // Only run on projects page
 
     // LocalStorage key
-    const STORAGE_KEY = "admin-projects-data";
+    const STORAGE_KEY = CONTENT_STORAGE_KEYS.projects;
     const PROJECTS_API = "/api/projects";
 
   // Elements
@@ -384,9 +385,7 @@ const initialProjectsPayload = JSON.stringify({
   }
 
   function notifyContentChanged() {
-    window.dispatchEvent(new CustomEvent("admin-content:changed", {
-      detail: { key: STORAGE_KEY, module: "projects" },
-    }));
+    dispatchContentChanged("projects");
   }
 
   function cacheProjects(list) {

@@ -9,6 +9,7 @@ import {
   unique,
 } from "../lib/client-content";
 import { normalizeDomainArticle, type DomainArticle } from "../lib/domain-types";
+import { CONTENT_CHANGED_EVENT, CONTENT_STORAGE_KEYS } from "../lib/content-channel";
 
 type AdminHome = {
   generatedDate?: string;
@@ -19,9 +20,9 @@ type AdminHome = {
   quoteAuthor?: string;
 };
 
-const HOME_KEY = "admin-home-data";
+const HOME_KEY = CONTENT_STORAGE_KEYS.home;
 const COVER_PLACEHOLDER = COVER_IMAGE_PLACEHOLDER;
-const SYNC_EVENT = "admin-content:changed";
+const SYNC_EVENT = CONTENT_CHANGED_EVENT;
 const SYNCED_ATTR = "data-admin-synced";
 
 let listenersBound = false;

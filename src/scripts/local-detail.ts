@@ -10,6 +10,7 @@ import {
   stripMarkdown,
 } from "../lib/client-content";
 import { normalizeDomainArticle, normalizeDomainProject } from "../lib/domain-types";
+import { CONTENT_STORAGE_KEYS } from "../lib/content-channel";
 
 type TocItem = {
   depth: number;
@@ -17,8 +18,8 @@ type TocItem = {
   text: string;
 };
 
-const ARTICLE_KEY = "admin-articles-data";
-const PROJECT_KEY = "admin-projects-data";
+const ARTICLE_KEY = CONTENT_STORAGE_KEYS.articles;
+const PROJECT_KEY = CONTENT_STORAGE_KEYS.projects;
 const ARTICLE_API = "/api/articles";
 
 function readList<T>(key: string): T[] {

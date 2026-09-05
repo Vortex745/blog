@@ -72,12 +72,13 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
 
 <script>
   import { getLlmSettings, hasLlmSettings, fetchLlmSettings, requestLlmChat } from "../../scripts/admin-llm";
+  import { CONTENT_STORAGE_KEYS, dispatchContentChanged } from "../../lib/content-channel";
 
   document.addEventListener("astro:page-load", () => {
     const form = document.getElementById("home-form");
     if (!form) return;
 
-    const HOME_KEY = "admin-home-data";
+    const HOME_KEY = CONTENT_STORAGE_KEYS.home;
   const guidanceInput = document.getElementById("generation-guidance");
   const previewTitle = document.getElementById("preview-title");
   const previewLead = document.getElementById("preview-lead");
@@ -143,9 +144,8 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
         body: JSON.stringify(generatedData),
       });
       if (!res.ok) throw new Error("保存失败");
-      window.dispatchEvent(new CustomEvent("admin-content:changed", {
-        detail: { key: "home" },
-      }));
+      localStorage.setItem(HOME_KEY, JSON.stringify(generatedData));
+      dispatchContentChanged("home");
     } catch (err) {
       console.error(err);
     }
@@ -267,9 +267,6 @@ JSON 字段：heroTitle, heroLead, quoteText, quoteAuthor。`;
     if (guidanceInput) guidanceInput.value = "";
     updatePreview();
     await saveHomeData();
-    window.dispatchEvent(new CustomEvent("admin-content:changed", {
-      detail: { key: "home" },
-    }));
     showStatus("已清除今日结果", "success");
   });
 

@@ -132,10 +132,12 @@ const initialGalleryPayload = JSON.stringify({
 <script type="application/json" id="initial-gallery-data" set:html={initialGalleryPayload}></script>
 
 <script>
+  import { CONTENT_STORAGE_KEYS, dispatchContentChanged } from "../../lib/content-channel";
+
   document.addEventListener("astro:page-load", () => {
     const galleryGrid = document.getElementById("gallery-grid");
     if (!galleryGrid) return; // Only run on gallery page
-    const GALLERY_KEY = "admin-gallery-data";
+    const GALLERY_KEY = CONTENT_STORAGE_KEYS.gallery;
     const GALLERY_API = "/api/gallery";
 
     const imageCount = document.getElementById("image-count");
@@ -193,9 +195,7 @@ const initialGalleryPayload = JSON.stringify({
   const useServerGallery = initialGalleryState.storageConfigured && !initialGalleryState.readFailed;
 
   function notifyContentChanged() {
-    window.dispatchEvent(new CustomEvent("admin-content:changed", {
-      detail: { key: GALLERY_KEY, module: "gallery" },
-    }));
+    dispatchContentChanged("gallery");
   }
 
   function cacheGallery(list) {
