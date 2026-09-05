@@ -4,8 +4,78 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import { Bot, User, Send, Plus } from "lucide-react";
-import { forwardRef } from "react";
+import { forwardRef, useEffect, useMemo, useRef, type CSSProperties } from "react";
 import { cn } from "../../lib/utils";
+
+// Streaming text (transitions.dev): split ASCII by whitespace runs, each CJK
+// char separately (Chinese has no word spaces).
+const STREAM_SPLIT = /(?<=[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff])|(\s+)/;
+
+type HastNode = {
+  type: string;
+  tagName?: string;
+  value?: string;
+  properties?: Record<string, unknown>;
+  children?: HastNode[];
+};
+
+// rehype plugin: wrap each word/CJK char in a .t-stream-w span. Code/pre
+// (incl. math) are skipped so KaTeX and syntax blocks stay intact.
+function rehypeStreamWords() {
+  return (tree: HastNode) => {
+    const walk = (node: HastNode): void => {
+      if (!node.children) return;
+      if (node.tagName === "code" || node.tagName === "pre") return;
+      const next: HastNode[] = [];
+      for (const child of node.children) {
+        if (child.type === "text" && child.value && /\S/.test(child.value)) {
+          for (const token of child.value.split(STREAM_SPLIT)) {
+            if (!token) continue;
+            if (/^\s+$/.test(token)) {
+              next.push({ type: "text", value: token });
+            } else {
+              next.push({
+                type: "element",
+                tagName: "span",
+                properties: { className: ["t-stream-w"] },
+                children: [{ type: "text", value: token }],
+              });
+            }
+          }
+        } else {
+          walk(child);
+          next.push(child);
+        }
+      }
+      node.children = next;
+    };
+    walk(tree);
+  };
+}
+
+// Matrix dot loader (transitions.dev, scan variant):
+// 16 dots share one colour-pulse cycle, each column delayed by cycle/10.
+const MatrixLoader = () => {
+  const delays = useMemo(() => {
+    const cycle =
+      (typeof document !== "undefined" &&
+        parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue("--matrix-cycle")
+        )) ||
+      1200;
+    return Array.from({ length: 16 }, (_, idx) =>
+      Math.round((idx % 4) * (cycle / 10))
+    );
+  }, []);
+
+  return (
+    <div className="t-matrix" data-variant="scan" aria-hidden="true">
+      {delays.map((d, i) => (
+        <i key={i} style={{ "--d": d } as CSSProperties} />
+      ))}
+    </div>
+  );
+};
 
 export const MyThread = ({ onReset }: { onReset: () => void }) => {
   return (
@@ -75,9 +145,56 @@ const MyUserMessage = forwardRef<HTMLDivElement, any>((props, ref) => {
 });
 MyUserMessage.displayName = "MyUserMessage";
 
-const MarkdownText = () => (
-  <MarkdownTextPrimitive remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]} />
-);
+const MarkdownText = () => {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const { status } = useMessage();
+
+  // Streaming text (transitions.dev): newly arrived words resolve one by one
+  // through opacity + blur, staggered by --stream-gap; spans rest visible.
+  // The words are rendered by the smooth animator's internal state (it
+  // re-renders MarkdownTextPrimitive without re-rendering this wrapper), so
+  // a MutationObserver is the only hook that sees every arrival.
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+
+    // Messages that were already complete on mount rest fully visible.
+    if (status?.type === "complete") {
+      root.querySelectorAll<HTMLElement>(".t-stream-w:not(.is-in)").forEach((el) =>
+        el.classList.add("is-in")
+      );
+      return;
+    }
+
+    const gap =
+      parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue("--stream-gap")
+      ) || 60;
+
+    const staggerPending = () => {
+      Array.from(root.querySelectorAll<HTMLElement>(".t-stream-w:not(.is-in)")).forEach(
+        (el, i) => {
+          setTimeout(() => el.classList.add("is-in"), i * gap);
+        }
+      );
+    };
+
+    const observer = new MutationObserver(staggerPending);
+    observer.observe(root, { childList: true, subtree: true });
+    staggerPending();
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div ref={rootRef} className="t-stream">
+      <MarkdownTextPrimitive
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[rehypeStreamWords, rehypeKatex]}
+      />
+    </div>
+  );
+};
 
 const MyAssistantMessage = forwardRef<HTMLDivElement, any>((props, ref) => {
   return (
@@ -101,6 +218,7 @@ const AssistantMessageContent = () => {
     return (
       <div className="px-2 py-2">
         <div className="flex items-center gap-2 text-blue-600/80 dark:text-blue-400/80">
+          <MatrixLoader />
           <span className="text-sm font-medium t-shimmer-text">模型思考中</span>
         </div>
       </div>

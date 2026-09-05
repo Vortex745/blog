@@ -271,6 +271,61 @@
   .t-shimmer-text { animation: none !important; }
 }
 
+/* Matrix dot loader (transitions.dev) */
+:root {
+  --matrix-cycle: 1200ms;
+  --matrix-base: color-mix(in srgb, currentColor 25%, transparent);
+  --matrix-active: currentColor;
+  --matrix-ease: ease-in-out;
+}
+
+.t-matrix {
+  display: grid;
+  grid-template-columns: repeat(4, 2px);
+  grid-auto-rows: 2px;
+  gap: 2px;
+}
+.t-matrix i {
+  display: block;
+  background: var(--matrix-base);
+  animation: t-matrix-pulse var(--matrix-cycle) var(--matrix-ease) infinite;
+  animation-delay: calc(var(--d, 0) * 1ms);
+}
+/* Hole positions (rounded variants) render nothing. */
+.t-matrix i.is-gap { visibility: hidden; animation: none; }
+@keyframes t-matrix-pulse {
+  0%, 45%, 100% { background-color: var(--matrix-base); }
+  15%           { background-color: var(--matrix-active); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-matrix i { animation: none !important; }
+}
+
+/* Streaming text (transitions.dev) */
+:root {
+  --stream-gap: 60ms;
+  --stream-fade: 350ms;
+  --stream-blur: 1px;
+  --stream-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.t-stream-w {
+  opacity: 0;
+  filter: blur(var(--stream-blur));
+  transition:
+    opacity var(--stream-fade) var(--stream-ease),
+    filter var(--stream-fade) var(--stream-ease);
+}
+.t-stream-w.is-in {
+  opacity: 1;
+  filter: blur(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-stream-w { transition: none !important; filter: none !important; opacity: 1 !important; }
+}
+
 /* Dark mode overrides */
 .dark {
   --color-light-gray: #1d1d1f;
@@ -2215,15 +2270,15 @@ body {
 /* Moved here to survive Astro View Transitions without dynamic injection     */
 /* -------------------------------------------------------------------------- */
 :root {
-  --ai-morph-open-dur: 500ms;
-  --ai-morph-close-dur: 400ms;
-  --ai-morph-ease: cubic-bezier(0.34, 1.25, 0.64, 1);
+  --ai-morph-open-dur: 450ms;
+  --ai-morph-close-dur: 300ms;
+  --ai-morph-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --ai-morph-close-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --ai-morph-r-closed: 28px;
   --ai-morph-r-open: 20px;
   --ai-morph-fade-dur: 250ms;
-  --ai-morph-slide: 40px;
-  --ai-morph-rotate: 135deg;
+  --ai-morph-slide: 24px;
+  --ai-morph-rotate: 45deg;
   --ai-morph-scale: 0.97;
   --ai-morph-blur: 2px;
 }
@@ -2310,15 +2365,18 @@ body {
   position: absolute;
   inset: 0;
   opacity: 0;
+  transform: translateX(var(--ai-morph-slide)) scale(var(--ai-morph-scale));
   filter: blur(var(--ai-morph-blur));
   pointer-events: none;
   transition:
     opacity var(--ai-morph-fade-dur) var(--ai-morph-close-ease),
+    transform var(--ai-morph-open-dur) var(--ai-morph-close-ease),
     filter var(--ai-morph-fade-dur) var(--ai-morph-close-ease);
 }
 
 .ai-morph[data-open="true"] .ai-morph__panel {
   opacity: 1;
+  transform: translateX(0) scale(1);
   filter: blur(0);
   pointer-events: auto;
 }
