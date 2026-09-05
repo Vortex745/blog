@@ -249,15 +249,13 @@ const initialProjectsPayload = JSON.stringify({
 <script>
   import { initMarkdownRenderers, refreshMarkdownRendererFor } from "../../scripts/admin-markdown-renderer";
   import { getLlmSettings, hasLlmSettings, fetchLlmSettings, requestLlmChat } from "../../scripts/admin-llm";
-  import { CONTENT_STORAGE_KEYS, dispatchContentChanged } from "../../lib/content-channel";
+  import { CONTENT_STORAGE_KEYS } from "../../lib/content-channel";
+  import { createContentModule, showToast } from "../../lib/content-module";
+  import { escapeHtml, formatDate, type AdminProject } from "../../lib/client-content";
 
   document.addEventListener("astro:page-load", () => {
     const listEl = document.getElementById("project-list");
     if (!listEl) return; // Only run on projects page
-
-    // LocalStorage key
-    const STORAGE_KEY = CONTENT_STORAGE_KEYS.projects;
-    const PROJECTS_API = "/api/projects";
 
   // Elements
   const modal = document.getElementById("project-modal");
@@ -266,7 +264,6 @@ const initialProjectsPayload = JSON.stringify({
   const countEl = document.getElementById("project-count");
   const statusMsg = document.getElementById("status-msg");
   let handlingInvalid = false;
-  let toastTimer;
 
   // Image upload elements
   const imageInput = document.getElementById("p-image");
@@ -338,116 +335,28 @@ const initialProjectsPayload = JSON.stringify({
     expand: ANTI_AI_RULES + " 请扩写以下项目介绍，在保留事实的基础上补充价值、场景和亮点，使其更适合作品集展示。只输出扩写后的项目介绍，不要解释。",
   };
 
-  function readInitialProjects() {
-    const source = document.getElementById("initial-projects-data")?.textContent;
-    if (!source) return { projects: [], storageConfigured: false, readFailed: true };
-
-    try {
-      const parsed = JSON.parse(source);
-      return {
-        projects: Array.isArray(parsed?.projects) ? parsed.projects : [],
-        storageConfigured: parsed?.storageConfigured === true,
-        readFailed: parsed?.readFailed === true,
-      };
-    } catch {
-      return { projects: [], storageConfigured: false, readFailed: true };
-    }
-  }
-
-  const initialProjectsState = readInitialProjects();
-  const useServerProjects = initialProjectsState.storageConfigured && !initialProjectsState.readFailed;
-
-  // Load from localStorage or default
-  function loadProjects() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) return JSON.parse(raw);
-    } catch {}
-    return [];
-  }
-
-  async function loadRemoteProjects() {
-    try {
-      const response = await fetch(PROJECTS_API, {
-        headers: { accept: "application/json" },
-        cache: "no-store",
-      });
-      if (!response.ok) return [];
-
-      const result = await response.json();
-      return {
-        projects: Array.isArray(result?.projects) ? result.projects : [],
-        storage: typeof result?.storage === "string" ? result.storage : "",
-      };
-    } catch {
-      return null;
-    }
-  }
-
-  function notifyContentChanged() {
-    dispatchContentChanged("projects");
-  }
-
-  function cacheProjects(list) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-  }
-
-  function persistProjects(list) {
-    cacheProjects(list);
-    notifyContentChanged();
-  }
-
-  async function saveProjects(list) {
-    persistProjects(list);
-
-    try {
-      const response = await fetch(PROJECTS_API, {
-        method: "PUT",
-        headers: {
-          "content-type": "application/json",
-          "x-admin-token": localStorage.getItem("admin-token") || "",
-        },
-        body: JSON.stringify({ projects: list }),
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok || !result.ok) {
-        throw new Error(result.message || "云端同步失败");
-      }
-
-      if (Array.isArray(result.projects)) {
-        projects = result.projects;
-        persistProjects(projects);
-      }
-      return true;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "云端同步失败";
+  // ===== Data =====
+  const projectsModule = createContentModule<AdminProject[]>({
+    endpoint: "/api/projects",
+    storageKey: CONTENT_STORAGE_KEYS.projects,
+    module: "projects",
+    payloadKey: "projects",
+    onHydrate: (value) => {
+      projects = value;
+      renderList();
+    },
+    onSyncError: (message) => {
       showToast(`已保存在本机，云端同步失败：${message}`, "error");
       showStatus("云端同步失败，手机端暂时不可见", "error");
-      return false;
-    }
-  }
+    },
+  });
 
-  async function hydrateProjectsFromCloud() {
-    const remote = await loadRemoteProjects();
-    if (!remote || remote.storage !== "neon") return;
-
-    if (JSON.stringify(projects) === JSON.stringify(remote.projects)) {
-      cacheProjects(remote.projects);
-      return;
-    }
-
-    projects = remote.projects;
-    cacheProjects(projects);
-    renderList();
-  }
-
-  let projects = useServerProjects ? initialProjectsState.projects : loadProjects();
-  if (useServerProjects) cacheProjects(projects);
-
-  function formatDate(dateStr) {
-    const d = new Date(dateStr);
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-  }
+  const initialProjectsState = projectsModule.readInitial();
+  const useServerProjects = initialProjectsState.storageConfigured && !initialProjectsState.readFailed;
+  let projects: AdminProject[] = useServerProjects
+    ? (initialProjectsState.value ?? [])
+    : (projectsModule.load() ?? []);
+  projectsModule.persist(projects);
 
   // Render list
   function renderList() {
@@ -468,7 +377,7 @@ const initialProjectsPayload = JSON.stringify({
           <div class="admin-list-card-meta">
             <span class="admin-info-row">
               <span class="admin-field-label">创建时间</span>
-              <time class="admin-list-card-date admin-field-value" datetime="${escapeHtml(p.date || "")}">${p.date ? formatDate(p.date) : "-"}</time>
+              <time class="admin-list-card-date admin-field-value" datetime="${escapeHtml(p.date || "")}">${p.date ? formatDate(p.date, "iso") : "-"}</time>
             </span>
             ${allTags.length ? `<div class="admin-info-row">
               <span class="admin-field-label">标签</span>
@@ -497,10 +406,6 @@ const initialProjectsPayload = JSON.stringify({
       </div>
     `;
     }).join("");
-  }
-
-  function escapeHtml(str) {
-    return (str || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
   }
 
   function splitProjectTags(value) {
@@ -558,24 +463,6 @@ const initialProjectsPayload = JSON.stringify({
     currentProjectTags.push(tag);
     projectTagInput.value = "";
     renderProjectTags();
-  }
-
-  function showToast(text, type = "info") {
-    let toast = document.getElementById("admin-toast");
-    if (!toast) {
-      toast = document.createElement("div");
-      toast.id = "admin-toast";
-      toast.className = "admin-toast";
-      toast.setAttribute("role", "status");
-      toast.setAttribute("aria-live", "polite");
-      document.body.appendChild(toast);
-    }
-    toast.textContent = text;
-    toast.className = `admin-toast is-${type} is-visible`;
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => {
-      toast.classList.remove("is-visible");
-    }, 1000);
   }
 
   function showProjectPolishStatus(text, type) {
@@ -874,7 +761,7 @@ const initialProjectsPayload = JSON.stringify({
     if (btn.dataset.action === "delete") {
       if (await (window as any).showConfirmDialog(`确定要删除项目 "${projects[idx].title}" 吗？`)) {
         projects.splice(idx, 1);
-        await saveProjects(projects);
+        await projectsModule.save(projects);
         renderList();
         showStatus("已删除", "success");
       }
@@ -952,7 +839,7 @@ const initialProjectsPayload = JSON.stringify({
       showStatus("已添加项目", "success");
     }
 
-    const synced = await saveProjects(projects);
+    const synced = await projectsModule.save(projects);
     renderList();
     closeModal();
     if (synced) showStatus("已保存到 Neon", "success");
@@ -1118,7 +1005,7 @@ const initialProjectsPayload = JSON.stringify({
   // Init
   renderProjectTags();
   renderList();
-  void hydrateProjectsFromCloud();
+  void projectsModule.hydrateFromCloud();
   });
 </script>
 
