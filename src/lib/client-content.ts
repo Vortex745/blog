@@ -35,9 +35,14 @@ export function unique(values: string[]): string[] {
   return [...new Set(values.filter(Boolean))];
 }
 
-export function formatDate(value: unknown, style: "short" | "long" = "short"): string {
+export function formatDate(value: unknown, style: "short" | "long" | "iso" = "short"): string {
   const date = value ? new Date(String(value)) : new Date();
   const validDate = Number.isNaN(date.getTime()) ? new Date() : date;
+  if (style === "iso") {
+    return `${validDate.getFullYear()}-${String(validDate.getMonth() + 1).padStart(2, "0")}-${String(
+      validDate.getDate()
+    ).padStart(2, "0")}`;
+  }
   return validDate.toLocaleDateString("zh-CN", {
     year: "numeric",
     month: style === "long" ? "long" : "short",
