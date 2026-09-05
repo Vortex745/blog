@@ -53,7 +53,7 @@ export function createContentModule<T>(config: {
       const parsed = JSON.parse(source);
       return {
         // 数组型 payload 防护：非数组值（缺字段 / 形状漂移）按缺失处理，页面回退空表
-        value: Array.isArray(parsed?.[payloadKey]) ? parsed[payloadKey] : null,
+        value: Array.isArray(parsed?.[payloadKey]) ? (parsed[payloadKey] as T) : null,
         storageConfigured: parsed?.storageConfigured === true,
         readFailed: parsed?.readFailed === true,
       };
@@ -97,8 +97,9 @@ export function createContentModule<T>(config: {
       }
 
       if (Array.isArray(result[payloadKey])) {
-        persist(result[payloadKey]);
-        onServerPersist?.(result[payloadKey]);
+        const serverValue = result[payloadKey] as T;
+        persist(serverValue);
+        onServerPersist?.(serverValue);
       }
       return true;
     } catch (err) {
@@ -119,15 +120,16 @@ export function createContentModule<T>(config: {
       const data = await response.json();
       const remote = data?.[payloadKey];
       if (data?.storage !== "sqlite" || !Array.isArray(remote)) return;
+      const remoteValue = remote as T;
 
       if (JSON.stringify(current) === JSON.stringify(remote)) {
-        cache(remote);
+        cache(remoteValue);
         return;
       }
 
-      current = remote;
-      cache(remote);
-      onHydrate(remote);
+      current = remoteValue;
+      cache(remoteValue);
+      onHydrate(remoteValue);
     } catch {}
   }
 
