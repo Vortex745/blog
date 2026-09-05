@@ -137,6 +137,9 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
   }
 
   async function saveHomeData() {
+    // 先写本地缓存再上云：PUT 失败（断网 / 会话过期）时前台 hero 同步仍然生效
+    localStorage.setItem(HOME_KEY, JSON.stringify(generatedData));
+    dispatchContentChanged("home");
     try {
       const res = await fetch("/api/home", {
         method: "PUT",
@@ -144,10 +147,9 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
         body: JSON.stringify(generatedData),
       });
       if (!res.ok) throw new Error("保存失败");
-      localStorage.setItem(HOME_KEY, JSON.stringify(generatedData));
-      dispatchContentChanged("home");
     } catch (err) {
       console.error(err);
+      showStatus("已保存在本机，云端同步失败", "error");
     }
   }
 

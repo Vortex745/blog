@@ -31,8 +31,14 @@ export function createContentModule<T>(config: {
   payloadKey: string;
   onHydrate: (value: T) => void;
   onSyncError?: (message: string) => void;
+  /**
+   * save() 云端确认成功后的回调（服务端归一化数据到达）。
+   * 与 onHydrate 不同：不触发渲染——保存流程的渲染时机由调用方掌握，
+   * onHydrate 专属于后台云端回填（hydrateFromCloud）。
+   */
+  onServerPersist?: (value: T) => void;
 }): ContentModuleStore<T> {
-  const { endpoint, storageKey, module, payloadKey, onHydrate, onSyncError } = config;
+  const { endpoint, storageKey, module, payloadKey, onHydrate, onSyncError, onServerPersist } = config;
   let current: T | null = null;
 
   function cache(value: T): void {
@@ -46,7 +52,8 @@ export function createContentModule<T>(config: {
     try {
       const parsed = JSON.parse(source);
       return {
-        value: parsed?.[payloadKey] ?? null,
+        // 数组型 payload 防护：非数组值（缺字段 / 形状漂移）按缺失处理，页面回退空表
+        value: Array.isArray(parsed?.[payloadKey]) ? parsed[payloadKey] : null,
         storageConfigured: parsed?.storageConfigured === true,
         readFailed: parsed?.readFailed === true,
       };
@@ -91,7 +98,7 @@ export function createContentModule<T>(config: {
 
       if (Array.isArray(result[payloadKey])) {
         persist(result[payloadKey]);
-        onHydrate(result[payloadKey]);
+        onServerPersist?.(result[payloadKey]);
       }
       return true;
     } catch (err) {

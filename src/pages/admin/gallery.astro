@@ -189,6 +189,9 @@ const initialGalleryPayload = JSON.stringify({
       gallery = value;
       renderGallery();
     },
+    onServerPersist: (value) => {
+      gallery = value;
+    },
     onSyncError: (message) => {
       showUploadStatus(`已保存在本机，云端同步失败：${message}`, "error");
     },

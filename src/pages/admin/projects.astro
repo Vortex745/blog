@@ -345,6 +345,9 @@ const initialProjectsPayload = JSON.stringify({
       projects = value;
       renderList();
     },
+    onServerPersist: (value) => {
+      projects = value;
+    },
     onSyncError: (message) => {
       showToast(`已保存在本机，云端同步失败：${message}`, "error");
       showStatus("云端同步失败，手机端暂时不可见", "error");
