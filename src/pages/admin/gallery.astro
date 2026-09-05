@@ -132,13 +132,26 @@ const initialGalleryPayload = JSON.stringify({
 <script type="application/json" id="initial-gallery-data" set:html={initialGalleryPayload}></script>
 
 <script>
-  import { CONTENT_STORAGE_KEYS, dispatchContentChanged } from "../../lib/content-channel";
+  import { CONTENT_STORAGE_KEYS } from "../../lib/content-channel";
+  import { createContentModule } from "../../lib/content-module";
+  import { escapeHtml } from "../../lib/client-content";
+
+  type GalleryItem = {
+    id?: string;
+    url?: string;
+    title?: string;
+    name?: string;
+    filename?: string;
+    size?: number;
+    type?: string;
+    source?: string;
+    date?: string;
+    downloadCount?: number;
+  };
 
   document.addEventListener("astro:page-load", () => {
     const galleryGrid = document.getElementById("gallery-grid");
     if (!galleryGrid) return; // Only run on gallery page
-    const GALLERY_KEY = CONTENT_STORAGE_KEYS.gallery;
-    const GALLERY_API = "/api/gallery";
 
     const imageCount = document.getElementById("image-count");
     const uploadStatus = document.getElementById("upload-status");
@@ -167,101 +180,28 @@ const initialGalleryPayload = JSON.stringify({
   const btnConfirmUploadName = document.getElementById("btn-confirm-upload-name");
 
   // ===== Data =====
-  function loadGallery() {
-    try {
-      const raw = localStorage.getItem(GALLERY_KEY);
-      if (raw) return JSON.parse(raw);
-    } catch {}
-    return [];
-  }
-
-  function readInitialGallery() {
-    const source = document.getElementById("initial-gallery-data")?.textContent;
-    if (!source) return { gallery: [], storageConfigured: false, readFailed: true };
-
-    try {
-      const parsed = JSON.parse(source);
-      return {
-        gallery: Array.isArray(parsed?.gallery) ? parsed.gallery : [],
-        storageConfigured: parsed?.storageConfigured === true,
-        readFailed: parsed?.readFailed === true,
-      };
-    } catch {
-      return { gallery: [], storageConfigured: false, readFailed: true };
-    }
-  }
-
-  const initialGalleryState = readInitialGallery();
-  const useServerGallery = initialGalleryState.storageConfigured && !initialGalleryState.readFailed;
-
-  function notifyContentChanged() {
-    dispatchContentChanged("gallery");
-  }
-
-  function cacheGallery(list) {
-    localStorage.setItem(GALLERY_KEY, JSON.stringify(list));
-  }
-
-  function saveGallery(list) {
-    cacheGallery(list);
-    notifyContentChanged();
-  }
-
-  async function syncGalleryToCloud(list) {
-    try {
-      const response = await fetch(GALLERY_API, {
-        method: "PUT",
-        headers: {
-          "content-type": "application/json",
-          "x-admin-token": localStorage.getItem("admin-token") || "",
-        },
-        body: JSON.stringify({ gallery: list }),
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok || !result.ok) {
-        throw new Error(result.message || "云端同步失败");
-      }
-
-      if (Array.isArray(result.gallery)) {
-        gallery = result.gallery;
-        cacheGallery(gallery);
-      }
-      return true;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "云端同步失败";
-      showUploadStatus(`已保存在本机，云端同步失败：${message}`, "error");
-      return false;
-    }
-  }
-
-  async function hydrateGalleryFromCloud() {
-    try {
-      const response = await fetch(GALLERY_API, {
-        headers: { accept: "application/json" },
-        cache: "no-store",
-      });
-      if (!response.ok) return;
-      const data = await response.json();
-      if (data?.storage !== "sqlite" || !Array.isArray(data?.gallery)) return;
-
-      if (JSON.stringify(gallery) === JSON.stringify(data.gallery)) {
-        cacheGallery(data.gallery);
-        return;
-      }
-
-      gallery = data.gallery;
-      cacheGallery(gallery);
+  const galleryModule = createContentModule<GalleryItem[]>({
+    endpoint: "/api/gallery",
+    storageKey: CONTENT_STORAGE_KEYS.gallery,
+    module: "gallery",
+    payloadKey: "gallery",
+    onHydrate: (value) => {
+      gallery = value;
       renderGallery();
-    } catch {}
-  }
+    },
+    onSyncError: (message) => {
+      showUploadStatus(`已保存在本机，云端同步失败：${message}`, "error");
+    },
+  });
 
-  let gallery = useServerGallery ? initialGalleryState.gallery : loadGallery();
-  if (useServerGallery) cacheGallery(gallery);
+  const initialGalleryState = galleryModule.readInitial();
+  const useServerGallery = initialGalleryState.storageConfigured && !initialGalleryState.readFailed;
+  let gallery: GalleryItem[] = useServerGallery
+    ? (initialGalleryState.value ?? [])
+    : (galleryModule.load() ?? []);
+  galleryModule.persist(gallery);
 
   // ===== Helpers =====
-  function escapeHtml(str) {
-    return (str || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
-  }
 
   function formatFileSize(bytes) {
     if (bytes < 1024) return bytes + " B";
@@ -391,10 +331,10 @@ const initialGalleryPayload = JSON.stringify({
         downloadCount: 0,
       };
       gallery.unshift(item);
-      saveGallery(gallery);
+      galleryModule.persist(gallery);
       renderGallery();
       showUploadStatus(`「${title}」上传成功`, "success");
-      void syncGalleryToCloud(gallery);
+      void galleryModule.save(gallery);
       return item;
     } catch (err) {
       removeProgressItem(id);
@@ -566,10 +506,10 @@ const initialGalleryPayload = JSON.stringify({
       downloadCount: 0,
     };
     gallery.unshift(item);
-    saveGallery(gallery);
+    galleryModule.persist(gallery);
     renderGallery();
 
-    void syncGalleryToCloud(gallery);
+    void galleryModule.save(gallery);
 
     // Reset
     if (urlInput) urlInput.value = "";
@@ -604,7 +544,7 @@ const initialGalleryPayload = JSON.stringify({
   // ===== Gallery Render =====
   function renderGallery() {
     if (!galleryGrid) return;
-    gallery = loadGallery();
+    gallery = galleryModule.load() ?? [];
     if (imageCount) imageCount.textContent = `${gallery.length} 张图片`;
 
     if (gallery.length === 0) {
@@ -656,10 +596,10 @@ const initialGalleryPayload = JSON.stringify({
     } else if (btn.dataset.action === "delete") {
       if (await (window as any).showConfirmDialog(`确定要删除「${img.name}」吗？`)) {
         gallery.splice(idx, 1);
-        saveGallery(gallery);
+        galleryModule.persist(gallery);
         renderGallery();
         showUploadStatus("图片已删除", "success");
-        void syncGalleryToCloud(gallery);
+        void galleryModule.save(gallery);
       }
     }
   });
@@ -676,7 +616,7 @@ const initialGalleryPayload = JSON.stringify({
 
   // ===== Init =====
   renderGallery();
-  void hydrateGalleryFromCloud();
+  void galleryModule.hydrateFromCloud();
   });
 </script>
 
