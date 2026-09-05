@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { normalizeDomainArticle, normalizeDomainProject } from "./domain-types";
+import { normalizeDomainArticle, normalizeDomainGallery, normalizeDomainProject } from "./domain-types";
 
 test("normalizeDomainArticle hydrates deep domain object", () => {
   const rawArticle = {
@@ -33,6 +33,37 @@ test("normalizeDomainArticle computes summary from content if no description", (
 
   const article = normalizeDomainArticle(rawArticle, 1);
   assert.equal(article?.summary, "This is some long content that should be stripped of markdown like bold.");
+});
+
+test("normalizeDomainGallery falls back to url for admin-shaped items", () => {
+  const adminItem = {
+    id: "g1",
+    url: "/uploads/photo.jpg",
+    title: "测试图片",
+    filename: "photo.jpg",
+    size: 12345,
+    type: "image/jpeg",
+    source: "admin",
+    date: "2026-09-01T00:00:00.000Z",
+    downloadCount: 0,
+  };
+
+  const gallery = normalizeDomainGallery(adminItem, 0);
+
+  assert.equal(gallery?.imageData, "/uploads/photo.jpg", "Should preserve admin url as imageData");
+});
+
+test("normalizeDomainGallery prefers imageData over url", () => {
+  const domainItem = {
+    id: "g2",
+    title: "域形状",
+    imageData: "/images/from-domain.jpg",
+    url: "/uploads/should-be-ignored.jpg",
+  };
+
+  const gallery = normalizeDomainGallery(domainItem, 0);
+
+  assert.equal(gallery?.imageData, "/images/from-domain.jpg", "imageData should win over url");
 });
 
 test("normalizeDomainProject hydrates deep domain object", () => {

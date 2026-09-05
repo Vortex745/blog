@@ -204,7 +204,7 @@ export function normalizeDomainAbout(about: any, profileFallback: any): DomainAb
 
 export function normalizeDomainGallery(gallery: any, index: number): DomainGallery | null {
   const title = String(gallery.title ?? "").trim();
-  const imageData = String(gallery.imageData ?? gallery.image_data ?? "").trim();
+  const imageData = String(gallery.imageData ?? gallery.image_data ?? gallery.url ?? "").trim();
   if (!title && !imageData) return null;
 
   const parsedDate = gallery.date ? new Date(String(gallery.date)) : new Date();
