@@ -7,10 +7,9 @@ import node from "@astrojs/node";
 
 // https://astro.build/config
 export default defineConfig({
-  site: "https://changye.me",
+  site: "https://www.zijin.online",
   output: "server",
   adapter: node({ mode: "standalone" }),
-  security: { checkOrigin: false },
   allowedHosts: ["zijin.online", "www.zijin.online", "localhost"],
   integrations: [react(), sitemap()],
   vite: {

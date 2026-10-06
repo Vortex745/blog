@@ -12,11 +12,11 @@
 | 类别 | 技术 |
 |------|------|
 | 框架 | Astro 6 + React 19 |
-| 样式 | Tailwind CSS 4 + shadcn/ui |
+| 样式 | Tailwind CSS 4 |
 | 动画 | GSAP 3 |
 | 图标 | Lucide React |
 | 图床 | ImgBB |
-| 部署 | Vercel Serverless + CDN |
+| 部署 | Docker + Node standalone |
 
 ## 项目结构
 
@@ -71,7 +71,7 @@ pnpm preview
 
 ### 后台
 
-- 登录认证：基于 localStorage 的会话管理
+- 登录认证：基于 HttpOnly Cookie 的会话管理（SameSite=Strict，按请求协议决定 Secure）
 - 首页管理：Hero 文案与展示内容编辑
 - 文章管理：Markdown 编辑器 + LLM 润色
 - 项目管理：封面图上传（ImgBB 图床）
@@ -107,7 +107,7 @@ npm run rag:index
 所有服务端密钥从 `.env` 读取，`.env.example` 提供完整模板：
 
 ```bash
-AI_GATEWAY_API_KEY="your-vercel-ai-gateway-key"
+AI_GATEWAY_API_KEY="your-ai-gateway-key"
 AI_CHAT_MODEL="openai/gpt-4o-mini"
 AI_CHAT_TEMPERATURE="0.7"
 AI_EMBEDDING_MODEL="openai/text-embedding-3-small"
@@ -118,6 +118,22 @@ LLM_API_KEY="your-openai-compatible-key"
 IMGBB_API_KEY="your-imgbb-key"
 GITHUB_TOKEN="optional-github-token"
 ```
+
+## 后台认证配置
+
+后台必须在 `.env` 中显式设置 `ADMIN_SECRET`（会话 JWT 签名密钥），缺失或留空时后台认证直接报错拒绝工作（登录接口与服务日志会给出待添加的 `.env` 行）。生成随机密钥：
+
+```bash
+node -e "console.log(crypto.randomBytes(48).toString('base64url'))"
+```
+
+把命令输出的随机串粘贴到 `.env` 中：
+
+```bash
+ADMIN_SECRET="<把上面命令输出的随机串粘贴到这里>"
+```
+
+同时设置 `ADMIN_USERNAME`（可选，默认 `admin`）和强密码 `ADMIN_PASSWORD`（必填，没有默认值）。
 
 
 ## Docker 部署
