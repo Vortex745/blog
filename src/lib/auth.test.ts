@@ -3,10 +3,33 @@ import assert from "node:assert/strict";
 
 import {
   ADMIN_SESSION_MAX_AGE_SECONDS,
+  AuthConfigError,
   createSessionToken,
   getAdminTokenFromRequest,
   hasAdminWriteAccess,
+  verifyCredentials,
 } from "./auth";
+
+// The auth module requires explicit credentials; provide deterministic test
+// values before any test exercises token creation or verification.
+process.env.ADMIN_PASSWORD = "test-admin-password";
+process.env.ADMIN_SECRET = "test-admin-secret";
+
+function withEnv(name: string, run: () => void | Promise<void>): Promise<void> {
+  return (async () => {
+    const saved = process.env[name];
+    delete process.env[name];
+    try {
+      await run();
+    } finally {
+      if (saved === undefined) {
+        delete process.env[name];
+      } else {
+        process.env[name] = saved;
+      }
+    }
+  })();
+}
 
 test("admin session token is a standard JWT accepted from request headers", async () => {
   const token = await createSessionToken();
@@ -53,4 +76,56 @@ test("expired admin session token is rejected after one day", async () => {
 
   assert.equal(await hasAdminWriteAccess(request), false);
   assert.equal(await getAdminTokenFromRequest(request), null);
+});
+
+test("verifyCredentials accepts the configured admin user and rejects others", () => {
+  assert.equal(verifyCredentials("admin", "test-admin-password"), true);
+  assert.equal(verifyCredentials("admin", "wrong-password"), false);
+  assert.equal(verifyCredentials("root", "test-admin-password"), false);
+  assert.equal(verifyCredentials("", ""), false);
+});
+
+test("verifyCredentials rejects non-ASCII passwords of any length without throwing", () => {
+  assert.equal(verifyCredentials("admin", "密密码"), false);
+  assert.equal(verifyCredentials("管理员", "test-admin-password"), false);
+});
+
+test("missing ADMIN_PASSWORD raises a guided error instead of a default password", async () => {
+  await withEnv("ADMIN_PASSWORD", () => {
+    assert.throws(
+      () => verifyCredentials("admin", "anything"),
+      (error: unknown) => {
+        assert.ok(error instanceof AuthConfigError);
+        assert.match(error.message, /ADMIN_PASSWORD/);
+        assert.match(error.message, /\.env/);
+        assert.match(error.message, /ADMIN_PASSWORD=/);
+        return true;
+      }
+    );
+  });
+});
+
+test("missing ADMIN_SECRET raises a guided error with a paste-ready .env line", async () => {
+  await withEnv("ADMIN_SECRET", async () => {
+    await assert.rejects(
+      () => createSessionToken(),
+      (error: unknown) => {
+        assert.ok(error instanceof AuthConfigError);
+        assert.match(error.message, /ADMIN_SECRET/);
+        assert.match(error.message, /ADMIN_SECRET=/);
+        assert.match(error.message, /randomBytes/);
+        return true;
+      }
+    );
+  });
+});
+
+test("tampered tokens still verify against the configured secret only", async () => {
+  // A token signed with the legacy password-derived secret must be rejected.
+  const legacySigned = await createSessionToken();
+  const request = new Request("https://example.com/api/login", {
+    headers: { "x-admin-token": `${legacySigned}x` },
+  });
+
+  assert.equal(await hasAdminWriteAccess(request), false);
 });
