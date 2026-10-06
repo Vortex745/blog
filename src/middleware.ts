@@ -2,12 +2,9 @@ import type { MiddlewareHandler } from "astro";
 
 /**
  * Performance middleware:
- * 1. Adds Cache-Control headers for static assets and public pages
+ * 1. Adds Cache-Control headers for static assets (immutable) and admin pages (no-cache)
  * 2. Adds security headers
- * 3. Preconnect hints for external resources
  */
-const PUBLIC_CACHE_PATHS = ["/", "/articles", "/projects", "/search", "/about"];
-
 const onRequest: MiddlewareHandler = async (context, next) => {
   const response = await next();
 
@@ -20,9 +17,6 @@ const onRequest: MiddlewareHandler = async (context, next) => {
   } else if (url.pathname.startsWith("/admin")) {
     // Admin pages: no-cache to always get fresh data
     headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
-  } else if (PUBLIC_CACHE_PATHS.some((p) => url.pathname === p || url.pathname === p + "/")) {
-    // Public pages: CDN can cache for 60s, browser revalidates
-    headers.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=300");
   }
 
   // Security headers for all responses

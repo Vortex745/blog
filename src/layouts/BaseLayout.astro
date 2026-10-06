@@ -1,6 +1,5 @@
 ---
 import "../styles/globals.css";
-import { getCollection } from "astro:content";
 import { ClientRouter } from "astro:transitions";
 import SEO from "../components/astro/SEO.astro";
 import { AIChat } from "../components/assistant-ui";
@@ -17,27 +16,6 @@ export interface Props {
 }
 
 const { title, description, image, url, type, publishedTime, tags, canonical } = Astro.props;
-
-const [articles, projects] = await Promise.all([
-  getCollection("articles"),
-  getCollection("projects"),
-]);
-
-const cleanSlug = (id: string) => id.replace(/\.mdx?$/,"");
-
-const searchArticles = articles.map((a) => ({
-  id: cleanSlug(a.id),
-  title: a.data.title,
-  description: a.data.description,
-  tags: a.data.tags,
-}));
-
-const searchProjects = projects.map((p) => ({
-  id: cleanSlug(p.id),
-  title: p.data.title,
-  description: p.data.description,
-  tags: p.data.tags,
-}));
 
 const navLinks = [
   { href: "/", label: "首页" },
@@ -289,6 +267,7 @@ const currentPath = Astro.url.pathname;
         object-fit: contain;
       }
 
+    </style>
     <style is:global>
       @media (prefers-reduced-motion: reduce) {
         .nav-pill { transition: none !important; }
