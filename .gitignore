@@ -30,6 +30,8 @@ core.*
 *.core
 *.dmp
 *.stackdump
+ci/runner-token.txt
+ci/.runner
 # Local placeholder assets restored
 # User-uploaded images (local storage)
 public/uploads/

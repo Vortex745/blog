@@ -1,0 +1,24 @@
+name: Blog CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: blog-ci
+    timeout-minutes: 60
+    env:
+      COMMIT_SHA: ${{ gitea.sha }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Run application tests in Linux
+        run: docker build --target test --tag "changye-blog-ci-test:$COMMIT_SHA" .
+
+      - name: Build production image and verify SQLite native modules
+        run: docker build --target runtime --tag "changye-blog-ci:$COMMIT_SHA" .

@@ -1,0 +1,2 @@
+# The CI tool image only copies from another image; it needs no local files.
+**

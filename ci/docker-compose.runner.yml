@@ -1,0 +1,39 @@
+# Run this file on the dedicated CI host, not on the blog/Gitea host.
+services:
+  runner:
+    image: gitea/runner:3.3.0
+    restart: unless-stopped
+    environment:
+      CONFIG_FILE: /etc/gitea-runner/config.yml
+      GITEA_INSTANCE_URL: "${GITEA_INSTANCE_URL:-http://git.zijin.online/}"
+      GITEA_RUNNER_NAME: blog-ci
+      GITEA_RUNNER_LABELS: "blog-ci:docker://blog-ci:local"
+      GITEA_RUNNER_REGISTRATION_TOKEN_FILE: /run/secrets/runner_token
+    volumes:
+      - runner-data:/data
+      - type: bind
+        source: ./runner-config.yml
+        target: /etc/gitea-runner/config.yml
+        read_only: true
+        bind:
+          create_host_path: false
+      # Docker access is limited to this dedicated CI host.
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+        bind:
+          create_host_path: false
+    secrets:
+      - runner_token
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  runner-data:
+
+secrets:
+  runner_token:
+    file: ./runner-token.txt
