@@ -197,7 +197,8 @@ const initialAboutPayload = JSON.stringify(initialAbout).replace(/</g, "\\u003c"
 
 <script>
   import { ABOUT_AVATAR_PLACEHOLDER } from "../../lib/placeholder-images";
-  import { CONTENT_STORAGE_KEYS, dispatchContentChanged } from "../../lib/content-channel";
+  import { CONTENT_STORAGE_KEYS } from "../../lib/content-channel";
+  import { createContentModule } from "../../lib/content-module";
   import { PRESET_PROMPTS, ensureLlmSettings, runAiPolish } from "../../scripts/admin-ai-polish";
   import { uploadImageWithProgress, validateImageFile, AVATAR_IMAGE_MAX_SIZE } from "../../scripts/admin-upload";
   import { showElementStatus } from "../../scripts/admin-status";
@@ -262,10 +263,6 @@ const initialAboutPayload = JSON.stringify(initialAbout).replace(/</g, "\\u003c"
     showElementStatus(saveStatus, text, type);
   }
 
-  function notifyContentChanged() {
-    dispatchContentChanged("about");
-  }
-
   function applyAboutData(data) {
     if (!data || typeof data !== "object") return;
 
@@ -287,25 +284,27 @@ const initialAboutPayload = JSON.stringify(initialAbout).replace(/</g, "\\u003c"
     }
   }
 
-  async function loadSavedData() {
-    try {
-      const response = await fetch(ABOUT_API, {
-        headers: { accept: "application/json" },
-        cache: "no-store",
-      });
-      const result = await response.json().catch(() => ({}));
-      if (response.ok && result.ok && result.about) {
-        applyAboutData(result.about);
-        localStorage.setItem(ABOUT_KEY, JSON.stringify(result.about));
-        return;
-      }
-    } catch {}
+  type AboutData = {
+    name: string;
+    role: string;
+    avatar: string;
+    bio: string;
+    description: string;
+    philosophy: string[];
+    skills: string[];
+  };
 
-    try {
-      const raw = localStorage.getItem(ABOUT_KEY);
-      if (raw) applyAboutData(JSON.parse(raw));
-    } catch {}
-  }
+  // 深模块收编（object payload 模式）：本地缓存 + 云端同步 + 失败降级统一走 createContentModule，
+  // 语义与原手写实现一致——云端优先回填，云端不可用时回退本地缓存（persist 内部派发内容变更事件）。
+  const aboutStore = createContentModule<AboutData>({
+    endpoint: ABOUT_API,
+    storageKey: ABOUT_KEY,
+    module: "about",
+    payloadKey: "about",
+    payload: "object",
+    onHydrate: (value) => applyAboutData(value),
+    onSyncError: (message) => showStatus(`云端同步失败：${message}`, "error"),
+  });
 
   // ===== Avatar Upload =====
   function setAvatarProgress(percent) {
@@ -557,36 +556,6 @@ const initialAboutPayload = JSON.stringify(initialAbout).replace(/</g, "\\u003c"
   });
 
   // ===== Save / Reset =====
-  async function saveAbout(data) {
-    localStorage.setItem(ABOUT_KEY, JSON.stringify(data));
-    notifyContentChanged();
-
-    try {
-      const response = await fetch(ABOUT_API, {
-        method: "PUT",
-        headers: {
-          "content-type": "application/json",
-          "x-admin-token": localStorage.getItem("admin-token") || "",
-        },
-        body: JSON.stringify({ about: data }),
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok || !result.ok) {
-        throw new Error(result.message || "云端同步失败");
-      }
-
-      if (result.about) {
-        localStorage.setItem(ABOUT_KEY, JSON.stringify(result.about));
-        notifyContentChanged();
-      }
-      showStatus("已保存到 SQLite", "success");
-      return true;
-    } catch (err) {
-      showStatus(err instanceof Error ? `云端同步失败：${err.message}` : "云端同步失败", "error");
-      return false;
-    }
-  }
-
   form?.addEventListener("submit", async (e) => {
     e.preventDefault();
 
@@ -606,7 +575,8 @@ const initialAboutPayload = JSON.stringify(initialAbout).replace(/</g, "\\u003c"
       skills: currentSkills,
     };
 
-    await saveAbout(data);
+    const ok = await aboutStore.save(data);
+    if (ok) showStatus("已保存到 SQLite", "success");
   });
 
   document.getElementById("btn-reset")?.addEventListener("click", async () => {
@@ -616,8 +586,11 @@ const initialAboutPayload = JSON.stringify(initialAbout).replace(/</g, "\\u003c"
     }
   });
 
-  // Init
-  void loadSavedData();
+  // Init：云端优先回填（写入本地缓存并渲染）；云端不可用或无数据时回退本地缓存
+  void aboutStore.hydrateFromCloud().then(() => {
+    const local = aboutStore.load();
+    if (local) applyAboutData(local);
+  });
   renderSkills();
 
   // ===== AI Polish =====

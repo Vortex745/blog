@@ -136,7 +136,11 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     try {
       const res = await fetch("/api/home", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        // 不收编进 content-module 深模块：home 是 LLM 生成流 + 纯云端语义（与 about 的云端优先+本地回退差异真实，不得强行统一），且 PUT body 为裸对象而非 { home } 包装；此处仅补齐与深模块 save() 一致的写鉴权头。
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-token": localStorage.getItem("admin-token") || "",
+        },
         body: JSON.stringify(generatedData),
       });
       if (!res.ok) throw new Error("保存失败");

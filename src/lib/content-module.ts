@@ -5,16 +5,34 @@
  * - 保存即上云（文章 / 项目）：save() = persist + PUT + 失败降级
  * - 本地保存、手动上云（图库）：persist() 与 save() 分别调用
  *
+ * payload 形状按配置分派（默认 "array"，文章 / 项目 / 图库零改动）：
+ * - "array"：数组型 payload（文章 / 项目 / 图库）
+ * - "object"：对象型 payload（about），校验"非空 plain object"
+ *
  * 降级语义是接口契约的一部分：save 云端失败时仍 persist 本地、
  * 回调 onSyncError、返回 false。
  */
 import { dispatchContentChanged, type ContentModule } from "./content-channel";
+
+/** payload 形状："array"（默认，数组型）或 "object"（对象型，非空 plain object）。 */
+export type ContentPayloadShape = "array" | "object";
 
 export type InitialState<T> = {
   value: T | null;
   storageConfigured: boolean;
   readFailed: boolean;
 };
+
+/** 校验响应 / 初始 payload 是否为配置形状的有效值；形状漂移一律按缺失处理。 */
+function payloadIsValid(shape: ContentPayloadShape, value: unknown): boolean {
+  if (shape === "array") return Array.isArray(value);
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.keys(value).length > 0
+  );
+}
 
 export type ContentModuleStore<T> = {
   load(): T | null;
@@ -29,6 +47,8 @@ export function createContentModule<T>(config: {
   storageKey: string;
   module: ContentModule;
   payloadKey: string;
+  /** payload 形状，默认 "array"（现有三消费者无需改动）。 */
+  payload?: ContentPayloadShape;
   onHydrate: (value: T) => void;
   onSyncError?: (message: string) => void;
   /**
@@ -38,7 +58,7 @@ export function createContentModule<T>(config: {
    */
   onServerPersist?: (value: T) => void;
 }): ContentModuleStore<T> {
-  const { endpoint, storageKey, module, payloadKey, onHydrate, onSyncError, onServerPersist } = config;
+  const { endpoint, storageKey, module, payloadKey, payload = "array", onHydrate, onSyncError, onServerPersist } = config;
   let current: T | null = null;
 
   function cache(value: T): void {
@@ -52,8 +72,8 @@ export function createContentModule<T>(config: {
     try {
       const parsed = JSON.parse(source);
       return {
-        // 数组型 payload 防护：非数组值（缺字段 / 形状漂移）按缺失处理，页面回退空表
-        value: Array.isArray(parsed?.[payloadKey]) ? (parsed[payloadKey] as T) : null,
+        // payload 形状防护：形状漂移值（缺字段 / 非配置形状）按缺失处理，页面回退空表
+        value: payloadIsValid(payload, parsed?.[payloadKey]) ? (parsed[payloadKey] as T) : null,
         storageConfigured: parsed?.storageConfigured === true,
         readFailed: parsed?.readFailed === true,
       };
@@ -96,7 +116,7 @@ export function createContentModule<T>(config: {
         throw new Error(result.message || "云端同步失败");
       }
 
-      if (Array.isArray(result[payloadKey])) {
+      if (payloadIsValid(payload, result[payloadKey])) {
         const serverValue = result[payloadKey] as T;
         persist(serverValue);
         onServerPersist?.(serverValue);
@@ -119,7 +139,7 @@ export function createContentModule<T>(config: {
 
       const data = await response.json();
       const remote = data?.[payloadKey];
-      if (data?.storage !== "sqlite" || !Array.isArray(remote)) return;
+      if (data?.storage !== "sqlite" || !payloadIsValid(payload, remote)) return;
       const remoteValue = remote as T;
 
       if (JSON.stringify(current) === JSON.stringify(remote)) {

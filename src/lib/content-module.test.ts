@@ -292,3 +292,163 @@ test("hydrateFromCloud swallows fetch errors", async () => {
     browser.restore();
   }
 });
+
+// ===== object 模式（about 型 payload）=====
+
+type AboutPayload = { name: string; bio: string };
+
+function makeObjectModule(browser: ReturnType<typeof stubBrowser>, overrides: Record<string, unknown> = {}) {
+  const hydrated: AboutPayload[] = [];
+  const serverPersisted: AboutPayload[] = [];
+  const errors: string[] = [];
+  const store = createContentModule<AboutPayload>({
+    endpoint: "/api/about",
+    storageKey: "admin-about-data",
+    module: "about",
+    payloadKey: "about",
+    payload: "object",
+    onHydrate: (value) => hydrated.push(value),
+    onServerPersist: (value) => serverPersisted.push(value),
+    onSyncError: (message) => errors.push(message),
+    ...overrides,
+  });
+  return { store, hydrated, serverPersisted, errors, browser };
+}
+
+test("object mode hydrates a non-empty plain object payload from sqlite storage", async () => {
+  const browser = stubBrowser();
+  try {
+    browser.respondWith({ ok: true, body: { about: { name: "陈", bio: "简介" }, storage: "sqlite" } });
+    const { store, hydrated } = makeObjectModule(browser);
+
+    await store.hydrateFromCloud();
+
+    assert.deepEqual(hydrated, [{ name: "陈", bio: "简介" }]);
+    assert.deepEqual(JSON.parse(browser.writes[0][1]), { name: "陈", bio: "简介" });
+  } finally {
+    browser.restore();
+  }
+});
+
+test("object mode rejects non-object payloads on hydrate", async () => {
+  const browser = stubBrowser();
+  try {
+    browser.respondWith({ ok: true, body: { about: [{ name: "陈" }], storage: "sqlite" } });
+    const { store, hydrated } = makeObjectModule(browser);
+
+    await store.hydrateFromCloud();
+
+    assert.equal(hydrated.length, 0);
+    assert.equal(browser.writes.length, 0);
+  } finally {
+    browser.restore();
+  }
+});
+
+test("object mode treats an empty object payload as missing on hydrate", async () => {
+  const browser = stubBrowser();
+  try {
+    browser.respondWith({ ok: true, body: { about: {}, storage: "sqlite" } });
+    const { store, hydrated } = makeObjectModule(browser);
+
+    await store.hydrateFromCloud();
+
+    assert.equal(hydrated.length, 0);
+    assert.equal(browser.writes.length, 0);
+  } finally {
+    browser.restore();
+  }
+});
+
+test("object mode readInitial accepts a non-empty object and rejects empty or non-object payloads", () => {
+  const browser = stubBrowser();
+  try {
+    const { store } = makeObjectModule(browser);
+
+    browser.scripts.set("initial-about-data", JSON.stringify({
+      about: { name: "陈", bio: "简介" },
+      storageConfigured: true,
+      readFailed: false,
+    }));
+    assert.deepEqual(store.readInitial(), {
+      value: { name: "陈", bio: "简介" },
+      storageConfigured: true,
+      readFailed: false,
+    });
+
+    // 空对象按缺失处理
+    browser.scripts.set("initial-about-data", JSON.stringify({
+      about: {},
+      storageConfigured: true,
+      readFailed: false,
+    }));
+    assert.equal(store.readInitial().value, null);
+
+    // 数组 payload 在 object 模式下同样按缺失处理
+    browser.scripts.set("initial-about-data", JSON.stringify({
+      about: [{ name: "陈" }],
+      storageConfigured: true,
+      readFailed: false,
+    }));
+    assert.equal(store.readInitial().value, null);
+  } finally {
+    browser.restore();
+  }
+});
+
+test("object mode save re-persists the server-normalized object on success", async () => {
+  const browser = stubBrowser();
+  try {
+    browser.respondWith({ ok: true, body: { ok: true, about: { name: "陈", bio: "归一化", updatedAt: "now" } } });
+    browser.store.set("admin-token", "secret-token");
+    const { store, serverPersisted, hydrated } = makeObjectModule(browser);
+
+    const result = await store.save({ name: "陈", bio: "简介" });
+
+    assert.equal(result, true);
+    const headers = browser.requests[0].init.headers as Record<string, string>;
+    assert.equal(headers["x-admin-token"], "secret-token");
+    assert.deepEqual(JSON.parse(browser.requests[0].init.body as string), { about: { name: "陈", bio: "简介" } });
+    // 保存流程只走 onServerPersist（变量刷新），不触发渲染型 onHydrate
+    assert.equal(hydrated.length, 0);
+    assert.deepEqual(serverPersisted, [{ name: "陈", bio: "归一化", updatedAt: "now" }]);
+    assert.deepEqual(JSON.parse(browser.writes.at(-1)![1]), { name: "陈", bio: "归一化", updatedAt: "now" });
+  } finally {
+    browser.restore();
+  }
+});
+
+test("object mode save still succeeds while ignoring a non-object server payload", async () => {
+  const browser = stubBrowser();
+  try {
+    browser.respondWith({ ok: true, body: { ok: true, about: {} } });
+    const { store, serverPersisted } = makeObjectModule(browser);
+
+    const result = await store.save({ name: "陈", bio: "简介" });
+
+    assert.equal(result, true);
+    assert.equal(serverPersisted.length, 0);
+    // 本地缓存保留提交时的值（服务端值无效时不回写）
+    assert.deepEqual(JSON.parse(browser.writes[0][1]), { name: "陈", bio: "简介" });
+    assert.equal(browser.writes.length, 1);
+  } finally {
+    browser.restore();
+  }
+});
+
+test("object mode save falls back to the local cache when the cloud sync fails", async () => {
+  const browser = stubBrowser();
+  try {
+    browser.respondWith({ ok: false, body: { ok: false, message: "请先登录后台" }, status: 401 });
+    const { store, errors } = makeObjectModule(browser);
+
+    const result = await store.save({ name: "陈", bio: "简介" });
+
+    assert.equal(result, false);
+    assert.deepEqual(errors, ["请先登录后台"]);
+    assert.equal(browser.writes.length, 1);
+    assert.deepEqual(JSON.parse(browser.writes[0][1]), { name: "陈", bio: "简介" });
+  } finally {
+    browser.restore();
+  }
+});
