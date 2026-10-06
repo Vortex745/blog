@@ -7,6 +7,8 @@ interface ImportMetaEnv {
   readonly UPLOAD_DIR?: string;
   readonly ADMIN_USERNAME?: string;
   readonly ADMIN_PASSWORD?: string;
+  /** Required: JWT signing secret for admin sessions (never derived from the password). */
+  readonly ADMIN_SECRET?: string;
   readonly LLM_API_KEY?: string;
   readonly LLM_BASE_URL?: string;
   readonly LLM_MODEL?: string;
