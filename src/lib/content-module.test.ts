@@ -306,7 +306,7 @@ function makeObjectModule(browser: ReturnType<typeof stubBrowser>, overrides: Re
     storageKey: "admin-about-data",
     module: "about",
     payloadKey: "about",
-    payload: "object",
+    payloadShape: "object",
     onHydrate: (value) => hydrated.push(value),
     onServerPersist: (value) => serverPersisted.push(value),
     onSyncError: (message) => errors.push(message),

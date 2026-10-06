@@ -1,15 +1,14 @@
 import type { APIRoute } from "astro";
 import { jsonResponse } from "../../lib/api-utils";
-import { hasAdminWriteAccess } from "../../lib/auth";
+import { denyAdminWrite } from "../../lib/auth";
 
 const ALLOWED_PROTOCOLS = new Set(["http:", "https:"]);
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif", "image/bmp", "image/tiff"]);
 
 export const GET: APIRoute = async ({ request }) => {
   // Admin-only helper: performs server-side HEAD requests to arbitrary URLs.
-  if (!await hasAdminWriteAccess(request)) {
-    return jsonResponse({ ok: false, message: "请先登录后台" }, 401);
-  }
+  const denied = await denyAdminWrite(request);
+  if (denied) return denied;
 
   const url = new URL(request.url).searchParams.get("url")?.trim() || "";
 

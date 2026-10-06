@@ -2,7 +2,7 @@ import type { APIRoute } from "astro";
 import { buildOpenAiCompatibleEndpoint } from "../../lib/llm-endpoint";
 import { jsonResponse, readString } from "../../lib/api-utils";
 import { readServerEnv } from "../../lib/env";
-import { hasAdminWriteAccess } from "../../lib/auth";
+import { denyAdminWrite } from "../../lib/auth";
 
 type LlmMessage = {
   role: "system" | "user" | "assistant";
@@ -24,9 +24,8 @@ function isMessageList(value: unknown): value is LlmMessage[] {
 export const POST: APIRoute = async ({ request }) => {
   // Admin-only proxy: forwards caller-supplied baseUrl/apiKey to an LLM API,
   // so it must never be reachable without an admin session.
-  if (!await hasAdminWriteAccess(request)) {
-    return jsonResponse({ ok: false, message: "请先登录后台" }, 401);
-  }
+  const denied = await denyAdminWrite(request);
+  if (denied) return denied;
 
   let payload: Record<string, unknown>;
   try {

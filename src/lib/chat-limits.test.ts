@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { checkChatMessageLimits, chatRateLimiter, getChatClientKey } from "./ai/chat-limits";
+import { checkChatMessageLimits, chatRateLimiter } from "./ai/chat-limits";
+import { getClientKeyFromRequest } from "./rate-limit";
 
 const MINUTE = 60 * 1000;
 
@@ -107,12 +108,12 @@ test("shared chat limiter frees the IP again after the window slides", () => {
   limiter.reset("203.0.113.11");
 });
 
-test("getChatClientKey uses the first forwarded IP, falling back to unknown", () => {
+test("getClientKeyFromRequest uses the first forwarded IP, falling back to unknown", () => {
   assert.equal(
-    getChatClientKey(new Request("https://example.com/api/ai/chat", {
+    getClientKeyFromRequest(new Request("https://example.com/api/ai/chat", {
       headers: { "x-forwarded-for": "203.0.113.5, 70.41.3.18" },
     })),
     "203.0.113.5"
   );
-  assert.equal(getChatClientKey(new Request("https://example.com/api/ai/chat")), "unknown");
+  assert.equal(getClientKeyFromRequest(new Request("https://example.com/api/ai/chat")), "unknown");
 });

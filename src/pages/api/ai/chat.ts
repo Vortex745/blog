@@ -1,16 +1,13 @@
 import type { APIRoute } from "astro";
 import { streamAssistantChat } from "../../../lib/ai/chat";
 import { readUiMessages } from "../../../lib/ai/messages";
-import {
-  chatRateLimiter,
-  checkChatMessageLimits,
-  getChatClientKey,
-} from "../../../lib/ai/chat-limits";
+import { chatRateLimiter, checkChatMessageLimits } from "../../../lib/ai/chat-limits";
+import { getClientKeyFromRequest } from "../../../lib/rate-limit";
 
 export const POST: APIRoute = async ({ request }) => {
   // Public endpoint, but the server-side LLM key is metered: sliding window
   // of 10 requests per client IP per minute (decisions.md D3).
-  const limit = chatRateLimiter.check(getChatClientKey(request));
+  const limit = chatRateLimiter.check(getClientKeyFromRequest(request));
   if (!limit.allowed) {
     return Response.json(
       { ok: false, message: "提问太频繁了，请稍后再试" },

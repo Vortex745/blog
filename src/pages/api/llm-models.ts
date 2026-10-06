@@ -2,7 +2,7 @@ import type { APIRoute } from "astro";
 import { buildOpenAiCompatibleEndpoint } from "../../lib/llm-endpoint";
 import { jsonResponse, readString } from "../../lib/api-utils";
 import { readServerEnv } from "../../lib/env";
-import { hasAdminWriteAccess } from "../../lib/auth";
+import { denyAdminWrite } from "../../lib/auth";
 import { filterModelsByType, getApiKeyEnvName } from "../../lib/llm-model-filter";
 
 function readErrorMessage(data: any, fallback: string) {
@@ -34,9 +34,8 @@ export const GET: APIRoute = async () => {
 export const POST: APIRoute = async ({ request }) => {
   // Admin-only proxy: forwards caller-supplied baseUrl/apiKey to an LLM API,
   // so it must never be reachable without an admin session.
-  if (!await hasAdminWriteAccess(request)) {
-    return jsonResponse({ ok: false, message: "请先登录后台" }, 401);
-  }
+  const denied = await denyAdminWrite(request);
+  if (denied) return denied;
 
   let payload: Record<string, unknown> = {};
   try {

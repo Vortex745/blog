@@ -1,6 +1,7 @@
 import { SignJWT, jwtVerify } from "jose";
 import { timingSafeEqual } from "node:crypto";
 import { readServerEnv } from "./env";
+import { jsonResponse } from "./api-utils";
 
 export const ADMIN_SESSION_MAX_AGE_SECONDS = 24 * 60 * 60;
 
@@ -105,6 +106,15 @@ async function isValidToken(token: string): Promise<boolean> {
 export async function hasAdminWriteAccess(request: Request): Promise<boolean> {
   const token = await getAdminTokenFromRequest(request);
   return token !== null;
+}
+
+/**
+ * Shared guard for admin-write API routes: resolves to a 401 jsonResponse when
+ * the caller lacks admin write access, or null when the request may proceed.
+ */
+export async function denyAdminWrite(request: Request): Promise<Response | null> {
+  if (await hasAdminWriteAccess(request)) return null;
+  return jsonResponse({ ok: false, message: "请先登录后台" }, 401);
 }
 
 export async function getAdminTokenFromRequest(request: Request): Promise<string | null> {

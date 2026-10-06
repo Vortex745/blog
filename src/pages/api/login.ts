@@ -6,18 +6,13 @@ import {
   hasAdminWriteAccess,
   verifyCredentials,
 } from "../../lib/auth";
-import { SlidingWindowRateLimiter } from "../../lib/rate-limit";
+import { SlidingWindowRateLimiter, getClientKeyFromRequest } from "../../lib/rate-limit";
 
 // Brute-force throttle: at most 5 failed logins per client IP per 15 minutes.
 const loginFailureLimiter = new SlidingWindowRateLimiter({
   windowMs: 15 * 60 * 1000,
   max: 5,
 });
-
-function getClientKey(request: Request): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  return forwarded?.split(",")[0]?.trim() || "unknown";
-}
 
 // Secure cookies must only be sent over HTTPS. Behind an HTTP-only reverse
 // proxy the forwarded protocol header decides; browsers otherwise refuse the
@@ -47,7 +42,7 @@ export const POST: APIRoute = async ({ request, url }) => {
     const password = typeof body.password === "string" ? body.password : "";
 
     if (!verifyCredentials(username, password)) {
-      const limit = loginFailureLimiter.check(getClientKey(request));
+      const limit = loginFailureLimiter.check(getClientKeyFromRequest(request));
       if (!limit.allowed) {
         return new Response(
           JSON.stringify({

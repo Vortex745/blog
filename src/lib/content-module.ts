@@ -48,7 +48,7 @@ export function createContentModule<T>(config: {
   module: ContentModule;
   payloadKey: string;
   /** payload 形状，默认 "array"（现有三消费者无需改动）。 */
-  payload?: ContentPayloadShape;
+  payloadShape?: ContentPayloadShape;
   onHydrate: (value: T) => void;
   onSyncError?: (message: string) => void;
   /**
@@ -58,7 +58,7 @@ export function createContentModule<T>(config: {
    */
   onServerPersist?: (value: T) => void;
 }): ContentModuleStore<T> {
-  const { endpoint, storageKey, module, payloadKey, payload = "array", onHydrate, onSyncError, onServerPersist } = config;
+  const { endpoint, storageKey, module, payloadKey, payloadShape = "array", onHydrate, onSyncError, onServerPersist } = config;
   let current: T | null = null;
 
   function cache(value: T): void {
@@ -73,7 +73,7 @@ export function createContentModule<T>(config: {
       const parsed = JSON.parse(source);
       return {
         // payload 形状防护：形状漂移值（缺字段 / 非配置形状）按缺失处理，页面回退空表
-        value: payloadIsValid(payload, parsed?.[payloadKey]) ? (parsed[payloadKey] as T) : null,
+        value: payloadIsValid(payloadShape, parsed?.[payloadKey]) ? (parsed[payloadKey] as T) : null,
         storageConfigured: parsed?.storageConfigured === true,
         readFailed: parsed?.readFailed === true,
       };
@@ -116,7 +116,7 @@ export function createContentModule<T>(config: {
         throw new Error(result.message || "云端同步失败");
       }
 
-      if (payloadIsValid(payload, result[payloadKey])) {
+      if (payloadIsValid(payloadShape, result[payloadKey])) {
         const serverValue = result[payloadKey] as T;
         persist(serverValue);
         onServerPersist?.(serverValue);
@@ -139,7 +139,7 @@ export function createContentModule<T>(config: {
 
       const data = await response.json();
       const remote = data?.[payloadKey];
-      if (data?.storage !== "sqlite" || !payloadIsValid(payload, remote)) return;
+      if (data?.storage !== "sqlite" || !payloadIsValid(payloadShape, remote)) return;
       const remoteValue = remote as T;
 
       if (JSON.stringify(current) === JSON.stringify(remote)) {

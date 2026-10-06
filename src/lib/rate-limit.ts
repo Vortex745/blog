@@ -22,6 +22,15 @@ export type RateLimitResult = {
   retryAfterSeconds: number;
 };
 
+// Shared per-client keying for rate limiters: trust the reverse proxy's
+// forwarded-for header when present (first entry), otherwise bucket every
+// direct client together under "unknown". Used by the login throttle and
+// the public ai/chat limiter alike.
+export function getClientKeyFromRequest(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  return forwarded?.split(",")[0]?.trim() || "unknown";
+}
+
 export class SlidingWindowRateLimiter {
   private readonly windowMs: number;
   private readonly max: number;

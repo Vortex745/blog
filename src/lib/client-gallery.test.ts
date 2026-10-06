@@ -117,11 +117,12 @@ test("pickLocalGalleryImages purges legacy backflow copies even when their sqlit
 
 test("the download overlay key is registered in content-channel and does not collide with module keys", () => {
   assert.equal(GALLERY_DOWNLOADS_STORAGE_KEY, "admin-gallery-downloads");
-  assert.ok(!Object.values(CONTENT_STORAGE_KEYS).includes(GALLERY_DOWNLOADS_STORAGE_KEY));
+  assert.ok(!(Object.values(CONTENT_STORAGE_KEYS) as string[]).includes(GALLERY_DOWNLOADS_STORAGE_KEY));
 });
 
 test("loadGalleryDownloadOverlay parses a valid counts map and rejects malformed payloads", () => {
-  const storageOf = (value: string | null) => ({ getItem: () => value });
+  // Read-only stub: loadGalleryDownloadOverlay never writes, setItem is a no-op.
+  const storageOf = (value: string | null) => ({ getItem: () => value, setItem: () => {} });
 
   assert.deepEqual(loadGalleryDownloadOverlay(storageOf(null)), {});
   assert.deepEqual(loadGalleryDownloadOverlay(storageOf("not json")), {});

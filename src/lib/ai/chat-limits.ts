@@ -1,4 +1,4 @@
-import { SlidingWindowRateLimiter } from "../rate-limit";
+import { SlidingWindowRateLimiter, getClientKeyFromRequest } from "../rate-limit";
 
 // Public /api/ai/chat limits (decisions.md D3): the endpoint stays open to
 // visitors but is bounded per IP and per request so a single client cannot
@@ -11,18 +11,11 @@ export const MAX_CHAT_MESSAGES = 20;
 export const MAX_CHAT_MESSAGE_CHARS = 4000;
 
 // One limiter for the public chat endpoint, shared by every request handled
-// by the server process. Keyed by client IP (see getChatClientKey).
+// by the server process. Keyed by client IP (see getClientKeyFromRequest).
 export const chatRateLimiter = new SlidingWindowRateLimiter({
   windowMs: CHAT_RATE_LIMIT_WINDOW_MS,
   max: CHAT_RATE_LIMIT_MAX,
 });
-
-// Same keying as the login throttle: trust the reverse proxy's forwarded-for
-// header when present, otherwise bucket every direct client together.
-export function getChatClientKey(request: Request): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  return forwarded?.split(",")[0]?.trim() || "unknown";
-}
 
 export type ChatMessageLimitResult = { ok: true } | { ok: false; message: string };
 

@@ -4,8 +4,6 @@
 // 4000ms, save-status bars after 3000ms, and the home page never auto-clears
 // "info" messages.
 
-export type AdminStatusType = "success" | "error" | "info";
-
 export type ShowStatusOptions = {
   /** Base CSS class; rendered as `${className} is-${type}`. Default "save-status". */
   className?: string;
@@ -18,10 +16,12 @@ export type ShowStatusOptions = {
 const DEFAULT_STATUS_CLASS = "save-status";
 const DEFAULT_CLEAR_MS = 3000;
 
+// `type` is a free-form class suffix supplied by the admin pages (typically
+// "success" / "error" / "info"), so it is typed as plain string.
 export function showElementStatus(
   element: HTMLElement | null,
   text: string,
-  type: AdminStatusType | string,
+  type: string,
   options: ShowStatusOptions = {}
 ): void {
   if (!element) return;
@@ -31,7 +31,7 @@ export function showElementStatus(
 
   if (options.keepInfo && type === "info") return;
   const clearMs = options.clearMs === undefined ? DEFAULT_CLEAR_MS : options.clearMs;
-  if (clearMs === null || clearMs <= 0) return;
+  if (clearMs <= 0) return;
   setTimeout(() => {
     element.textContent = "";
     element.className = baseClass;
