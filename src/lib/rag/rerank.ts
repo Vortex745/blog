@@ -22,7 +22,8 @@ export async function rerankRagItems(query: string, items: RagSearchItem[], topN
     return result.ranking
       .map((ranked) => byId.get(ranked.document.id))
       .filter((item): item is RagSearchItem => Boolean(item));
-  } catch {
+  } catch (error) {
+    console.warn("[rag] rerank failed, keeping fusion order:", error instanceof Error ? error.message : error);
     return items.slice(0, topN);
   }
 }

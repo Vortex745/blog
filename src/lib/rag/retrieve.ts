@@ -115,13 +115,11 @@ export async function retrieveRagContext(query: string, options: RetrieveRagCont
     const bm25Items = bm25Search(db, rewrittenQuery, Math.max(limit * 4, 12));
     const embedding = await embeddingPromise;
     const vectorItems = vectorSearch(db, embedding, Math.max(limit * 4, 12));
-    const fused = reciprocalRankFusion([vectorItems, bm25Items]).map((item) => ({
-      ...item,
-      rrfScore: item.rrfScore,
-    }));
+    const fused = reciprocalRankFusion([vectorItems, bm25Items]);
     const reranked = options.skipAiRerank ? fused.slice(0, limit) : await rerankRagItems(rewrittenQuery, fused, limit);
     return buildRagContext(query, rewrittenQuery, reranked);
-  } catch {
+  } catch (error) {
+    console.warn("[rag] hybrid retrieval failed, falling back to bm25-only:", error instanceof Error ? error.message : error);
     const bm25Items = bm25Search(db, rewrittenQuery, limit);
     return buildRagContext(query, rewrittenQuery, bm25Items);
   }

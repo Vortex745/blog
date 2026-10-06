@@ -48,7 +48,8 @@ export async function rewriteRagQuery(query: string): Promise<string> {
       ].join("\n"),
     });
     return result.object.query.trim() || trimmed;
-  } catch {
+  } catch (error) {
+    console.warn("[rag] query rewrite failed, using original query:", error instanceof Error ? error.message : error);
     return trimmed;
   }
 }

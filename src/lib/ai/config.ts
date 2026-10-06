@@ -36,6 +36,48 @@ export type AssistantAiConfig = {
   rerankFallback?: RerankFallbackConfig;
 };
 
+/**
+ * Pure fallback-config builder: returns a config only when all three
+ * required vars are present. When `env` is omitted it reads the real
+ * server env at call time, preserving prior behavior.
+ */
+export function buildEmbeddingFallback(
+  env: Record<string, string | undefined> = {
+    EMBEDDING_BASE_URL: readServerEnv("EMBEDDING_BASE_URL"),
+    EMBEDDING_API_KEY: readServerEnv("EMBEDDING_API_KEY"),
+    EMBEDDING_MODEL: readServerEnv("EMBEDDING_MODEL"),
+  },
+): EmbeddingFallbackConfig | undefined {
+  const baseUrl = env["EMBEDDING_BASE_URL"];
+  const apiKey = env["EMBEDDING_API_KEY"];
+  const model = env["EMBEDDING_MODEL"];
+  if (baseUrl && apiKey && model) {
+    return { baseUrl, apiKey, model };
+  }
+  return undefined;
+}
+
+/**
+ * Pure fallback-config builder: returns a config only when all three
+ * required vars are present. When `env` is omitted it reads the real
+ * server env at call time, preserving prior behavior.
+ */
+export function buildRerankFallback(
+  env: Record<string, string | undefined> = {
+    RERANK_BASE_URL: readServerEnv("RERANK_BASE_URL"),
+    RERANK_API_KEY: readServerEnv("RERANK_API_KEY"),
+    RERANK_MODEL: readServerEnv("RERANK_MODEL"),
+  },
+): RerankFallbackConfig | undefined {
+  const baseUrl = env["RERANK_BASE_URL"];
+  const apiKey = env["RERANK_API_KEY"];
+  const model = env["RERANK_MODEL"];
+  if (baseUrl && apiKey && model) {
+    return { baseUrl, apiKey, model };
+  }
+  return undefined;
+}
+
 export function getAssistantAiConfig(): AssistantAiConfig {
   const gatewayApiKey = readServerEnv("AI_GATEWAY_API_KEY");
 
@@ -53,23 +95,13 @@ export function getAssistantAiConfig(): AssistantAiConfig {
   // Embedding fallback: independent embedding provider (e.g. SiliconFlow)
   let embeddingFallback: EmbeddingFallbackConfig | undefined;
   if (!gatewayApiKey) {
-    const baseUrl = readServerEnv("EMBEDDING_BASE_URL");
-    const apiKey = readServerEnv("EMBEDDING_API_KEY");
-    const model = readServerEnv("EMBEDDING_MODEL");
-    if (baseUrl && apiKey && model) {
-      embeddingFallback = { baseUrl, apiKey, model };
-    }
+    embeddingFallback = buildEmbeddingFallback();
   }
 
   // Rerank fallback: independent rerank provider (e.g. SiliconFlow, Cohere direct)
   let rerankFallback: RerankFallbackConfig | undefined;
   if (!gatewayApiKey) {
-    const baseUrl = readServerEnv("RERANK_BASE_URL");
-    const apiKey = readServerEnv("RERANK_API_KEY");
-    const model = readServerEnv("RERANK_MODEL");
-    if (baseUrl && apiKey && model) {
-      rerankFallback = { baseUrl, apiKey, model };
-    }
+    rerankFallback = buildRerankFallback();
   }
 
   return {

@@ -117,9 +117,10 @@ export async function indexRagDocuments(options: IndexRagDocumentsOptions = {}):
   const needsFullRebuild = changedIds.size === documents.length || removedIds.size > 0;
 
   if (!needsFullRebuild && changedIds.size === 0) {
+    const chunkCountRow = db.prepare("select count(*) as c from rag_chunks").get() as { c: number } | undefined;
     return {
       documentCount: documents.length,
-      chunkCount: db.prepare("select count(*) as c from rag_chunks").get() as number ? (db.prepare("select count(*) as c from rag_chunks").get() as { c: number }).c : 0,
+      chunkCount: chunkCountRow?.c ?? 0,
       embeddingModel,
     };
   }
@@ -129,36 +130,32 @@ export async function indexRagDocuments(options: IndexRagDocumentsOptions = {}):
   const embedTexts = options.embedTexts ?? ((texts: string[]) => embedTextsWithAi(texts, embeddingModel));
   const embeddings = await embedTexts(chunks.map((chunk) => chunk.text));
 
-  try {
-    if (needsFullRebuild) {
-      db.transaction(() => {
-        db.prepare("delete from rag_chunk_vectors").run();
-        db.prepare("delete from rag_chunks_fts").run();
-        db.prepare("delete from rag_chunks").run();
-        db.prepare("delete from rag_documents").run();
+  if (needsFullRebuild) {
+    db.transaction(() => {
+      db.prepare("delete from rag_chunk_vectors").run();
+      db.prepare("delete from rag_chunks_fts").run();
+      db.prepare("delete from rag_chunks").run();
+      db.prepare("delete from rag_documents").run();
 
-        documents.forEach((document) => insertDocument(db, document));
-        chunks.forEach((chunk, index) => insertChunk(db, chunk, embeddings[index], embeddingModel));
-      })();
-    } else {
-      // Incremental: delete old chunks for changed docs, re-insert
-      db.transaction(() => {
-        for (const id of changedIds) {
-          const chunkIds = db.prepare("select id from rag_chunks where document_id = ?").all(id) as Array<{ id: number }>;
-          for (const { id: chunkId } of chunkIds) {
-            db.prepare("delete from rag_chunk_vectors where rowid = ?").run(BigInt(chunkId));
-            db.prepare("delete from rag_chunks_fts where rowid = ?").run(chunkId);
-          }
-          db.prepare("delete from rag_chunks where document_id = ?").run(id);
-          db.prepare("delete from rag_documents where id = ?").run(id);
+      documents.forEach((document) => insertDocument(db, document));
+      chunks.forEach((chunk, index) => insertChunk(db, chunk, embeddings[index], embeddingModel));
+    })();
+  } else {
+    // Incremental: delete old chunks for changed docs, re-insert
+    db.transaction(() => {
+      for (const id of changedIds) {
+        const chunkIds = db.prepare("select id from rag_chunks where document_id = ?").all(id) as Array<{ id: number }>;
+        for (const { id: chunkId } of chunkIds) {
+          db.prepare("delete from rag_chunk_vectors where rowid = ?").run(BigInt(chunkId));
+          db.prepare("delete from rag_chunks_fts where rowid = ?").run(chunkId);
         }
+        db.prepare("delete from rag_chunks where document_id = ?").run(id);
+        db.prepare("delete from rag_documents where id = ?").run(id);
+      }
 
-        docsToIndex.forEach((document) => insertDocument(db, document));
-        chunks.forEach((chunk, index) => insertChunk(db, chunk, embeddings[index], embeddingModel));
-      })();
-    }
-  } finally {
-    // Shared connection — lifecycle managed by getSharedDatabase
+      docsToIndex.forEach((document) => insertDocument(db, document));
+      chunks.forEach((chunk, index) => insertChunk(db, chunk, embeddings[index], embeddingModel));
+    })();
   }
 
   return {
