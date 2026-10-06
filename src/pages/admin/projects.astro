@@ -1,6 +1,6 @@
 ---
 import AdminLayout from "../../layouts/AdminLayout.astro";
-import { readContentProjects } from "../../lib/content-store";
+import { storageConfigured, readContentProjects } from "../../lib/content-store";
 import { ADMIN_IMAGE_PLACEHOLDER } from "../../lib/placeholder-images";
 
 let projects = [];
@@ -12,9 +12,10 @@ try {
   projectsReadFailed = true;
 }
 
+const projectsStorageConfigured = storageConfigured();
 const initialProjectsPayload = JSON.stringify({
   projects,
-  storageConfigured: true,
+  storageConfigured: projectsStorageConfigured,
   readFailed: projectsReadFailed,
 }).replace(/</g, "\\u003c");
 ---
@@ -248,7 +249,10 @@ const initialProjectsPayload = JSON.stringify({
 
 <script>
   import { initMarkdownRenderers, refreshMarkdownRendererFor } from "../../scripts/admin-markdown-renderer";
-  import { getLlmSettings, hasLlmSettings, fetchLlmSettings, requestLlmChat } from "../../scripts/admin-llm";
+  import { PROJECT_POLISH_PROMPTS, ensureLlmSettings, runAiPolish } from "../../scripts/admin-ai-polish";
+  import { requestLlmChat } from "../../scripts/admin-llm";
+  import { uploadImageWithProgress } from "../../scripts/admin-upload";
+  import { showElementStatus } from "../../scripts/admin-status";
   import { CONTENT_STORAGE_KEYS } from "../../lib/content-channel";
   import { createContentModule, showToast } from "../../lib/content-module";
   import { escapeHtml, formatDate, type AdminProject } from "../../lib/client-content";
@@ -327,13 +331,6 @@ const initialProjectsPayload = JSON.stringify({
   let currentProjectTags = [];
   let currentPolishPreset = "polite";
   let polishedProjectDescription = "";
-
-  const ANTI_AI_RULES = "你是一位文字编辑。处理文本时：1.删除填充短语和强调性拐杖词 2.打破公式化结构，避免否定式排比 3.变化句子节奏，三项改两项或四项 4.用具体细节替代模糊归因 5.避免宣传性语言 6.用「是/有」替代「作为/标志着」 7.避免破折号和粗体过度使用 8.信任读者，不手把手引导 9.保留第一人称和复杂感受 10.像真人说话，不是新闻稿。";
-  const PROJECT_POLISH_PROMPTS = {
-    polite: ANTI_AI_RULES + " 请润色以下项目介绍，使其更清晰、专业、有吸引力，但保留原始信息和语气。只输出润色后的项目介绍，不要解释。",
-    concise: ANTI_AI_RULES + " 请精简以下项目介绍，去掉冗余表达，保留关键亮点。只输出精简后的项目介绍，不要解释。",
-    expand: ANTI_AI_RULES + " 请扩写以下项目介绍，在保留事实的基础上补充价值、场景和亮点，使其更适合作品集展示。只输出扩写后的项目介绍，不要解释。",
-  };
 
   // ===== Data =====
   const projectsModule = createContentModule<AdminProject[]>({
@@ -468,10 +465,8 @@ const initialProjectsPayload = JSON.stringify({
     renderProjectTags();
   }
 
-  function showProjectPolishStatus(text, type) {
-    if (!projectPolishStatus) return;
-    projectPolishStatus.textContent = text;
-    projectPolishStatus.className = "polish-status is-" + type;
+  function showProjectPolishStatus(text: string, type: string) {
+    showElementStatus(projectPolishStatus, text, type, { className: "polish-status", clearMs: 0 });
   }
 
   function renderProjectPolishDiff(original, polished) {
@@ -601,31 +596,6 @@ const initialProjectsPayload = JSON.stringify({
     }
   }
 
-  function uploadImageWithProgress(endpoint, file, onProgress) {
-    return new Promise((resolve, reject) => {
-      const formData = new FormData();
-      formData.append("image", file);
-      const xhr = new XMLHttpRequest();
-      xhr.open("POST", endpoint);
-      xhr.responseType = "json";
-      xhr.upload.addEventListener("progress", (event) => {
-        if (!event.lengthComputable) return;
-        onProgress(Math.round((event.loaded / event.total) * 100));
-      });
-      xhr.addEventListener("load", () => {
-        const response = xhr.response || {};
-        if (xhr.status >= 200 && xhr.status < 300 && response.ok) {
-          resolve(response.image);
-          return;
-        }
-        reject(new Error(response.message || "上传失败"));
-      });
-      xhr.addEventListener("error", () => reject(new Error("网络错误，上传失败")));
-      xhr.addEventListener("abort", () => reject(new Error("上传已取消")));
-      xhr.send(formData);
-    });
-  }
-
   btnRemoveImage?.addEventListener("click", () => {
     resetImagePreview();
     if (imageInput) imageInput.value = "";
@@ -665,11 +635,7 @@ const initialProjectsPayload = JSON.stringify({
       focusInvalidField(projectDescInput);
       return;
     }
-    let settings = getLlmSettings();
-    if (!settings?.baseUrl || !settings?.apiKey || !settings?.model) {
-      settings = await fetchLlmSettings();
-    }
-    if (!settings?.baseUrl || !settings?.apiKey || !settings?.model) {
+    if (!(await ensureLlmSettings())) {
       showToast("请先在 API 管理中配置 LLM API", "error");
       showStatus("请先在 API 管理中配置 LLM API", "error");
       return;
@@ -700,12 +666,9 @@ const initialProjectsPayload = JSON.stringify({
     showProjectPolishStatus("正在润色中，请稍候...", "info");
 
     try {
-      polishedProjectDescription = await requestLlmChat({
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content },
-        ],
-        temperature: 0.7,
+      polishedProjectDescription = await runAiPolish({
+        content,
+        systemPrompt,
         onSlow: () => showProjectPolishStatus("API 响应较慢，请继续等待...", "info"),
       });
       renderProjectPolishDiff(content, polishedProjectDescription);
@@ -762,7 +725,7 @@ const initialProjectsPayload = JSON.stringify({
     if (idx < 0 || idx >= projects.length) return;
 
     if (btn.dataset.action === "delete") {
-      if (await (window as any).showConfirmDialog(`确定要删除项目 "${projects[idx].title}" 吗？`)) {
+      if (await window.showConfirmDialog(`确定要删除项目 "${projects[idx].title}" 吗？`)) {
         projects.splice(idx, 1);
         await projectsModule.save(projects);
         renderList();
@@ -848,14 +811,8 @@ const initialProjectsPayload = JSON.stringify({
     if (synced) showStatus("已保存到 Neon", "success");
   });
 
-  function showStatus(text, type) {
-    if (!statusMsg) return;
-    statusMsg.textContent = text;
-    statusMsg.className = "save-status is-" + type;
-    setTimeout(() => {
-      statusMsg.textContent = "";
-      statusMsg.className = "save-status";
-    }, 3000);
+  function showStatus(text: string, type: string) {
+    showElementStatus(statusMsg, text, type);
   }
 
   function parseGithubUrl(url) {
@@ -932,11 +889,7 @@ const initialProjectsPayload = JSON.stringify({
   const README_SUMMARIZE_PROMPT = "你是一位技术文档摘要专家。请用简洁的中文总结以下项目 README 内容，概括项目的核心功能和定位（150字以内）。只输出总结内容，不要解释。如果不是中文项目名，保留英文原名。";
 
   async function summarizeReadmeWithLLM(cleaned: string, descInput: HTMLTextAreaElement | null): Promise<string | null> {
-    let settings = getLlmSettings();
-    if (!settings?.baseUrl || !settings?.apiKey || !settings?.model) {
-      settings = await fetchLlmSettings();
-    }
-    if (!settings?.baseUrl || !settings?.apiKey || !settings?.model) return null;
+    if (!(await ensureLlmSettings())) return null;
 
     const summary = await requestLlmChat({
       messages: [

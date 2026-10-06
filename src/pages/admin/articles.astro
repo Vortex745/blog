@@ -310,7 +310,9 @@ function formatArticleDate(value: unknown): string {
 
 <script>
   import { initMarkdownRenderers, refreshMarkdownRendererFor } from "../../scripts/admin-markdown-renderer";
-  import { getLlmSettings, hasLlmSettings, fetchLlmSettings, requestLlmChat } from "../../scripts/admin-llm";
+  import { PRESET_PROMPTS, ensureLlmSettings, runAiPolish } from "../../scripts/admin-ai-polish";
+  import { uploadImageWithProgress, validateImageFile, validateImageUrl, COVER_IMAGE_MAX_SIZE } from "../../scripts/admin-upload";
+  import { showElementStatus } from "../../scripts/admin-status";
   import { CONTENT_STORAGE_KEYS } from "../../lib/content-channel";
   import { createContentModule, showToast } from "../../lib/content-module";
   import { escapeHtml, formatDate, type AdminArticle } from "../../lib/client-content";
@@ -364,14 +366,8 @@ function formatArticleDate(value: unknown): string {
   articlesModule.persist(articles);
 
   // ===== Helpers =====
-  function showStatus(text, type) {
-    if (!statusMsg) return;
-    statusMsg.textContent = text;
-    statusMsg.className = "save-status is-" + type;
-    setTimeout(() => {
-      statusMsg.textContent = "";
-      statusMsg.className = "save-status";
-    }, 3000);
+  function showStatus(text: string, type: string) {
+    showElementStatus(statusMsg, text, type);
   }
 
   function getArticleValidationMessage(field) {
@@ -403,9 +399,6 @@ function formatArticleDate(value: unknown): string {
   const coverProgressText = document.getElementById("cover-progress-text");
   const coverStatus = document.getElementById("cover-status");
 
-  const COVER_MAX_SIZE = 32 * 1024 * 1024; // 32MB
-  const COVER_ACCEPT_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/bmp", "image/tiff"];
-
   function resetCoverUpload() {
     if (coverPreview) coverPreview.src = "";
     if (coverPreview) coverPreview.style.display = "none";
@@ -430,48 +423,20 @@ function formatArticleDate(value: unknown): string {
     if (coverProgressText) coverProgressText.textContent = percent + "%";
   }
 
-  function showCoverStatus(text, type) {
-    if (!coverStatus) return;
-    coverStatus.textContent = text;
-    coverStatus.className = "cover-status is-" + type;
+  function showCoverStatus(text: string, type: string) {
+    showElementStatus(coverStatus, text, type, { className: "cover-status", clearMs: 0 });
   }
 
-  function validateCoverFile(file) {
-    if (!COVER_ACCEPT_TYPES.includes(file.type)) {
-      showCoverStatus("仅支持 JPG、PNG、GIF、WebP 格式", "error");
-      return false;
-    }
-    if (file.size > COVER_MAX_SIZE) {
-      showCoverStatus(`文件过大 (${(file.size/1024/1024).toFixed(1)}MB)，最大支持 32MB`, "error");
-      return false;
-    }
-    return true;
-  }
-
-  function uploadImageWithProgress(endpoint, file, onProgress) {
-    return new Promise((resolve, reject) => {
-      const formData = new FormData();
-      formData.append("image", file);
-
-      const xhr = new XMLHttpRequest();
-      xhr.open("POST", endpoint);
-      xhr.responseType = "json";
-      xhr.upload.addEventListener("progress", (event) => {
-        if (!event.lengthComputable) return;
-        onProgress(Math.round((event.loaded / event.total) * 100));
-      });
-      xhr.addEventListener("load", () => {
-        const response = xhr.response || {};
-        if (xhr.status >= 200 && xhr.status < 300 && response.ok) {
-          resolve(response.image);
-          return;
-        }
-        reject(new Error(response.message || "上传失败"));
-      });
-      xhr.addEventListener("error", () => reject(new Error("网络错误，上传失败")));
-      xhr.addEventListener("abort", () => reject(new Error("上传已取消")));
-      xhr.send(formData);
-    });
+  function validateCoverFile(file: File) {
+    const check = validateImageFile(file, COVER_IMAGE_MAX_SIZE);
+    if (check.valid) return true;
+    showCoverStatus(
+      check.reason === "type"
+        ? "仅支持 JPG、PNG、GIF、WebP 格式"
+        : `文件过大 (${check.sizeMb}MB)，最大支持 ${check.maxSizeMb}MB`,
+      "error"
+    );
+    return false;
   }
 
   async function processCoverImage(file) {
@@ -541,10 +506,8 @@ function formatArticleDate(value: unknown): string {
     if (pasteProgressText) pasteProgressText.textContent = percent + "%";
   }
 
-  function showPasteStatus(text, type) {
-    if (!pasteStatus) return;
-    pasteStatus.textContent = text;
-    pasteStatus.className = "cover-status is-" + type;
+  function showPasteStatus(text: string, type: string) {
+    showElementStatus(pasteStatus, text, type, { className: "cover-status", clearMs: 0 });
   }
 
   function insertMarkdownImage(url, altText) {
@@ -573,16 +536,16 @@ function formatArticleDate(value: unknown): string {
     contentImagesList?.appendChild(imgItem);
   }
 
-  function validateContentFile(file) {
-    if (!COVER_ACCEPT_TYPES.includes(file.type)) {
-      showPasteStatus("正文图片仅支持 JPG、PNG、GIF、WebP 格式", "error");
-      return false;
-    }
-    if (file.size > COVER_MAX_SIZE) {
-      showPasteStatus(`图片过大 (${(file.size / 1024 / 1024).toFixed(1)}MB)，最大支持 32MB`, "error");
-      return false;
-    }
-    return true;
+  function validateContentFile(file: File) {
+    const check = validateImageFile(file, COVER_IMAGE_MAX_SIZE);
+    if (check.valid) return true;
+    showPasteStatus(
+      check.reason === "type"
+        ? "正文图片仅支持 JPG、PNG、GIF、WebP 格式"
+        : `图片过大 (${check.sizeMb}MB)，最大支持 ${check.maxSizeMb}MB`,
+      "error"
+    );
+    return false;
   }
 
   async function uploadContentImage(file, label) {
@@ -649,19 +612,8 @@ function formatArticleDate(value: unknown): string {
   let currentUrlImage = "";
   let currentUrlImageValid = false;
 
-  function showUrlStatus(text, type) {
-    if (!urlStatus) return;
-    urlStatus.textContent = text;
-    urlStatus.className = "cover-status is-" + type;
-  }
-
-  async function validateImageUrl(url) {
-    const response = await fetch(`/api/validate-image-url?url=${encodeURIComponent(url)}`);
-    const result = await response.json();
-    if (!response.ok || !result.ok) {
-      return { valid: false, error: result.message || "图片链接验证失败" };
-    }
-    return { valid: true, type: result.image?.type || "图片" };
+  function showUrlStatus(text: string, type: string) {
+    showElementStatus(urlStatus, text, type, { className: "cover-status", clearMs: 0 });
   }
 
   btnInsertUrl?.addEventListener("click", async () => {
@@ -811,14 +763,6 @@ function formatArticleDate(value: unknown): string {
   let polishedContent = "";
   let currentPreset = "polite";
 
-  const ANTI_AI_RULES = "你是一位文字编辑。处理文本时：1.删除填充短语和强调性拐杖词 2.打破公式化结构，避免否定式排比 3.变化句子节奏，三项改两项或四项 4.用具体细节替代模糊归因 5.避免宣传性语言 6.用「是/有」替代「作为/标志着」 7.避免破折号和粗体过度使用 8.信任读者，不手把手引导 9.保留第一人称和复杂感受 10.像真人说话，不是新闻稿。";
-  const PRESET_PROMPTS = {
-    polite: ANTI_AI_RULES + " 请润色以下 Markdown 文本，使其更加流畅、优雅，修正语法和用词，但保留原始含义和 Markdown 格式不变。只输出润色后的内容，不要解释。",
-    concise: ANTI_AI_RULES + " 请精简以下 Markdown 文本，删除冗余词句，使其更加紧凑有力，但保留核心含义和 Markdown 格式不变。只输出精简后的内容，不要解释。",
-    expand: ANTI_AI_RULES + " 请扩写以下 Markdown 文本，在保留原意的基础上增加更多细节和论述，使内容更加丰富充实，Markdown 格式不变。只输出扩写后的内容，不要解释。",
-    translate: "请将以下 Markdown 文本翻译为英文，保持 Markdown 格式不变。只输出翻译后的内容，不要解释。",
-  };
-
   document.querySelectorAll(".polish-preset").forEach(btn => {
     btn.addEventListener("click", () => {
       document.querySelectorAll(".polish-preset").forEach(b => b.classList.remove("active"));
@@ -832,12 +776,8 @@ function formatArticleDate(value: unknown): string {
       showStatus("请先输入文章内容", "error");
       return;
     }
-    let s = getLlmSettings();
-    if (!hasLlmSettings(s)) {
-      s = await fetchLlmSettings();
-    }
-    if (!hasLlmSettings(s)) {
-      const go = await (window as any).showConfirmDialog(
+    if (!(await ensureLlmSettings())) {
+      const go = await window.showConfirmDialog(
         "尚未配置大模型 API，无法使用 AI 润色功能。\n\n是否现在前往 API 管理页面进行配置？",
         { title: "提示", confirmText: "前往配置", cancelText: "稍后再说" }
       );
@@ -857,10 +797,8 @@ function formatArticleDate(value: unknown): string {
     polishedContent = "";
   });
 
-  function showPolishStatus(text, type) {
-    if (!polishStatus) return;
-    polishStatus.textContent = text;
-    polishStatus.className = "cover-status is-" + type;
+  function showPolishStatus(text: string, type: string) {
+    showElementStatus(polishStatus, text, type, { className: "cover-status", clearMs: 0 });
   }
 
   btnPolishRun?.addEventListener("click", async () => {
@@ -869,11 +807,7 @@ function formatArticleDate(value: unknown): string {
       showPolishStatus("没有可润色的内容", "error");
       return;
     }
-    let s = getLlmSettings();
-    if (!hasLlmSettings(s)) {
-      s = await fetchLlmSettings();
-    }
-    if (!hasLlmSettings(s)) {
+    if (!(await ensureLlmSettings())) {
       showPolishStatus("LLM API 未配置", "error");
       return;
     }
@@ -885,12 +819,9 @@ function formatArticleDate(value: unknown): string {
     showPolishStatus("正在润色中，请稍候...", "info");
 
     try {
-      polishedContent = await requestLlmChat({
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content },
-        ],
-        temperature: 0.7,
+      polishedContent = await runAiPolish({
+        content,
+        systemPrompt,
         onSlow: () => showPolishStatus("API 响应较慢，请继续等待...", "info"),
       });
 
@@ -1079,7 +1010,7 @@ function formatArticleDate(value: unknown): string {
       if (titleHint) titleHint.textContent = `${(a.title || "").length} / 100 字符`;
       openModal(true);
     } else if (btn.dataset.action === "delete") {
-      if (await (window as any).showConfirmDialog("确定要删除这篇文章吗？")) {
+      if (await window.showConfirmDialog("确定要删除这篇文章吗？")) {
         articles.splice(idx, 1);
         const synced = await articlesModule.save(articles);
         renderList();

@@ -198,7 +198,9 @@ const initialAboutPayload = JSON.stringify(initialAbout).replace(/</g, "\\u003c"
 <script>
   import { ABOUT_AVATAR_PLACEHOLDER } from "../../lib/placeholder-images";
   import { CONTENT_STORAGE_KEYS, dispatchContentChanged } from "../../lib/content-channel";
-  import { getLlmSettings as getSharedLlmSettings, fetchLlmSettings } from "../../scripts/admin-llm";
+  import { PRESET_PROMPTS, ensureLlmSettings, runAiPolish } from "../../scripts/admin-ai-polish";
+  import { uploadImageWithProgress, validateImageFile, AVATAR_IMAGE_MAX_SIZE } from "../../scripts/admin-upload";
+  import { showElementStatus } from "../../scripts/admin-status";
 
   document.addEventListener("astro:page-load", () => {
     const form = document.getElementById("about-form");
@@ -256,14 +258,8 @@ const initialAboutPayload = JSON.stringify(initialAbout).replace(/</g, "\\u003c"
   }
 
   // ===== Helpers =====
-  function showStatus(text, type) {
-    if (!saveStatus) return;
-    saveStatus.textContent = text;
-    saveStatus.className = "save-status is-" + type;
-    setTimeout(() => {
-      saveStatus.textContent = "";
-      saveStatus.className = "save-status";
-    }, 3000);
+  function showStatus(text: string, type: string) {
+    showElementStatus(saveStatus, text, type);
   }
 
   function notifyContentChanged() {
@@ -312,55 +308,25 @@ const initialAboutPayload = JSON.stringify(initialAbout).replace(/</g, "\\u003c"
   }
 
   // ===== Avatar Upload =====
-  const AVATAR_MAX_SIZE = 5 * 1024 * 1024;
-  const AVATAR_ACCEPT_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/bmp", "image/tiff"];
-
   function setAvatarProgress(percent) {
     if (avatarProgressFill) avatarProgressFill.style.width = percent + "%";
     if (avatarProgressText) avatarProgressText.textContent = percent + "%";
   }
 
-  function showAvatarStatus(text, type) {
-    if (!avatarStatus) return;
-    avatarStatus.textContent = text;
-    avatarStatus.className = "cover-status is-" + type;
+  function showAvatarStatus(text: string, type: string) {
+    showElementStatus(avatarStatus, text, type, { className: "cover-status", clearMs: 0 });
   }
 
-  function validateAvatarFile(file) {
-    if (!AVATAR_ACCEPT_TYPES.includes(file.type)) {
-      showAvatarStatus("仅支持 JPG、PNG、GIF、WebP 格式", "error");
-      return false;
-    }
-    if (file.size > AVATAR_MAX_SIZE) {
-      showAvatarStatus(`文件过大 (${(file.size/1024/1024).toFixed(1)}MB)，最大支持 5MB`, "error");
-      return false;
-    }
-    return true;
-  }
-
-  function uploadImageWithProgress(endpoint, file, onProgress) {
-    return new Promise((resolve, reject) => {
-      const formData = new FormData();
-      formData.append("image", file);
-      const xhr = new XMLHttpRequest();
-      xhr.open("POST", endpoint);
-      xhr.responseType = "json";
-      xhr.upload.addEventListener("progress", (event) => {
-        if (!event.lengthComputable) return;
-        onProgress(Math.round((event.loaded / event.total) * 100));
-      });
-      xhr.addEventListener("load", () => {
-        const response = xhr.response || {};
-        if (xhr.status >= 200 && xhr.status < 300 && response.ok) {
-          resolve(response.image);
-          return;
-        }
-        reject(new Error(response.message || "上传失败"));
-      });
-      xhr.addEventListener("error", () => reject(new Error("网络错误")));
-      xhr.addEventListener("abort", () => reject(new Error("上传已取消")));
-      xhr.send(formData);
-    });
+  function validateAvatarFile(file: File) {
+    const check = validateImageFile(file, AVATAR_IMAGE_MAX_SIZE);
+    if (check.valid) return true;
+    showAvatarStatus(
+      check.reason === "type"
+        ? "仅支持 JPG、PNG、GIF、WebP 格式"
+        : `文件过大 (${check.sizeMb}MB)，最大支持 ${check.maxSizeMb}MB`,
+      "error"
+    );
+    return false;
   }
 
   async function processAvatarImage(file) {
@@ -655,7 +621,6 @@ const initialAboutPayload = JSON.stringify(initialAbout).replace(/</g, "\\u003c"
   renderSkills();
 
   // ===== AI Polish =====
-  const LLM_KEY = "admin-llm-settings";
   const polishOptions = document.getElementById("polish-options");
   const btnPolish = document.getElementById("btn-polish");
   const btnPolishRun = document.getElementById("btn-polish-run");
@@ -670,28 +635,12 @@ const initialAboutPayload = JSON.stringify(initialAbout).replace(/</g, "\\u003c"
   let polishedContent = "";
   let currentPreset = "polite";
 
-  const ANTI_AI_RULES = "你是一位文字编辑。处理文本时：1.删除填充短语和强调性拐杖词 2.打破公式化结构，避免否定式排比 3.变化句子节奏，三项改两项或四项 4.用具体细节替代模糊归因 5.避免宣传性语言 6.用「是/有」替代「作为/标志着」 7.避免破折号和粗体过度使用 8.信任读者，不手把手引导 9.保留第一人称和复杂感受 10.像真人说话，不是新闻稿。";
-  const PRESET_PROMPTS = {
-    polite: ANTI_AI_RULES + " 请润色以下 Markdown 文本，使其更加流畅、优雅，修正语法和用词，但保留原始含义和 Markdown 格式不变。只输出润色后的内容，不要解释。",
-    concise: ANTI_AI_RULES + " 请精简以下 Markdown 文本，删除冗余词句，使其更加紧凑有力，但保留核心含义和 Markdown 格式不变。只输出精简后的内容，不要解释。",
-    expand: ANTI_AI_RULES + " 请扩写以下 Markdown 文本，在保留原意的基础上增加更多细节和论述，使内容更加丰富充实，Markdown 格式不变。只输出扩写后的内容，不要解释。",
-    translate: "请将以下 Markdown 文本翻译为英文，保持 Markdown 格式不变。只输出翻译后的内容，不要解释。",
-  };
-
-  async function getLlmSettings() {
-    const cached = getSharedLlmSettings();
-    if (cached?.baseUrl && cached?.model) return cached;
-    return await fetchLlmSettings();
-  }
-
   function escapeHtml(str) {
     return (str || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
   }
 
-  function showPolishStatus(text, type) {
-    if (!polishStatusEl) return;
-    polishStatusEl.textContent = text;
-    polishStatusEl.className = "polish-status is-" + type;
+  function showPolishStatus(text: string, type: string) {
+    showElementStatus(polishStatusEl, text, type, { className: "polish-status", clearMs: 0 });
   }
 
   document.querySelectorAll(".polish-preset").forEach(btn => {
@@ -707,8 +656,7 @@ const initialAboutPayload = JSON.stringify(initialAbout).replace(/</g, "\\u003c"
       showStatus("请先输入理念内容", "error");
       return;
     }
-    const s = await getLlmSettings();
-    if (!s || !s.baseUrl || !s.model) {
+    if (!(await ensureLlmSettings())) {
       showStatus("请先在 API 管理中配置 LLM API", "error");
       return;
     }
@@ -729,8 +677,7 @@ const initialAboutPayload = JSON.stringify(initialAbout).replace(/</g, "\\u003c"
       showPolishStatus("没有可润色的内容", "error");
       return;
     }
-    const s = await getLlmSettings();
-    if (!s || !s.baseUrl || !s.model) {
+    if (!(await ensureLlmSettings())) {
       showPolishStatus("LLM API 未配置，请前往 API 管理页面配置", "error");
       return;
     }
@@ -741,32 +688,12 @@ const initialAboutPayload = JSON.stringify(initialAbout).replace(/</g, "\\u003c"
     if (btnPolishRun) btnPolishRun.disabled = true;
     showPolishStatus("正在润色中，请稍候...", "info");
 
-    const slowTimer = window.setTimeout(() => {
-      showPolishStatus("API 响应较慢，请继续等待...", "info");
-    }, 8000);
-
     try {
-      const res = await fetch("/api/llm", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          baseUrl: s.baseUrl,
-          model: s.model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: content },
-          ],
-          temperature: 0.7,
-        }),
+      polishedContent = await runAiPolish({
+        content,
+        systemPrompt,
+        onSlow: () => showPolishStatus("API 响应较慢，请继续等待...", "info"),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.ok) {
-        throw new Error(data.message || `HTTP ${res.status}`);
-      }
-      polishedContent = typeof data.content === "string" ? data.content.trim() : "";
-      if (!polishedContent) throw new Error("API 返回内容为空");
 
       showPolishStatus("润色完成，请预览对比", "success");
       renderDiff(content, polishedContent);
@@ -774,7 +701,6 @@ const initialAboutPayload = JSON.stringify(initialAbout).replace(/</g, "\\u003c"
     } catch (err) {
       showPolishStatus("润色失败: " + (err instanceof Error ? err.message : String(err)), "error");
     } finally {
-      window.clearTimeout(slowTimer);
       if (btnPolishRun) btnPolishRun.disabled = false;
     }
   });

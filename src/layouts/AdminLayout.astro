@@ -158,6 +158,15 @@ const navItems = [
     <script>
       import { initAdminAnimations } from "../scripts/admin-animations";
 
+      declare global {
+        interface Window {
+          showConfirmDialog: (
+            message: string,
+            options?: { title?: string; confirmText?: string; cancelText?: string }
+          ) => Promise<boolean>;
+        }
+      }
+
       const adminRuntime = window as Window & {
         __adminLayoutReady?: boolean;
         __adminLayoutAbort?: AbortController;
@@ -204,7 +213,7 @@ const navItems = [
           dialog.addEventListener("click", onBackdrop);
         });
       }
-      (window as any).showConfirmDialog = showConfirmDialog;
+      window.showConfirmDialog = showConfirmDialog;
 
       function setupAdminPage() {
         if (adminRuntime.__adminLayoutAbort) {

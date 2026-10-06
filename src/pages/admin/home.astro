@@ -72,6 +72,7 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
 
 <script>
   import { getLlmSettings, hasLlmSettings, fetchLlmSettings, requestLlmChat } from "../../scripts/admin-llm";
+  import { showElementStatus } from "../../scripts/admin-status";
   import { CONTENT_STORAGE_KEYS, dispatchContentChanged } from "../../lib/content-channel";
 
   document.addEventListener("astro:page-load", () => {
@@ -104,16 +105,8 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   }
 
-  function showStatus(text, type) {
-    if (!saveStatus) return;
-    saveStatus.textContent = text;
-    saveStatus.className = "save-status is-" + type;
-    if (type !== "info") {
-      setTimeout(() => {
-        saveStatus.textContent = "";
-        saveStatus.className = "save-status";
-      }, 3000);
-    }
+  function showStatus(text: string, type: string) {
+    showElementStatus(saveStatus, text, type, { keepInfo: true });
   }
 
   function updateBadges() {
@@ -257,7 +250,7 @@ JSON 字段：heroTitle, heroLead, quoteText, quoteAuthor。`;
   });
 
   btnReset?.addEventListener("click", async () => {
-    if (!await (window as any).showConfirmDialog("确定要清除今日生成结果吗？")) return;
+    if (!await window.showConfirmDialog("确定要清除今日生成结果吗？")) return;
     generatedData = {
       generatedDate: "",
       guidance: "",
