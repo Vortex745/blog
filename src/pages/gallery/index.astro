@@ -62,7 +62,16 @@ const sqliteGalleryPayload = JSON.stringify(sqliteGallery).replace(/</g, "\\u003
 <script type="application/json" id="sqlite-gallery-data" set:html={sqliteGalleryPayload}></script>
 
 <script>
-  import { CONTENT_CHANGED_EVENT, CONTENT_STORAGE_KEYS, dispatchContentChanged } from "../../lib/content-channel";
+  import { CONTENT_CHANGED_EVENT, CONTENT_STORAGE_KEYS, GALLERY_DOWNLOADS_STORAGE_KEY, dispatchContentChanged } from "../../lib/content-channel";
+  import {
+    applyDownloadOverlay,
+    bumpDownloadOverlay,
+    loadGalleryDownloadOverlay,
+    mergeGalleryImages,
+    parseGalleryImages,
+    pickLocalGalleryImages,
+    saveGalleryDownloadOverlay,
+  } from "../../lib/client-gallery";
 
   const GALLERY_KEY = CONTENT_STORAGE_KEYS.gallery;
   const SYNC_EVENT = CONTENT_CHANGED_EVENT;
@@ -70,48 +79,18 @@ const sqliteGalleryPayload = JSON.stringify(sqliteGallery).replace(/</g, "\\u003
   const sortBar = document.getElementById("gallery-sort");
   const emptyInitial = document.getElementById("empty-initial");
 
-  function loadGalleryImages() {
-    try {
-      const raw = localStorage.getItem(GALLERY_KEY);
-      if (!raw) return [];
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
+  // D9:SQLite 列表在初始加载时捕获进模块级变量,reload 时与最新 localStorage 重新合并,不 refetch。
+  const sqliteGalleryImages = parseGalleryImages(
+    document.getElementById("sqlite-gallery-data")?.textContent
+  );
+
+  // 本机列表 = localStorage 中去掉历史倒灌副本(source: "sqlite")后的用户本机数据。
+  function readLocalGalleryImages() {
+    return pickLocalGalleryImages(parseGalleryImages(localStorage.getItem(GALLERY_KEY)));
   }
 
-  function loadSQLiteGalleryImages() {
-    const source = document.getElementById("sqlite-gallery-data")?.textContent;
-    if (!source) return [];
-    try {
-      const parsed = JSON.parse(source);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  }
-
-  function mergeGalleryImages(sqliteImages, localImages) {
-    const sqliteIds = new Set(sqliteImages.map((img) => img.id || img.url));
-    const localOnly = localImages.filter((img) => !sqliteIds.has(img.id || img.url));
-    return [...sqliteImages.map((img) => ({
-      id: img.id,
-      url: img.imageData || img.url || "",
-      title: img.title || "未命名图片",
-      name: img.title || "未命名图片",
-      filename: img.title || "",
-      size: 0,
-      type: "image/unknown",
-      source: "sqlite",
-      date: img.date || new Date().toISOString(),
-      downloadCount: 0,
-    })), ...localOnly];
-  }
-
-  function saveGalleryImages() {
-    localStorage.setItem(GALLERY_KEY, JSON.stringify(galleryImages));
-    dispatchContentChanged("gallery");
+  function computeGalleryImages(overlay) {
+    return applyDownloadOverlay(mergeGalleryImages(sqliteGalleryImages, readLocalGalleryImages()), overlay);
   }
 
   function escapeHtml(value) {
@@ -178,8 +157,16 @@ const sqliteGalleryPayload = JSON.stringify(sqliteGallery).replace(/</g, "\\u003
     const targetId = img.id || img.url;
     const target = galleryImages.find((item) => (item.id || item.url) === targetId);
     if (!target) return;
-    target.downloadCount = Number(target.downloadCount || 0) + 1;
-    saveGalleryImages();
+    // 只记本机 overlay,不把合并表写回 localStorage(防倒灌/配额炸弹)。
+    downloadOverlay = bumpDownloadOverlay(downloadOverlay, String(targetId));
+    saveDownloadOverlay();
+  }
+
+  function saveDownloadOverlay() {
+    try {
+      saveGalleryDownloadOverlay(localStorage, downloadOverlay);
+    } catch {}
+    dispatchContentChanged("gallery");
   }
 
   async function downloadImage(img, trigger) {
@@ -202,7 +189,8 @@ const sqliteGalleryPayload = JSON.stringify(sqliteGallery).replace(/</g, "\\u003
     }
   }
 
-  let galleryImages = mergeGalleryImages(loadSQLiteGalleryImages(), loadGalleryImages());
+  let downloadOverlay = loadGalleryDownloadOverlay(localStorage);
+  let galleryImages = computeGalleryImages(downloadOverlay);
   let sortMode = "latest";
   let sortButtons = Array.from(sortBar?.querySelectorAll(".sort-chip") || []);
 
@@ -363,12 +351,14 @@ const sqliteGalleryPayload = JSON.stringify(sqliteGallery).replace(/</g, "\\u003
   });
 
   function reloadGalleryFromStorage() {
-    galleryImages = loadGalleryImages();
+    // D9:内存中的 SQLite 列表 ⊕ 最新 localStorage 本地项重新合并,不整体替换、不 refetch。
+    downloadOverlay = loadGalleryDownloadOverlay(localStorage);
+    galleryImages = computeGalleryImages(downloadOverlay);
     render();
   }
 
   window.addEventListener("storage", (event) => {
-    if (event.key === GALLERY_KEY) reloadGalleryFromStorage();
+    if (event.key === GALLERY_KEY || event.key === GALLERY_DOWNLOADS_STORAGE_KEY) reloadGalleryFromStorage();
   });
   window.addEventListener(SYNC_EVENT, (event) => {
     const detail = event instanceof CustomEvent ? event.detail : null;

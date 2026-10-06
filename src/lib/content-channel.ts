@@ -13,6 +13,12 @@ export const CONTENT_STORAGE_KEYS = {
 
 export type ContentModule = keyof typeof CONTENT_STORAGE_KEYS;
 
+/**
+ * 图库本机下载计数 overlay 的存储 key(前台专用,非内容模块,故不进 CONTENT_STORAGE_KEYS)。
+ * 命名沿用 admin- 前缀约定;前台下载只写这里,不再把合并列表倒灌进 admin-gallery-data。
+ */
+export const GALLERY_DOWNLOADS_STORAGE_KEY = "admin-gallery-downloads";
+
 export const CONTENT_CHANGED_EVENT = "admin-content:changed";
 
 export type ContentChangedDetail = { module: ContentModule };
