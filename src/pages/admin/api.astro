@@ -5,270 +5,63 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
 <AdminLayout title="API 管理" current="api">
   <div class="admin-page-header">
     <h1 class="admin-page-title">API 管理</h1>
-    <p class="admin-page-desc">配置 AI 模型参数和 API 连接信息，支持 LLM、Embedding、Rerank 模型的统一管理。</p>
+    <p class="admin-page-desc">配置 LLM API 连接信息，供后台 AI 功能调用。</p>
   </div>
 
-  <div class="api-layout">
-    <div class="api-sidebar">
-      <div class="pill-nav vertical">
-        <div class="pill-slider"></div>
-        <button class="pill-btn active" data-target="llm" data-index="0">LLM</button>
-        <button class="pill-btn" data-target="embedding" data-index="1">Embedding</button>
-        <button class="pill-btn" data-target="rerank" data-index="2">Rerank</button>
+  <section class="form-section" id="card-llm">
+    <div class="section-header">
+      <h2 class="section-title">LLM API 设置</h2>
+      <span class="section-badge" id="badge-llm">检测中</span>
+    </div>
+    <div class="llm-fields">
+      <div class="field-group">
+        <label for="llm-base-url" class="field-label">Base URL</label>
+        <input id="llm-base-url" type="url" class="field-input" placeholder="https://api.openai.com/v1" />
+      </div>
+      <div class="field-group">
+        <label for="llm-api-key" class="field-label">API Key</label>
+        <div class="password-input-wrapper">
+          <input id="llm-api-key" type="password" class="field-input" placeholder="输入 API Key (留空表示不修改)" />
+          <button type="button" class="btn-toggle-password" tabindex="-1">
+            <svg class="icon-eye" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="field-group">
+        <label for="llm-model" class="field-label">模型名称</label>
+        <div class="model-combobox">
+          <input id="llm-model" type="text" class="field-input" placeholder="gpt-4o-mini" autocomplete="off" />
+          <button type="button" class="combobox-toggle" tabindex="-1">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <ul id="llm-model-list" class="combobox-list"></ul>
+        </div>
+      </div>
+      <div class="llm-actions">
+        <button type="button" id="btn-save-llm" class="btn-primary btn-small">保存并测试</button>
+        <span id="status-llm" class="save-status"></span>
       </div>
     </div>
-    <div class="api-content">
-
-  <div class="cards-container">
-    <!-- LLM Card -->
-    <section class="form-section config-card active" id="card-llm" style="z-index: 3;">
-      <div class="section-header">
-        <h2 class="section-title">LLM API 设置</h2>
-        <span class="section-badge" id="badge-llm">检测中</span>
-      </div>
-      <div class="llm-fields">
-        <div class="field-group">
-          <label for="llm-base-url" class="field-label">Base URL</label>
-          <input id="llm-base-url" type="url" class="field-input" placeholder="https://api.openai.com/v1" />
-        </div>
-        <div class="field-group">
-          <label for="llm-api-key" class="field-label">API Key</label>
-          <div class="password-input-wrapper">
-            <input id="llm-api-key" type="password" class="field-input" placeholder="输入 API Key (留空表示不修改)" />
-            <button type="button" class="btn-toggle-password" tabindex="-1">
-              <svg class="icon-eye" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-            </button>
-          </div>
-        </div>
-        <div class="field-group">
-          <label for="llm-model" class="field-label">模型名称</label>
-          <div class="model-combobox">
-            <input id="llm-model" type="text" class="field-input" placeholder="gpt-4o-mini" autocomplete="off" />
-            <button type="button" class="combobox-toggle" tabindex="-1">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-            </button>
-            <ul id="llm-model-list" class="combobox-list"></ul>
-          </div>
-        </div>
-        <div class="llm-actions">
-          <button type="button" id="btn-save-llm" class="btn-primary btn-small">保存并测试</button>
-          <span id="status-llm" class="save-status"></span>
-        </div>
-      </div>
-    </section>
-
-    <!-- Embedding Card -->
-    <section class="form-section config-card" id="card-embedding" style="z-index: 2; transform: translateY(35px) scale(0.92); opacity: 0.6; pointer-events: none;">
-      <div class="section-header">
-        <h2 class="section-title">Embedding 设置</h2>
-        <span class="section-badge" id="badge-embedding">检测中</span>
-      </div>
-      <div class="llm-fields">
-        <div class="field-group">
-          <label for="embedding-base-url" class="field-label">Base URL</label>
-          <input id="embedding-base-url" type="url" class="field-input" placeholder="https://api.openai.com/v1" />
-        </div>
-        <div class="field-group">
-          <label for="embedding-api-key" class="field-label">API Key</label>
-          <div class="password-input-wrapper">
-            <input id="embedding-api-key" type="password" class="field-input" placeholder="输入 API Key (留空表示不修改)" />
-            <button type="button" class="btn-toggle-password" tabindex="-1">
-              <svg class="icon-eye" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-            </button>
-          </div>
-        </div>
-        <div class="field-group">
-          <label for="embedding-model" class="field-label">模型名称</label>
-          <div class="model-combobox">
-            <input id="embedding-model" type="text" class="field-input" placeholder="text-embedding-3-small" autocomplete="off" />
-            <button type="button" class="combobox-toggle" tabindex="-1">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-            </button>
-            <ul id="embedding-model-list" class="combobox-list"></ul>
-          </div>
-        </div>
-        <div class="llm-actions">
-          <button type="button" id="btn-save-embedding" class="btn-primary btn-small">保存设置</button>
-          <span id="status-embedding" class="save-status"></span>
-        </div>
-      </div>
-    </section>
-
-    <!-- Rerank Card -->
-    <section class="form-section config-card" id="card-rerank" style="z-index: 1; transform: translateY(70px) scale(0.84); opacity: 0.2; pointer-events: none;">
-      <div class="section-header">
-        <h2 class="section-title">Rerank 设置</h2>
-        <span class="section-badge" id="badge-rerank">检测中</span>
-      </div>
-      <div class="llm-fields">
-        <div class="field-group">
-          <label for="rerank-base-url" class="field-label">Base URL</label>
-          <input id="rerank-base-url" type="url" class="field-input" placeholder="https://api.cohere.ai/v1" />
-        </div>
-        <div class="field-group">
-          <label for="rerank-api-key" class="field-label">API Key</label>
-          <div class="password-input-wrapper">
-            <input id="rerank-api-key" type="password" class="field-input" placeholder="输入 API Key (留空表示不修改)" />
-            <button type="button" class="btn-toggle-password" tabindex="-1">
-              <svg class="icon-eye" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-            </button>
-          </div>
-        </div>
-        <div class="field-group">
-          <label for="rerank-model" class="field-label">模型名称</label>
-          <div class="model-combobox">
-            <input id="rerank-model" type="text" class="field-input" placeholder="rerank-v3.5" autocomplete="off" />
-            <button type="button" class="combobox-toggle" tabindex="-1">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-            </button>
-            <ul id="rerank-model-list" class="combobox-list"></ul>
-          </div>
-        </div>
-        <div class="llm-actions">
-          <button type="button" id="btn-save-rerank" class="btn-primary btn-small">保存设置</button>
-          <span id="status-rerank" class="save-status"></span>
-        </div>
-      </div>
-    </section>
-  </div>
-
-
-    </div> <!-- end api-content -->
-  </div> <!-- end api-layout -->
+  </section>
 </AdminLayout>
 
 <script>
-  import { gsap } from "gsap";
   import { requestLlmChat } from "../../scripts/admin-llm";
 
   document.addEventListener("astro:page-load", () => {
-    // 1. Tab Switching Logic
-    const pills = document.querySelectorAll(".pill-btn");
-    const cards = document.querySelectorAll(".config-card");
-    let activeIndex = 0;
-
-    pills.forEach((pill) => {
-      pill.addEventListener("click", () => {
-        const targetId = pill.getAttribute("data-target");
-        const newIndex = parseInt(pill.getAttribute("data-index") || "0", 10);
-        
-        if (newIndex === activeIndex) return;
-        
-        const direction = newIndex > activeIndex ? 1 : -1;
-        const currentCard = cards[activeIndex];
-        const nextCard = document.getElementById(`card-${targetId}`);
-        
-        // Update Pills
-        pills.forEach(p => p.classList.remove("active"));
-        pill.classList.add("active");
-
-        gsap.to(".pill-slider", {
-          y: newIndex * 48,
-          duration: 0.4,
-          ease: "back.out(1.2)"
-        });
-
-        const stackOrders = [
-          [0, 1, 2],
-          [1, 0, 2],
-          [2, 1, 0]
-        ];
-        const currentOrder = stackOrders[newIndex];
-        
-        const tl = gsap.timeline({ defaults: { overwrite: "auto" } });
-        
-        cards.forEach((card, i) => {
-          const pos = currentOrder[i];
-          const isNextActive = pos === 0;
-          const wasActive = i === activeIndex;
-          
-          // Kill any ongoing animations to prevent glitches on rapid clicks
-          gsap.killTweensOf(card);
-          
-          if (wasActive) {
-             gsap.set(card, { pointerEvents: "none", position: "absolute", zIndex: 4 });
-             // 1. 旧卡片明显下坠 (Dramatic Exit)
-             gsap.to(card, {
-                y: 120, // 距离大幅增加
-                opacity: 0,
-                scale: 0.85, // 明显缩小
-                duration: 0.25,
-                ease: "power3.in",
-                onComplete: () => {
-                   // 动画结束后将其隐身并排入堆叠队列
-                   gsap.set(card, {
-                      y: pos * 35, // 堆叠间距拉大
-                      scale: 1 - pos * 0.08, // 纵深感加强
-                      opacity: 1 - pos * 0.4,
-                      zIndex: 3 - pos
-                   });
-                }
-             });
-          } else if (isNextActive) {
-             gsap.set(card, { pointerEvents: "auto", position: "relative", zIndex: 3 });
-             // 2. 新卡片夸张上浮弹出 (Elastic Enter)
-             gsap.to(card, {
-                y: 0,
-                scale: 1,
-                opacity: 1,
-                duration: 0.6, // 增加弹射时间
-                ease: "back.out(1.6)", // 夸张的果冻回弹
-                delay: 0.2 // 等旧卡片完全掉下去再弹上来
-             });
-          } else {
-             gsap.set(card, { pointerEvents: "none", position: "absolute", zIndex: 3 - pos });
-             // 3. 底层堆叠的其他卡片跟随移动
-             gsap.to(card, {
-                y: pos * 35,
-                scale: 1 - pos * 0.08,
-                opacity: 1 - pos * 0.4,
-                duration: 0.6,
-                ease: "back.out(1.2)",
-                delay: 0.2
-             });
-          }
-        });
-
-        activeIndex = newIndex;
-      });
-    });
-
-    // 2. Fetch Initial Config
     async function fetchConfig() {
       try {
         const res = await fetch("/api/env-config");
         const data = await res.json();
         if (data.ok && data.config) {
           const conf = data.config;
-          
-          // LLM
+
           (document.getElementById("llm-base-url") as HTMLInputElement).value = conf.LLM_BASE_URL || "";
           (document.getElementById("llm-model") as HTMLInputElement).value = conf.LLM_MODEL || "";
           if (conf.LLM_API_KEY === "true") {
             (document.getElementById("llm-api-key") as HTMLInputElement).value = "********";
           }
           updateBadge("llm", conf.LLM_API_KEY === "true" && !!conf.LLM_BASE_URL && !!conf.LLM_MODEL);
-
-          // Embedding
-          (document.getElementById("embedding-base-url") as HTMLInputElement).value = conf.EMBEDDING_BASE_URL || "";
-          (document.getElementById("embedding-model") as HTMLInputElement).value = conf.EMBEDDING_MODEL || "";
-          if (conf.EMBEDDING_API_KEY === "true") {
-            (document.getElementById("embedding-api-key") as HTMLInputElement).value = "********";
-          }
-          updateBadge("embedding", conf.EMBEDDING_API_KEY === "true" && !!conf.EMBEDDING_BASE_URL && !!conf.EMBEDDING_MODEL);
-
-          // Rerank
-          (document.getElementById("rerank-base-url") as HTMLInputElement).value = conf.RERANK_BASE_URL || "";
-          (document.getElementById("rerank-model") as HTMLInputElement).value = conf.RERANK_MODEL || "";
-          if (conf.RERANK_API_KEY === "true") {
-            (document.getElementById("rerank-api-key") as HTMLInputElement).value = "********";
-          }
-          updateBadge("rerank", conf.RERANK_API_KEY === "true" && !!conf.RERANK_BASE_URL && !!conf.RERANK_MODEL);
-          
-          // Auto-detect models on initial load if configured
-          if (conf.LLM_BASE_URL) detectModels("llm");
-          if (conf.EMBEDDING_BASE_URL) detectModels("embedding");
-          if (conf.RERANK_BASE_URL) detectModels("rerank");
         }
       } catch (err) {
         console.error("Failed to load env config", err);
@@ -283,23 +76,23 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
       }
     }
 
-    // 3. Save Config
-    async function saveConfig(prefix: string, keys: Record<string, string>) {
-      const statusEl = document.getElementById(`status-${prefix}`);
+    async function saveConfig() {
+      const statusEl = document.getElementById("status-llm");
       if (statusEl) {
         statusEl.textContent = "保存中...";
         statusEl.className = "save-status is-info";
       }
 
-      const updates: Record<string, string> = {};
-      const baseUrl = (document.getElementById(`${prefix}-base-url`) as HTMLInputElement).value.trim();
-      const apiKey = (document.getElementById(`${prefix}-api-key`) as HTMLInputElement).value.trim();
-      const model = (document.getElementById(`${prefix}-model`) as HTMLInputElement).value.trim();
+      const baseUrl = (document.getElementById("llm-base-url") as HTMLInputElement).value.trim();
+      const apiKey = (document.getElementById("llm-api-key") as HTMLInputElement).value.trim();
+      const model = (document.getElementById("llm-model") as HTMLInputElement).value.trim();
 
-      updates[keys.baseUrl] = baseUrl;
-      updates[keys.model] = model;
+      const updates: Record<string, string> = {
+        LLM_BASE_URL: baseUrl,
+        LLM_MODEL: model,
+      };
       if (apiKey && apiKey !== "********") {
-        updates[keys.apiKey] = apiKey;
+        updates.LLM_API_KEY = apiKey;
       }
 
       try {
@@ -309,46 +102,36 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
           body: JSON.stringify(updates)
         });
         const data = await res.json();
-        
+
         if (data.ok) {
           if (statusEl) {
-            statusEl.textContent = "保存成功";
-            statusEl.className = "save-status is-success";
+            statusEl.textContent = "保存成功，正在测试连接...";
+            statusEl.className = "save-status is-info";
           }
           const conf = data.config;
-          const isOk = conf[keys.apiKey] === "true" && !!conf[keys.baseUrl] && !!conf[keys.model];
-          updateBadge(prefix, isOk);
-          
+          updateBadge("llm", conf.LLM_API_KEY === "true" && !!conf.LLM_BASE_URL && !!conf.LLM_MODEL);
+
           if (apiKey && apiKey !== "********") {
-            (document.getElementById(`${prefix}-api-key`) as HTMLInputElement).value = "********";
+            (document.getElementById("llm-api-key") as HTMLInputElement).value = "********";
           }
-          
-          if (prefix === "llm") {
-             if (statusEl) {
-               statusEl.textContent = "保存成功，正在测试连接...";
-               statusEl.className = "save-status is-info";
-             }
-             let testApiKey = apiKey;
-             if (testApiKey === "********") testApiKey = "";
-             
-             try {
-               const reply = await requestLlmChat({
-                 baseUrl,
-                 model,
-                 apiKey: testApiKey,
-                 messages: [{ role: "user", content: "Hello, reply with OK only." }],
-                 maxTokens: 100,
-               });
-               if (statusEl) {
-                 statusEl.textContent = `保存并连接成功: ${reply.trim().substring(0, 50)}`;
-                 statusEl.className = "save-status is-success";
-               }
-             } catch (testErr) {
-               if (statusEl) {
-                 statusEl.textContent = "保存成功，但连接失败: " + (testErr instanceof Error ? testErr.message : String(testErr));
-                 statusEl.className = "save-status is-error";
-               }
-             }
+
+          try {
+            const reply = await requestLlmChat({
+              baseUrl,
+              model,
+              apiKey: apiKey === "********" ? "" : apiKey,
+              messages: [{ role: "user", content: "Hello, reply with OK only." }],
+              maxTokens: 100,
+            });
+            if (statusEl) {
+              statusEl.textContent = `保存并连接成功: ${reply.trim().substring(0, 50)}`;
+              statusEl.className = "save-status is-success";
+            }
+          } catch (testErr) {
+            if (statusEl) {
+              statusEl.textContent = "保存成功，但连接失败: " + (testErr instanceof Error ? testErr.message : String(testErr));
+              statusEl.className = "save-status is-error";
+            }
           }
         } else {
           throw new Error(data.message || "保存失败");
@@ -362,13 +145,8 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
       setTimeout(() => { if (statusEl) statusEl.textContent = ""; }, 5000);
     }
 
-    document.getElementById("btn-save-llm")?.addEventListener("click", () => saveConfig("llm", { baseUrl: "LLM_BASE_URL", apiKey: "LLM_API_KEY", model: "LLM_MODEL" }));
-    document.getElementById("btn-save-embedding")?.addEventListener("click", () => saveConfig("embedding", { baseUrl: "EMBEDDING_BASE_URL", apiKey: "EMBEDDING_API_KEY", model: "EMBEDDING_MODEL" }));
-    document.getElementById("btn-save-rerank")?.addEventListener("click", () => saveConfig("rerank", { baseUrl: "RERANK_BASE_URL", apiKey: "RERANK_API_KEY", model: "RERANK_MODEL" }));
+    document.getElementById("btn-save-llm")?.addEventListener("click", saveConfig);
 
-    // standalone LLM Test connection logic removed
-
-    // 5. Auto Detect Models
     let detectTimeout: number | undefined;
 
     async function detectModels(prefix: string) {
@@ -381,7 +159,7 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
         if (badge && badge.textContent !== "已配置") badge.textContent = "未配置";
         return;
       }
-      
+
       if (badge) {
         badge.textContent = "检测中...";
         badge.className = "section-badge";
@@ -394,14 +172,14 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
           body: JSON.stringify({ baseUrl, apiKey, type: prefix })
         });
         const data = await res.json();
-        
+
         if (data.ok && data.models) {
           const listId = `${prefix}-model-list`;
-          let list = document.getElementById(listId);
+          const list = document.getElementById(listId);
           if (list) {
             list.innerHTML = data.models.map((m: any) => `<li class="combobox-item">${m.id}</li>`).join("");
           }
-          
+
           // Auto-select first model if empty
           const input = document.getElementById(`${prefix}-model`) as HTMLInputElement;
           if (input && !input.value && data.models.length > 0) {
@@ -418,7 +196,7 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
             badge.className = "section-badge is-error";
           }
         }
-      } catch (err) {
+      } catch {
         if (badge) {
           badge.textContent = "获取模型失败";
           badge.className = "section-badge is-error";
@@ -426,26 +204,19 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
       }
     }
 
-    function setupAutoDetect(prefix: string) {
-      const triggerDetect = () => {
-        clearTimeout(detectTimeout);
-        detectTimeout = window.setTimeout(() => detectModels(prefix), 800);
-      };
-      
-      document.getElementById(`${prefix}-base-url`)?.addEventListener("input", triggerDetect);
-      document.getElementById(`${prefix}-api-key`)?.addEventListener("input", triggerDetect);
-    }
-
-    setupAutoDetect("llm");
-    setupAutoDetect("embedding");
-    setupAutoDetect("rerank");
+    const triggerDetect = () => {
+      clearTimeout(detectTimeout);
+      detectTimeout = window.setTimeout(() => detectModels("llm"), 800);
+    };
+    document.getElementById("llm-base-url")?.addEventListener("input", triggerDetect);
+    document.getElementById("llm-api-key")?.addEventListener("input", triggerDetect);
 
     // Custom Combobox Logic
-    function setupCombobox(prefix: string) {
-      const input = document.getElementById(`${prefix}-model`) as HTMLInputElement;
+    function setupCombobox() {
+      const input = document.getElementById("llm-model") as HTMLInputElement;
       const toggle = input?.nextElementSibling as HTMLButtonElement;
-      const list = document.getElementById(`${prefix}-model-list`) as HTMLUListElement;
-      
+      const list = document.getElementById("llm-model-list") as HTMLUListElement;
+
       if (!input || !toggle || !list) return;
 
       let _selecting = false;
@@ -481,7 +252,7 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
           list.classList.remove("show");
         }
       });
-      
+
       // Filter on typing (user-initiated only)
       input.addEventListener("input", () => {
         if (_selecting) return;
@@ -499,7 +270,7 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
           list.classList.remove("show");
         }
       });
-      
+
       // Show full list on focus (only if items exist)
       input.addEventListener("focus", () => {
         if (list.children.length > 0) {
@@ -509,11 +280,9 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
       });
     }
 
-    setupCombobox("llm");
-    setupCombobox("embedding");
-    setupCombobox("rerank");
+    setupCombobox();
 
-    // 5. Password toggle
+    // Password toggle
     document.querySelectorAll(".btn-toggle-password").forEach(btn => {
       btn.addEventListener("click", () => {
         const input = btn.previousElementSibling as HTMLInputElement;
@@ -545,98 +314,14 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     font-size: 15px;
     color: #717785;
   }
-  
-  .api-layout {
-    display: flex;
-    gap: 40px;
-    align-items: flex-start;
-  }
-  .api-sidebar {
-    width: 200px;
-    flex-shrink: 0;
-  }
-  .api-content {
-    flex-grow: 1;
-    max-width: 560px;
-  }
-  .usage-info-section {
-    margin-top: 24px;
-  }
-
-  .pill-nav.vertical {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    background: rgba(255, 255, 255, 0.6);
-    backdrop-filter: blur(24px);
-    border: 1px solid rgba(193, 198, 214, 0.5);
-    border-radius: 20px;
-    padding: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.02);
-    gap: 4px;
-  }
-  .pill-slider {
-    position: absolute;
-    top: 8px;
-    left: 8px;
-    width: calc(100% - 16px);
-    height: 44px;
-    background: #0059b5;
-    border-radius: 12px;
-    z-index: 1;
-    pointer-events: none;
-    box-shadow: 0 2px 8px rgba(0, 89, 181, 0.2);
-    will-change: transform;
-  }
-  .pill-btn {
-    position: relative;
-    z-index: 2;
-    width: 100%;
-    height: 44px;
-    display: flex;
-    align-items: center;
-    padding: 0 20px;
-    border-radius: 12px;
-    border: none;
-    background: transparent;
-    color: #717785;
-    font-weight: 600;
-    font-size: 14px;
-    cursor: pointer;
-    transition: color 0.2s cubic-bezier(0.23, 1, 0.32, 1);
-  }
-  .pill-btn:hover {
-    color: #181c23;
-  }
-  .pill-btn.active {
-    color: #fff;
-  }
-
-  .cards-container {
-    position: relative;
-    min-height: 480px;
-  }
 
   .form-section {
+    max-width: 560px;
     background: #ffffff;
     border: 1px solid rgba(193, 198, 214, 0.5);
     border-radius: 20px;
     padding: 28px;
     box-shadow: 0 16px 40px rgba(0,0,0,0.06), 0 2px 10px rgba(0,0,0,0.03);
-  }
-  
-  .config-card {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    will-change: transform, opacity;
-  }
-  
-  .config-card.active {
-    position: relative;
-    opacity: 1;
-    pointer-events: auto;
   }
 
   .section-header {
@@ -668,7 +353,7 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     background: rgba(220, 38, 38, 0.1);
     color: #dc2626;
   }
-  
+
   .llm-fields {
     display: flex;
     flex-direction: column;
@@ -783,7 +468,7 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
   .btn-toggle-password:hover {
     color: #414753;
   }
-  
+
   .field-input {
     width: 100%;
     padding: 14px 16px;
@@ -801,7 +486,7 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     border-color: #0059b5;
     box-shadow: 0 0 0 3px rgba(0,89,181,0.1);
   }
-  
+
   .llm-actions {
     display: flex;
     align-items: center;
@@ -819,18 +504,7 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     transition: background 0.2s, transform 0.1s;
   }
   .btn-primary:active { transform: scale(0.97); }
-  .btn-secondary {
-    padding: 10px 20px;
-    border-radius: 10px;
-    border: 1px solid rgba(193,198,214,0.5);
-    background: rgba(255,255,255,0.6);
-    color: #414753;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-  .btn-secondary:active { transform: scale(0.97); }
-  
+
   .save-status {
     font-size: 13px;
     font-weight: 500;
@@ -838,21 +512,8 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
   .save-status.is-success { color: #059669; }
   .save-status.is-error { color: #dc2626; }
   .save-status.is-info { color: #0059b5; }
-  
-  .usage-info {
-    font-size: 14px;
-    color: #414753;
-    line-height: 1.7;
-  }
 
-  /* Card specific gradients */
   #card-llm {
     background: linear-gradient(135deg, #f0f7ff 0%, #ffffff 60%);
-  }
-  #card-embedding {
-    background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 60%);
-  }
-  #card-rerank {
-    background: linear-gradient(135deg, #f5f3ff 0%, #ffffff 60%);
   }
 </style>

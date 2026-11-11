@@ -44,7 +44,7 @@ const totalCount = allArticles.length + allProjects.length;
           <input
             type="text"
             id="search-input"
-            class="search-input"
+            class="search-input glass"
             placeholder="输入关键词搜索…"
             autocomplete="off"
           />
@@ -57,7 +57,7 @@ const totalCount = allArticles.length + allProjects.length;
       </div>
 
       {/* Filters */}
-      <div class="search-filters" data-animate="fade-up">
+      <div class="search-filters glass" data-animate="fade-up">
         <button id="filter-toggle" class="filter-toggle" aria-expanded="false" aria-controls="filter-content">
           <svg class="filter-toggle-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>
@@ -157,7 +157,7 @@ const totalCount = allArticles.length + allProjects.length;
       resultsList.innerHTML = items
         .map(
           (item) => `
-            <a href="${item.url}" class="result-item">
+            <a href="${item.url}" class="result-item glass">
               <div class="result-meta">
                 <span class="result-type ${item.type}">${item.type === "article" ? "文章" : "项目"}</span>
                 <span class="result-date">${formatDate(item.date)}</span>
@@ -339,22 +339,20 @@ const totalCount = allArticles.length + allProjects.length;
       padding: 0 48px;
       border-radius: 16px;
       border: 1px solid rgba(193, 198, 214, 0.5);
-      background: rgba(255, 255, 255, 0.6);
-      backdrop-filter: blur(16px);
       font-family: var(--font-body);
       font-size: 17px;
-      color: #181c23;
+      color: var(--ink);
       outline: none;
       transition: border-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.2s cubic-bezier(0.23, 1, 0.32, 1);
     }
 
     .search-input::placeholder {
-      color: #717785;
+      color: var(--ink-2);
     }
 
     .search-input:focus {
-      border-color: #0059b5;
-      box-shadow: 0 0 0 4px rgba(0, 89, 181, 0.1);
+      border-color: var(--glass-accent);
+      box-shadow: var(--glass-shadow), 0 0 0 4px rgba(0, 89, 181, 0.1);
     }
 
     .search-clear {
@@ -396,10 +394,7 @@ const totalCount = allArticles.length + allProjects.length;
       gap: 0;
       padding: 0;
       border-radius: 24px;
-      background: rgba(255, 255, 255, 0.4);
-      backdrop-filter: blur(32px);
       border: 1px solid rgba(255, 255, 255, 0.6);
-      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03);
       overflow: hidden;
     }
 
@@ -534,7 +529,7 @@ const totalCount = allArticles.length + allProjects.length;
       display: flex;
       flex-direction: column;
       gap: 1px;
-      background: rgba(193, 198, 214, 0.2);
+      background: transparent;
       border-radius: 16px;
       overflow: hidden;
     }
@@ -544,17 +539,9 @@ const totalCount = allArticles.length + allProjects.length;
       flex-direction: column;
       gap: 8px;
       padding: 24px;
-      background: rgba(255, 255, 255, 0.4);
-      backdrop-filter: blur(32px);
       text-decoration: none;
       transition: background-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.15s cubic-bezier(0.23, 1, 0.32, 1);
       transform: translateX(0);
-    }
-
-    @media (hover: hover) and (pointer: fine) {
-      .result-item:hover {
-        background-color: rgba(255, 255, 255, 0.7);
-      }
     }
 
     .result-item:active {
@@ -719,6 +706,37 @@ const totalCount = allArticles.length + allProjects.length;
       .result-title {
         font-size: 17px;
       }
+    }
+
+    .glass .filter-toggle,
+    .glass .result-title {
+      color: var(--ink);
+    }
+    .glass .filter-toggle-icon,
+    .glass .filter-chevron,
+    .glass .filter-label,
+    .glass .result-date,
+    .glass .result-desc,
+    .glass .result-tag {
+      color: var(--ink-2);
+    }
+    .glass .filter-chip,
+    .glass .result-tag {
+      background: var(--row-hover);
+      color: var(--ink-2);
+    }
+    .glass .filter-chip.active {
+      background: #0059b5;
+      color: #ffffff;
+    }
+    .glass .result-type.article {
+      color: var(--glass-accent);
+    }
+    .glass .result-type.project {
+      color: var(--glass-project-accent);
+    }
+    .glass .result-item:hover .result-title {
+      color: var(--glass-accent);
     }
   </style>
 </BaseLayout>

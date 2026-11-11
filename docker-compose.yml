@@ -15,6 +15,9 @@ services:
       # Container paths take precedence over paths in the mounted .env.
       SQLITE_DB_PATH: /app/data/blog.sqlite
       UPLOAD_DIR: /app/dist/client/uploads
+      # Agent sidecar (nanobot bridge) reachable only inside the compose network.
+      AGENT_BRIDGE_URL: http://agent:8000
+      AGENT_BRIDGE_TOKEN: ${AGENT_BRIDGE_TOKEN:-}
     volumes:
       # Persist the SQLite database together with its WAL/SHM files.
       - type: bind
@@ -37,6 +40,39 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  agent:
+    build: ./agent
+    init: true
+    restart: unless-stopped
+    expose:
+      - "8000"
+    environment:
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      AI_GATEWAY_API_KEY: ${AI_GATEWAY_API_KEY:-}
+      AI_CHAT_MODEL: ${AI_CHAT_MODEL:-}
+      AGENT_BRIDGE_TOKEN: ${AGENT_BRIDGE_TOKEN:-}
+      AGENT_SESSION_TTL_DAYS: ${AGENT_SESSION_TTL_DAYS:-}
+    volumes:
+      # Persist config.json and sessions.sqlite3 for the nanobot runtime.
+      - type: bind
+        source: ./data/agent
+        target: /app/config
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request, sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4).status == 200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
 
   nginx:
     image: nginx:stable-alpine

@@ -77,7 +77,7 @@ const formatDate = (date: Date) =>
       {projectItems.length > 0 ? (
         <div class="projects-dense-grid" data-animate="stagger" id="projects-list">
           {projectItems.map((project, idx) => (
-            <div class="project-item" data-tags={JSON.stringify(project.tags)}>
+            <div class="project-item glass" data-tags={JSON.stringify(project.tags)}>
               <a href={project.href} class="project-card">
                 <div class="front-cover front-cover--card">
                   <img
@@ -290,7 +290,6 @@ const formatDate = (date: Date) =>
   .project-item {
     display: flex;
     flex-direction: column;
-    background: #fff;
     border: 1px solid rgba(193,198,214,0.3);
     border-radius: 12px;
     overflow: hidden;
@@ -304,7 +303,7 @@ const formatDate = (date: Date) =>
   @media (hover: hover) and (pointer: fine) {
     .project-item:hover {
       border-color: rgba(193,198,214,0.6);
-      box-shadow: 0 4px 16px rgba(0,0,0,0.05);
+      box-shadow: var(--glass-shadow);
       transform: translateY(-1px) scale(1);
     }
   }
@@ -446,6 +445,32 @@ const formatDate = (date: Date) =>
       background: rgba(0,89,181,0.15);
       color: #0059b5;
     }
+  }
+
+  .glass .project-card-title {
+    color: var(--ink);
+  }
+  .glass .project-card-num,
+  .glass .project-card-date,
+  .glass .project-card-desc,
+  .glass .project-link {
+    color: var(--ink-2);
+  }
+  .glass .project-card-tag,
+  .glass .project-link-primary,
+  .glass .project-card:hover .project-card-title,
+  .glass .project-link-primary:hover {
+    color: var(--glass-accent);
+  }
+  .glass .project-link {
+    background: var(--row-hover);
+  }
+  .glass .project-link:hover {
+    background: var(--row-active);
+    color: var(--ink);
+  }
+  .glass .project-link-primary:hover {
+    color: var(--glass-accent);
   }
 
   /* Empty State */

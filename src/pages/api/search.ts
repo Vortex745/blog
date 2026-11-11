@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import { getCollection } from "astro:content";
 import { readContentArticles, readContentProjects, hasAnyContent } from "../../lib/content-store";
+import { uniqueByContentKey } from "../../lib/content-merge";
 import { jsonResponse } from "../../lib/api-utils";
 
 export const GET: APIRoute = async ({ url }) => {
@@ -25,22 +26,19 @@ export const GET: APIRoute = async ({ url }) => {
     return id.replace(/\.mdx?$/, "");
   }
 
-  const localArticleIds = new Set(allArticles.map((a) => cleanSlug(a.id)));
-  const localArticleTitles = new Set(allArticles.map((a) => a.data.title));
-  const localProjectIds = new Set(allProjects.map((p) => cleanSlug(p.id)));
-  const localProjectTitles = new Set(allProjects.map((p) => p.data.title));
+  const staticArticleKeys = allArticles.map((a) => ({ id: cleanSlug(a.id), title: a.data.title }));
+  const staticProjectKeys = allProjects.map((p) => ({ id: cleanSlug(p.id), title: p.data.title }));
 
-  const uniqueSqliteArticles = sqliteArticles.filter((a) => {
-    const id = String(a.id || "");
-    const title = String(a.title || "");
-    return !localArticleIds.has(id) && !localArticleTitles.has(title);
-  });
-
-  const uniqueSqliteProjects = sqliteProjects.filter((p) => {
-    const id = String(p.id || "");
-    const title = String(p.title || "");
-    return !localProjectIds.has(id) && !localProjectTitles.has(title);
-  });
+  const uniqueSqliteArticles = uniqueByContentKey(
+    sqliteArticles,
+    (a) => ({ id: String(a.id || ""), title: String(a.title || "") }),
+    staticArticleKeys,
+  );
+  const uniqueSqliteProjects = uniqueByContentKey(
+    sqliteProjects,
+    (p) => ({ id: String(p.id || ""), title: String(p.title || "") }),
+    staticProjectKeys,
+  );
 
   const articles = [
     ...allArticles.map((a) => ({

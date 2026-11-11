@@ -97,7 +97,7 @@ const quote = home.quoteText
               阅读文章
             </a>
           </div>
-          <a href="/about" class="profile-card" data-animate="hero-item">
+          <a href="/about" class="profile-card glass" data-animate="hero-item">
             <img src={profile.avatar} alt={profile.name} class="profile-avatar" />
             <div class="profile-info">
               <span class="profile-name">{profile.name}</span>
@@ -105,7 +105,7 @@ const quote = home.quoteText
             </div>
           </a>
         </div>
-        <div class="hero-quote-card" data-animate="hero-item">
+        <div class="hero-quote-card glass" data-animate="hero-item">
           <svg class="quote-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21"/></svg>
           <p class="text-lg text-gray-800 font-medium quote-text min-h-[56px] flex items-center"><span class="t-text-swap is-enter-start" id="quote-text">{quote.text}</span></p>
           <p class="text-sm text-gray-500 mt-2 quote-author min-h-[20px]"><span class="t-text-swap is-enter-start" id="quote-author">{quote.author}</span></p>
@@ -131,7 +131,7 @@ const quote = home.quoteText
       {sortedArticles.length > 0 ? (
         <div class="articles-dense-grid" data-animate="stagger">
           {sortedArticles.map((article, idx) => (
-            <a href={article.href} class={`article-card ${idx === 0 ? "article-card-featured" : ""}`}>
+            <a href={article.href} class={`article-card glass ${idx === 0 ? "article-card-featured" : ""}`}>
               <div class="front-cover front-cover--card">
                 <img
                   src={article.coverImage || COVER_PLACEHOLDER}
@@ -401,11 +401,9 @@ const quote = home.quoteText
 
   /* Quote Card */
   .hero-quote-card {
-    background: #fff;
     border: 1px solid rgba(193,198,214,0.35);
     border-radius: 16px;
     padding: 20px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
   }
 
   .quote-icon {
@@ -515,7 +513,6 @@ const quote = home.quoteText
     flex-direction: column;
     gap: 8px;
     padding: 16px;
-    background: #fff;
     border: 1px solid rgba(193,198,214,0.3);
     border-radius: 12px;
     text-decoration: none;
@@ -529,7 +526,7 @@ const quote = home.quoteText
   @media (hover: hover) and (pointer: fine) {
     .article-card:hover {
       border-color: rgba(193,198,214,0.6);
-      box-shadow: 0 4px 16px rgba(0,0,0,0.05);
+      box-shadow: var(--glass-shadow);
       transform: translateY(-1px) scale(1);
     }
   }
@@ -637,7 +634,7 @@ const quote = home.quoteText
   @media (hover: hover) and (pointer: fine) {
     .project-dense-card:hover {
       border-color: rgba(193,198,214,0.6);
-      box-shadow: 0 4px 16px rgba(0,0,0,0.05);
+      box-shadow: var(--glass-shadow);
       transform: translateY(-1px) scale(1);
     }
   }
@@ -716,10 +713,8 @@ const quote = home.quoteText
     padding: 14px 18px;
     margin-top: 20px;
     align-self: flex-start;
-    background: #fff;
     border: 1px solid rgba(193, 198, 214, 0.35);
     border-radius: 16px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
     text-decoration: none;
     transform: translateY(0) scale(1);
     transition:
@@ -731,7 +726,7 @@ const quote = home.quoteText
   @media (hover: hover) and (pointer: fine) {
     .profile-card:hover {
       border-color: rgba(193, 198, 214, 0.6);
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+      box-shadow: var(--glass-shadow);
       transform: translateY(-1px) scale(1);
     }
   }
@@ -824,5 +819,22 @@ const quote = home.quoteText
       padding: 24px 0 96px;
     }
 
+  }
+
+  .glass .quote-text,
+  .glass .article-card-title,
+  .glass .profile-name {
+    color: var(--ink);
+  }
+  .glass .quote-author,
+  .glass .article-date,
+  .glass .article-card-desc,
+  .glass .profile-role {
+    color: var(--ink-2);
+  }
+  .glass .quote-icon,
+  .glass .article-tag,
+  .glass .article-read-more {
+    color: var(--glass-accent);
   }
 </style>

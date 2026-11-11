@@ -78,15 +78,15 @@ const totalCount = articleItems.length + projectItems.length;
     <div class="editorial-container">
       {/* Stats Cards */}
       <div class="stats-grid" data-animate="stagger">
-        <div class="stat-card">
+        <div class="stat-card glass">
           <span class="stat-number" data-animate="counter" data-archive-stat="articles">{articleItems.length}</span>
           <span class="stat-label">文章</span>
         </div>
-        <div class="stat-card">
+        <div class="stat-card glass">
           <span class="stat-number" data-animate="counter" data-archive-stat="projects">{projectItems.length}</span>
           <span class="stat-label">项目</span>
         </div>
-        <div class="stat-card">
+        <div class="stat-card glass">
           <span class="stat-number" data-animate="counter" data-archive-stat="years">{archiveYearCount}</span>
           <span class="stat-label">年份跨度</span>
         </div>
@@ -111,7 +111,7 @@ const totalCount = articleItems.length + projectItems.length;
               </div>
               <div class="year-items">
                 {articles.map((article) => (
-                  <a href={article.href} class="archive-item">
+                  <a href={article.href} class="archive-item glass">
                     <span class="archive-date">{formatDate(article.date)}</span>
                     <span class="archive-title">{article.title}</span>
                     <span class="archive-arrow">→</span>
@@ -142,7 +142,7 @@ const totalCount = articleItems.length + projectItems.length;
               </div>
               <div class="year-items">
                 {projects.map((project) => (
-                  <a href={project.href} class="archive-item">
+                  <a href={project.href} class="archive-item glass">
                     <span class="archive-date">{formatDate(project.date)}</span>
                     <span class="archive-title">{project.title}</span>
                     <span class="archive-arrow">→</span>
@@ -204,11 +204,7 @@ const totalCount = articleItems.length + projectItems.length;
     justify-content: center;
     padding: 32px 24px;
     border-radius: 24px;
-    background: rgba(255, 255, 255, 0.4);
-    backdrop-filter: blur(32px);
-    -webkit-backdrop-filter: blur(32px);
     border: 1px solid rgba(255, 255, 255, 0.6);
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03);
     text-align: center;
   }
 
@@ -218,7 +214,7 @@ const totalCount = articleItems.length + projectItems.length;
     font-weight: 700;
     line-height: 1.1;
     letter-spacing: -0.01em;
-    color: #181c23;
+    color: var(--ink);
     margin-bottom: 8px;
   }
 
@@ -288,7 +284,7 @@ const totalCount = articleItems.length + projectItems.length;
     display: flex;
     flex-direction: column;
     gap: 1px;
-    background: rgba(193, 198, 214, 0.2);
+    background: transparent;
     border-radius: 16px;
     overflow: hidden;
   }
@@ -298,18 +294,9 @@ const totalCount = articleItems.length + projectItems.length;
     align-items: center;
     gap: 16px;
     padding: 16px 24px;
-    background: rgba(255, 255, 255, 0.4);
-    backdrop-filter: blur(32px);
-    -webkit-backdrop-filter: blur(32px);
     text-decoration: none;
     transition: background-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.15s cubic-bezier(0.23, 1, 0.32, 1);
     transform: translateX(0);
-  }
-
-  @media (hover: hover) and (pointer: fine) {
-    .archive-item:hover {
-      background-color: rgba(255, 255, 255, 0.7);
-    }
   }
 
   .archive-item:active {
@@ -433,5 +420,18 @@ const totalCount = articleItems.length + projectItems.length;
     .archive-arrow {
       display: none;
     }
+  }
+
+  .glass .stat-number,
+  .glass .archive-title {
+    color: var(--ink);
+  }
+  .glass .stat-label,
+  .glass .archive-date,
+  .glass .archive-arrow {
+    color: var(--ink-2);
+  }
+  .glass.archive-item:hover .archive-title {
+    color: var(--glass-accent);
   }
 </style>

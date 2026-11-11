@@ -89,7 +89,7 @@ const initialProjectsPayload = JSON.stringify({
   <!-- Add/Edit Modal -->
   <div id="project-modal" class="modal">
     <div class="modal-backdrop"></div>
-    <div class="modal-panel">
+    <div class="modal-panel glass">
       <div class="modal-header">
         <h3 id="modal-title" class="modal-title">添加项目</h3>
         <button type="button" id="btn-close" class="btn-icon btn-close">
@@ -1099,10 +1099,9 @@ const initialProjectsPayload = JSON.stringify({
     min-width: 180px;
     max-width: min(420px, calc(100vw - 32px));
     padding: 10px 16px;
+    --floor: 0.9;
     border-radius: 12px;
-    background: rgba(255,255,255,0.95);
     border: 1px solid rgba(193,198,214,0.55);
-    box-shadow: 0 14px 40px rgba(24,28,35,0.14);
     color: #181c23;
     font-size: 14px;
     font-weight: 600;
@@ -1115,7 +1114,7 @@ const initialProjectsPayload = JSON.stringify({
     transform: translate(-50%, 0);
   }
   .admin-toast.is-success {
-    color: #0d8a4f;
+    color: #036b4c;
     border-color: rgba(13,138,79,0.22);
   }
   .admin-toast.is-error {
@@ -1202,11 +1201,9 @@ const initialProjectsPayload = JSON.stringify({
     overflow-y: auto;
     margin: 20px;
     padding: 28px;
-    background: rgba(255,255,255,0.85);
-    backdrop-filter: blur(40px);
+    --floor: 0.85;
     border: 1px solid rgba(255,255,255,0.6);
     border-radius: 24px;
-    box-shadow: 0 24px 64px rgba(0,0,0,0.12);
     transform: translateY(12px) scale(0.96);
     transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1);
   }
@@ -1626,5 +1623,16 @@ const initialProjectsPayload = JSON.stringify({
       padding: 20px;
       border-radius: 20px;
     }
+  }
+
+  .glass .field-hint,
+  .glass .field-hint-inline {
+    color: var(--ink-2);
+  }
+  .glass .tag-input::placeholder {
+    color: var(--ink-2);
+  }
+  .glass .polish-status.is-success {
+    color: #036b4c;
   }
 </style>

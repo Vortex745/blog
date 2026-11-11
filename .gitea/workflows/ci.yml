@@ -5,8 +5,14 @@ on:
   pull_request:
   workflow_dispatch:
 
+# The runner has capacity 1; cancel superseded runs instead of letting them queue.
+concurrency:
+  group: ${{ gitea.workflow }}-${{ gitea.ref }}
+  cancel-in-progress: true
+
 jobs:
-  verify:
+  build-and-verify:
+    name: Test and production image
     runs-on: blog-ci
     timeout-minutes: 60
     env:
@@ -17,8 +23,16 @@ jobs:
         with:
           persist-credentials: false
 
+      # Dockerfile `test` stage: npm ci + npm test on Linux with native SQLite binaries.
       - name: Run application tests in Linux
         run: docker build --target test --tag "changye-blog-ci-test:$COMMIT_SHA" .
 
+      # Dockerfile `runtime` stage: astro build, prune to production deps, then load
+      # better-sqlite3 to prove the native module works in the runtime image.
       - name: Build production image and verify SQLite native modules
         run: docker build --target runtime --tag "changye-blog-ci:$COMMIT_SHA" .
+
+      # Every run leaves one image per commit; drop only what nothing references anymore.
+      - name: Prune dangling images
+        if: always()
+        run: docker image prune --force

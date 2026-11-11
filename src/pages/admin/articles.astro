@@ -105,7 +105,7 @@ function formatArticleDate(value: unknown): string {
   <!-- Add/Edit Modal -->
   <div id="article-modal" class="modal">
     <div class="modal-backdrop"></div>
-    <div class="modal-panel modal-panel-large">
+    <div class="modal-panel modal-panel-large glass">
       <div class="modal-header">
         <h3 id="modal-title" class="modal-title">添加文章</h3>
         <button type="button" id="btn-close" class="btn-icon btn-close">
@@ -134,7 +134,7 @@ function formatArticleDate(value: unknown): string {
                 <small>可不上传；前台将使用默认占位图</small>
               </div>
               <img id="cover-preview" class="cover-preview" alt="封面预览" />
-              <button type="button" id="btn-remove-cover" class="btn-remove-cover" title="移除封面">
+              <button type="button" id="btn-remove-cover" class="btn-remove-cover glass" data-kind="dark" title="移除封面">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
               </button>
             </div>
@@ -1178,10 +1178,9 @@ function formatArticleDate(value: unknown): string {
     min-width: 180px;
     max-width: min(420px, calc(100vw - 32px));
     padding: 10px 16px;
+    --floor: 0.9;
     border-radius: 12px;
-    background: rgba(255,255,255,0.96);
     border: 1px solid rgba(193,198,214,0.55);
-    box-shadow: 0 14px 40px rgba(24,28,35,0.14);
     color: #181c23;
     font-size: 14px;
     font-weight: 600;
@@ -1194,7 +1193,7 @@ function formatArticleDate(value: unknown): string {
     transform: translate(-50%, 0);
   }
   .admin-toast.is-success {
-    color: #059669;
+    color: #036b4c;
     border-color: rgba(5,150,105,0.22);
   }
   .admin-toast.is-error {
@@ -1268,9 +1267,8 @@ function formatArticleDate(value: unknown): string {
   }
   .modal-panel {
     position: relative;
-    background: #fff;
+    --floor: 0.9;
     border-radius: 16px;
-    box-shadow: 0 24px 80px rgba(0,0,0,0.18);
     width: 92vw;
     max-width: 720px;
     max-height: 90vh;
@@ -1465,6 +1463,7 @@ function formatArticleDate(value: unknown): string {
     object-fit: cover;
   }
   .btn-remove-cover {
+    --floor: 0.7;
     position: absolute;
     top: 8px;
     right: 8px;
@@ -1472,7 +1471,6 @@ function formatArticleDate(value: unknown): string {
     height: 28px;
     border-radius: 6px;
     border: none;
-    background: rgba(0,0,0,0.5);
     color: #fff;
     cursor: pointer;
     display: none;
@@ -1481,7 +1479,7 @@ function formatArticleDate(value: unknown): string {
     z-index: 3;
   }
   .btn-remove-cover:hover {
-    background: rgba(0,0,0,0.7);
+    color: #fff;
   }
 
   /* Progress */
@@ -1919,5 +1917,23 @@ function formatArticleDate(value: unknown): string {
     .polish-actions {
       margin-left: 0;
     }
+  }
+
+  .glass .field-hint,
+  .glass .field-hint-inline,
+  .glass .cover-placeholder,
+  .glass .cover-placeholder small,
+  .glass .progress-text,
+  .glass .paste-area,
+  .glass .paste-area small,
+  .glass .content-image-tab,
+  .glass .diff-section-label {
+    color: var(--ink-2);
+  }
+  .glass .tag-input::placeholder {
+    color: var(--ink-2);
+  }
+  .glass .cover-status.is-success {
+    color: #036b4c;
   }
 </style>

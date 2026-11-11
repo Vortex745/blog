@@ -66,3 +66,7 @@ Thumbs.db
 Thumbs.db:encryptable
 ehthumbs.db
 desktop.ini
+screenshots/
+data/agent/
+progress.md
+t1-test.png

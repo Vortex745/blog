@@ -2,7 +2,6 @@
 import { defineConfig } from "astro/config";
 import react from "@astrojs/react";
 import tailwindcss from "@tailwindcss/vite";
-import sitemap from "@astrojs/sitemap";
 import node from "@astrojs/node";
 
 // https://astro.build/config
@@ -11,7 +10,7 @@ export default defineConfig({
   output: "server",
   adapter: node({ mode: "standalone" }),
   allowedHosts: ["zijin.online", "www.zijin.online", "localhost"],
-  integrations: [react(), sitemap()],
+  integrations: [react()],
   vite: {
     server: {
       watch: {

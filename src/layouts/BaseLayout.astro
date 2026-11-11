@@ -2,7 +2,7 @@
 import "../styles/globals.css";
 import { ClientRouter } from "astro:transitions";
 import SEO from "../components/astro/SEO.astro";
-import { AIChat } from "../components/assistant-ui";
+import AgentChat from "../components/agent-chat.astro";
 
 export interface Props {
   title: string;
@@ -60,7 +60,7 @@ const currentPath = Astro.url.pathname;
   <body class="editorial-body" lang="zh-CN" transition:animate="none">
     <!-- Navigation -->
     <nav class="editorial-nav" transition:persist="editorial-nav">
-      <div class="editorial-nav-inner">
+      <div class="editorial-nav-inner glass">
         <!-- Logo -->
         <a href="/" class="editorial-logo" aria-label="子衿的个人博客网站">
           <img src="/logo.jpg" alt="子衿的个人博客网站" class="editorial-logo-img" />
@@ -132,7 +132,7 @@ const currentPath = Astro.url.pathname;
     </nav>
 
     <!-- Mobile menu overlay -->
-    <div id="mobile-menu" class="mobile-menu" aria-hidden="true">
+    <div id="mobile-menu" class="mobile-menu glass" aria-hidden="true">
       <div class="mobile-menu__content t-panel-slide" data-open="false">
         {
           navLinks.map((link) => (
@@ -149,17 +149,20 @@ const currentPath = Astro.url.pathname;
       <slot />
     </main>
 
-    <AIChat client:only="react" transition:persist="ai-chat" />
+    <!-- Floating AI chat -->
+    <AgentChat />
 
     <!-- GSAP Animation System -->
     <script>
       import { initAnimations, initDockPill } from "../scripts/animations";
       import { initAdminContentSync } from "../scripts/admin-content-sync";
+      import { initLiquidGlass } from "../scripts/liquid-glass";
 
       function boot() {
         initAdminContentSync();
         initAnimations();
         initDockPill();
+        initLiquidGlass();
       }
 
       document.addEventListener("astro:page-load", boot);
@@ -245,12 +248,9 @@ const currentPath = Astro.url.pathname;
         align-items: center;
         height: 56px;
         padding: 0 20px;
-        background: rgba(255, 255, 255, 0.75);
-        backdrop-filter: blur(32px);
-        -webkit-backdrop-filter: blur(32px);
+        --floor: 0.55;
         border: 1px solid rgba(255, 255, 255, 0.6);
         border-radius: 9999px;
-        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.06);
       }
 
       .editorial-logo {
@@ -398,8 +398,7 @@ const currentPath = Astro.url.pathname;
         width: 100%;
         border-radius: 9999px;
         border: 1px solid rgba(193, 198, 214, 0.5);
-        background: rgba(255, 255, 255, 0.6);
-        backdrop-filter: blur(16px);
+        background: var(--row-hover);
         transition:
           border-color var(--motion-duration-standard) var(--motion-ease-out),
           box-shadow var(--motion-duration-standard) var(--motion-ease-out),
@@ -408,9 +407,8 @@ const currentPath = Astro.url.pathname;
       }
 
       .nav-search-group:focus-within {
-        border-color: #0059b5;
+        border-color: var(--glass-accent);
         box-shadow: 0 0 0 3px rgba(0, 89, 181, 0.1);
-        background: rgba(255, 255, 255, 0.82);
       }
 
       .nav-search-input {
@@ -422,12 +420,12 @@ const currentPath = Astro.url.pathname;
         background: transparent;
         font-family: var(--font-body);
         font-size: 13px;
-        color: #181c23;
+        color: var(--ink);
         outline: none;
       }
 
       .nav-search-input::placeholder {
-        color: #717785;
+        color: var(--ink-2);
       }
 
       .nav-search-addon {
@@ -512,11 +510,10 @@ const currentPath = Astro.url.pathname;
 
       /* Mobile menu */
       .mobile-menu {
+        --floor: 0.9;
         position: fixed;
         inset: 0;
         z-index: 40;
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(20px);
         opacity: 0;
         pointer-events: none;
         visibility: hidden;
@@ -566,6 +563,23 @@ const currentPath = Astro.url.pathname;
       /* Main */
       .editorial-main {
         flex: 1;
+      }
+
+      .editorial-nav-inner .editorial-nav-link,
+      .editorial-nav-inner .nav-search-icon-btn,
+      .editorial-nav-inner .editorial-icon-btn {
+        color: var(--ink-2);
+      }
+      .editorial-nav-inner .editorial-nav-link:hover,
+      .editorial-nav-inner .editorial-icon-btn:hover {
+        color: var(--ink);
+      }
+      .editorial-nav-inner .editorial-nav-link.is-active,
+      .editorial-nav-inner .nav-search-icon-btn:hover {
+        color: var(--glass-accent);
+      }
+      .mobile-menu .mobile-menu__link {
+        color: var(--ink);
       }
 
     </style>

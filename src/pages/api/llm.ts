@@ -3,6 +3,7 @@ import { buildOpenAiCompatibleEndpoint } from "../../lib/llm-endpoint";
 import { jsonResponse, readString } from "../../lib/api-utils";
 import { readServerEnv } from "../../lib/env";
 import { denyAdminWrite } from "../../lib/auth";
+import { createOpenAiCompatibleRuntime, piResponseText, toPiSimpleMessages } from "../../lib/pi/runtime";
 
 type LlmMessage = {
   role: "system" | "user" | "assistant";
@@ -57,41 +58,19 @@ export const POST: APIRoute = async ({ request }) => {
   if ("error" in endpointResult) {
     return jsonResponse({ ok: false, message: endpointResult.error }, 400);
   }
-  const endpoint = endpointResult.endpoint;
+  // The endpoint builder returns the full chat/completions URL; the pi runtime wants the base.
+  const baseUrl = endpointResult.endpoint.href.replace(/\/chat\/completions$/, "");
+  const runtime = createOpenAiCompatibleRuntime({ baseUrl, apiKey, model }, "admin-llm");
 
   try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature,
-        ...(maxTokens ? { max_tokens: maxTokens } : {}),
-      }),
-    });
+    const message = await runtime.models.complete(
+      runtime.model,
+      { messages: toPiSimpleMessages(messages) },
+      { temperature, maxTokens },
+    );
 
-    const text = await response.text();
-    let data: any = {};
-    try {
-      data = text ? JSON.parse(text) : {};
-    } catch {
-      data = {};
-    }
-
-    if (!response.ok) {
-      return jsonResponse(
-        { ok: false, message: data.error?.message || text || `LLM API 请求失败 (HTTP ${response.status})` },
-        502,
-      );
-    }
-
-    const choice = data.choices?.[0];
-    const content = choice?.message?.content;
-    if (typeof content !== "string") {
+    const content = piResponseText(message);
+    if (!content.trim()) {
       return jsonResponse({ ok: false, message: "LLM API 返回内容为空" }, 502);
     }
 
