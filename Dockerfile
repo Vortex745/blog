@@ -15,8 +15,11 @@ RUN npm ci
 COPY . .
 
 # CI can verify the application independently of the production build.
+# The gate is tests AND typecheck (AGENTS.md contract). astro sync generates
+# .astro/types.d.ts, which tsc needs in a clean checkout (absent locally it
+# only passed because a dev/build had run); tsconfig covers src.
 FROM dependencies AS test
-RUN npm test
+RUN npm test && npx astro sync && npx tsc --noEmit
 
 FROM dependencies AS build
 RUN npm run build \
