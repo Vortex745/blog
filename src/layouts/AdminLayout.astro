@@ -98,7 +98,7 @@ const navItems = [
     <!-- Global Confirm Dialog -->
     <div id="admin-confirm-dialog" class="admin-dialog">
       <div class="admin-dialog-backdrop"></div>
-      <div class="admin-dialog-panel">
+      <div class="admin-dialog-panel glass">
         <div class="admin-dialog-header">
           <h3 class="admin-dialog-title">确认</h3>
           <button type="button" id="admin-dialog-close" class="admin-dialog-close" aria-label="关闭">
@@ -157,6 +157,7 @@ const navItems = [
 
     <script>
       import { initAdminAnimations } from "../scripts/admin-animations";
+      import { initLiquidGlass } from "../scripts/liquid-glass";
 
       declare global {
         interface Window {
@@ -239,6 +240,7 @@ const navItems = [
 
         // Init animations
         initAdminAnimations();
+        initLiquidGlass();
       }
 
       // Re-run setup on every SPA page load
@@ -617,12 +619,9 @@ const navItems = [
   }
   .admin-dialog-panel {
     position: relative;
-    background: rgba(255, 255, 255, 0.82);
-    backdrop-filter: blur(40px);
-    -webkit-backdrop-filter: blur(40px);
+    --floor: 0.82;
     border: 1px solid rgba(255, 255, 255, 0.6);
     border-radius: 20px;
-    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.4);
     width: 100%;
     max-width: 420px;
     overflow: hidden;

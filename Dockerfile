@@ -9,8 +9,6 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends python3 make g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Puppeteer is a development dependency; Chromium is not needed to build the blog.
-ENV PUPPETEER_SKIP_DOWNLOAD=true
 COPY package.json package-lock.json ./
 RUN npm ci
 
@@ -23,8 +21,7 @@ RUN npm test
 FROM dependencies AS build
 RUN npm run build \
     && npm prune --omit=dev \
-    && node -e "const db = require('better-sqlite3')(':memory:'); require('sqlite-vec').load(db); db.close()" \
-    && mkdir -p src/content
+    && node -e "const db = require('better-sqlite3')(':memory:'); db.close()"
 
 FROM base AS runtime
 ENV NODE_ENV=production \
@@ -36,8 +33,6 @@ ENV NODE_ENV=production \
 COPY --from=build --chown=node:node /app/package.json ./package.json
 COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/dist ./dist
-# The RAG indexer reads authored Markdown from this directory at runtime.
-COPY --from=build --chown=node:node /app/src/content ./src/content
 RUN mkdir -p data dist/client/uploads \
     && chown node:node data dist/client/uploads
 

@@ -94,7 +94,7 @@ const initialGalleryPayload = JSON.stringify({
   <div id="preview-modal" class="modal">
     <div class="modal-backdrop"></div>
     <div class="modal-panel modal-panel-image">
-      <button type="button" id="btn-close-preview" class="btn-icon btn-close-modal">
+      <button type="button" id="btn-close-preview" class="btn-icon btn-close-modal glass" data-kind="dark">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
       </button>
       <img id="preview-img" src="" alt="预览" />
@@ -108,7 +108,7 @@ const initialGalleryPayload = JSON.stringify({
   <!-- Local Upload Name Modal -->
   <div id="upload-name-modal" class="modal upload-name-modal">
     <div class="modal-backdrop"></div>
-    <div class="upload-name-panel">
+    <div class="upload-name-panel glass">
       <div class="upload-name-header">
         <h3 class="upload-name-title">配置图片名称</h3>
         <button type="button" id="btn-close-upload-name" class="upload-name-close" aria-label="关闭">
@@ -518,10 +518,10 @@ const initialGalleryPayload = JSON.stringify({
         <div class="gallery-item-thumb">
           <img src="${escapeHtml(img.url)}" alt="${escapeHtml(title)}" loading="lazy" />
           <div class="gallery-item-overlay">
-            <button type="button" class="gallery-btn-view" data-action="view" title="预览">
+            <button type="button" class="gallery-btn-view glass" data-kind="dark" data-action="view" title="预览">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
-            <button type="button" class="gallery-btn-delete" data-action="delete" title="删除">
+            <button type="button" class="gallery-btn-delete glass" data-kind="dark" data-action="delete" title="删除">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
             </button>
           </div>
@@ -934,12 +934,11 @@ const initialGalleryPayload = JSON.stringify({
   }
   .gallery-btn-view,
   .gallery-btn-delete {
+    --floor: 0.3;
     width: 36px;
     height: 36px;
     border-radius: 8px;
     border: none;
-    background: rgba(255,255,255,0.9);
-    color: #414753;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -948,12 +947,10 @@ const initialGalleryPayload = JSON.stringify({
   }
   .gallery-btn-view:active, .gallery-btn-delete:active { transform: scale(0.97); }
   .gallery-btn-view:hover {
-    background: #fff;
-    color: #0059b5;
+    color: var(--ink);
   }
   .gallery-btn-delete:hover {
-    background: #fff;
-    color: #dc2626;
+    color: #fca5a5;
   }
   .gallery-item-info {
     display: flex;
@@ -1017,7 +1014,6 @@ const initialGalleryPayload = JSON.stringify({
     height: 36px;
     border-radius: 8px;
     border: none;
-    background: rgba(255,255,255,0.15);
     color: #fff;
     cursor: pointer;
     display: inline-flex;
@@ -1027,7 +1023,7 @@ const initialGalleryPayload = JSON.stringify({
     z-index: 10;
   }
   .btn-close-modal:hover {
-    background: rgba(255,255,255,0.25);
+    color: #fff;
   }
   .preview-info {
     display: flex;
@@ -1053,10 +1049,9 @@ const initialGalleryPayload = JSON.stringify({
   .upload-name-panel {
     position: relative;
     width: min(420px, calc(100vw - 32px));
+    --floor: 0.92;
     border: 1px solid rgba(255,255,255,0.65);
     border-radius: 18px;
-    background: rgba(255,255,255,0.92);
-    box-shadow: 0 24px 80px rgba(0,0,0,0.18);
     overflow: hidden;
   }
   .upload-name-header {
@@ -1122,5 +1117,10 @@ const initialGalleryPayload = JSON.stringify({
     .upload-name-footer .btn-secondary {
       width: 100%;
     }
+  }
+
+  .glass .field-help,
+  .glass .upload-name-summary {
+    color: var(--ink-2);
   }
 </style>

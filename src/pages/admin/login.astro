@@ -1,5 +1,6 @@
 ---
 // Admin login page — no layout, centred card
+import "../../styles/globals.css";
 ---
 
 <!doctype html>
@@ -9,7 +10,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/jpeg" href="/favicon.jpg" />
     <title>子衿的个人博客后台</title>
-    <link rel="stylesheet" href="/styles/globals.css" />
     <style>
       .login-body {
         margin: 0;
@@ -25,11 +25,9 @@
         width: 100%;
         max-width: 420px;
         padding: 48px 40px;
-        background: rgba(255,255,255,0.7);
-        backdrop-filter: blur(40px);
+        --floor: 0.7;
         border: 1px solid rgba(255,255,255,0.6);
         border-radius: 28px;
-        box-shadow: 0 24px 64px rgba(0,0,0,0.08);
       }
       .login-brand {
         text-align: center;
@@ -45,7 +43,7 @@
       }
       .login-brand p {
         font-size: 15px;
-        color: #717785;
+        color: var(--ink-2);
         margin: 0;
       }
       .login-form {
@@ -71,10 +69,13 @@
         background: rgba(255,255,255,0.7);
         font-family: var(--font-body, 'Inter', system-ui, sans-serif);
         font-size: 15px;
-        color: #181c23;
+        color: var(--ink);
         outline: none;
         transition: border-color 0.2s ease, box-shadow 0.2s ease;
         box-sizing: border-box;
+      }
+      .field-input::placeholder {
+        color: var(--ink-2);
       }
       .field-input:focus {
         border-color: #0059b5;
@@ -123,12 +124,12 @@
       }
       .login-footer a {
         font-size: 14px;
-        color: #717785;
+        color: var(--ink-2);
         text-decoration: none;
         transition: color 0.2s ease;
       }
       .login-footer a:hover {
-        color: #181c23;
+        color: var(--ink);
       }
       @media (max-width: 480px) {
         .login-card {
@@ -139,7 +140,7 @@
     </style>
   </head>
   <body class="login-body">
-    <div class="login-card">
+    <div class="login-card glass">
       <div class="login-brand">
         <h1>子衿的个人博客后台</h1>
         <p>管理后台登录</p>
@@ -259,6 +260,10 @@
           });
         });
       })();
+    </script>
+    <script>
+      import { initLiquidGlass } from "../../scripts/liquid-glass";
+      initLiquidGlass();
     </script>
   </body>
 </html>
