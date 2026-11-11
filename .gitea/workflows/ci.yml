@@ -14,7 +14,9 @@ jobs:
   build-and-verify:
     name: Test and production image
     runs-on: blog-ci
-    timeout-minutes: 60
+    # Slowest observed run is ~3min (cold dependency change); 15min leaves
+    # headroom without letting a hang block the capacity-1 runner queue.
+    timeout-minutes: 15
     env:
       COMMIT_SHA: ${{ gitea.sha }}
     steps:
