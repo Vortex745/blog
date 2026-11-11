@@ -90,16 +90,10 @@ IMGBB_API_KEY="your-api-key"
 
 ## 数据库配置
 
-后台内容和 RAG 索引统一存在 SQLite + sqlite-vec 里。数据库路径只有一个环境变量：
+后台内容统一存在 SQLite 里。数据库路径只有一个环境变量：
 
 ```bash
 SQLITE_DB_PATH="./data/blog.sqlite"
-```
-
-生成站内 RAG 索引：
-
-```bash
-npm run rag:index
 ```
 
 ## API Key 配置
@@ -109,15 +103,17 @@ npm run rag:index
 ```bash
 AI_GATEWAY_API_KEY="your-ai-gateway-key"
 AI_CHAT_MODEL="openai/gpt-4o-mini"
-AI_CHAT_TEMPERATURE="0.7"
-AI_EMBEDDING_MODEL="openai/text-embedding-3-small"
-AI_EMBEDDING_DIMENSIONS="1536"
-AI_RERANK_MODEL="cohere/rerank-v3.5"
 
 LLM_API_KEY="your-openai-compatible-key"
 IMGBB_API_KEY="your-imgbb-key"
 GITHUB_TOKEN="optional-github-token"
 ```
+
+## AI 助手（agent 容器）
+
+访客侧 AI 助手由独立的 agent 容器承担：nanobot SDK（Python 3.12）外面包了一层自写的 HTTP/SSE bridge（`agent/bridge.py`），博客的 `/api/ai/chat` 只做限流、站内关键词检索（与站内搜索同源的合并逻辑）和 SSE 透传。零工具配置——shell、文件、联网、图像生成全部关闭，模型只依据检索到的站内内容回答。
+
+部署前在 `.env` 里设置 `AGENT_BRIDGE_TOKEN`（博客与 agent 容器的内网共享密钥，务必强随机值）。对话会话保留在 `./data/agent` 卷内，默认 7 天清理（`AGENT_SESSION_TTL_DAYS` 可调）。agent 容器的 LLM 配置在容器创建时从 `.env` 固化，修改后台或 `.env` 的 LLM 配置后需要 `docker compose up -d agent` 重建容器生效（`restart` 不会重读环境变量）。
 
 ## 后台认证配置
 
@@ -145,7 +141,7 @@ ADMIN_SECRET="<把上面命令输出的随机串粘贴到这里>"
 Linux 主机准备持久化目录，并允许容器的 `node` 用户（UID/GID 1000）读写：
 
 ```bash
-mkdir -p data public/uploads
+mkdir -p data data/agent public/uploads
 sudo chown -R 1000:1000 data public/uploads
 sudo chown 1000:1000 .env
 chmod 600 .env
@@ -170,7 +166,7 @@ docker compose down
 
 访问 `http://localhost`，后台地址为 `http://localhost/admin`。Nginx 映射宿主机的 `80` 端口，并通过 Compose 内部网络转发到 `blog:4321`；博客容器不直接映射宿主机端口。需要其他入口端口时修改 Nginx 服务的 `ports` 左侧，例如 `8080:80`。
 
-`nginx.conf` 支持最大 40 MB 的请求（应用仍限制单张图片为 32 MB），关闭代理缓冲以支持 AI 流式回复。当前配置提供 HTTP；启用 HTTPS 时需要另行准备域名证书及 Nginx 的 443 监听配置。使用域名访问时，还需确保域名包含在 `astro.config.mjs` 的 `allowedHosts` 中，修改后重新构建镜像。
+`nginx.conf` 支持最大 40 MB 的请求（应用仍限制单张图片为 32 MB），关闭代理缓冲以支持 AI 助手的流式回复。当前配置提供 HTTP；启用 HTTPS 时需要另行准备域名证书及 Nginx 的 443 监听配置。使用域名访问时，还需确保域名包含在 `astro.config.mjs` 的 `allowedHosts` 中，修改后重新构建镜像。
 
 ```bash
 # 修改 Nginx 配置后，先验证再重新加载
@@ -236,7 +232,7 @@ Runner 应以 `blog-ci` 标签上线，工作流使用相同的 `runs-on` 标签
 
 ### 已实现的 CI 与后续集成选项
 
-工作流在 **push、pull request、手动触发** 时运行，先构建 Dockerfile 的 `test` 阶段执行 `npm test`，再构建 `runtime` 阶段执行 Astro 生产构建，并验证 `better-sqlite3` 与 `sqlite-vec` 可以加载。镜像仅保留在 CI 主机，以提交 SHA 标记，不推送镜像仓库、不更新线上博客。
+工作流在 **push、pull request、手动触发** 时运行，先构建 Dockerfile 的 `test` 阶段执行 `npm test`，再构建 `runtime` 阶段执行 Astro 生产构建，并验证 `better-sqlite3` 可以加载。镜像仅保留在 CI 主机，以提交 SHA 标记，不推送镜像仓库、不更新线上博客。Runner 容量为 1，同一 ref 上的新推送会取消仍在进行的旧运行（concurrency），并会清理不再被引用的悬空镜像。
 
 | 选项 | 功能与接入方式 | 状态 / 建议 |
 |------|------|------|
@@ -248,7 +244,7 @@ Runner 应以 `blog-ci` 标签上线，工作流使用相同的 `runs-on` 标签
 | 健康验证与回滚 | 部署后验证 HTTP、后台和上传；失败时恢复之前的镜像版本 | 与 CD 一起实现；数据库恢复需另行设计 |
 | 备份 | 定时备份博客数据库、上传、配置以及 Gitea 数据卷 | 需确定保存位置、保留天数及恢复流程 |
 | 通知 | 构建失败或部署结果通过 Webhook 通知飞书、邮件等 | 需选择渠道；凭据放 Gitea Actions Secrets |
-| 缓存与清理 | 复用 Docker 构建缓存，定期按保留策略清理 CI 镜像 | 当前可复用 Docker 本地层缓存；需确定磁盘保留策略 |
+| 缓存与清理 | 复用 Docker 构建缓存，定期按保留策略清理 CI 镜像 | 构建复用本地层缓存，每次运行后清理悬空镜像；标记镜像的保留策略待定 |
 | 依赖与镜像扫描 | 定时检查 npm 依赖、容器漏洞及版本升级 | 可后续引入扫描工具及阻断标准 |
 
 本项目暂无独立 lint/typecheck 命令，未将它们作为现有 CI 检查。新工具需明确规则及通过标准后再接入。仓库使用 SQLite，无需给工作流另外启动数据库服务；CI 不读取博客 `.env`，也不调用真实 AI API。

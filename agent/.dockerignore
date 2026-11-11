@@ -1,0 +1,6 @@
+# 白名单式排除：只保留构建需要的文件，其余（.venv、__pycache__、编辑器杂物）全部忽略。
+*
+!bridge.py
+!requirements.txt
+!workspace/
+!workspace/SOUL.md

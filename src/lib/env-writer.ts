@@ -4,27 +4,14 @@ import { join } from "path";
 export const SENSITIVE_KEYS = [
   "AI_GATEWAY_API_KEY",
   "LLM_API_KEY",
-  "EMBEDDING_API_KEY",
-  "RERANK_API_KEY",
 ];
 
 export const CONFIGURABLE_KEYS = [
   "AI_GATEWAY_API_KEY",
   "AI_CHAT_MODEL",
-  "AI_CHAT_TEMPERATURE",
-  "AI_EMBEDDING_MODEL",
-  "AI_EMBEDDING_DIMENSIONS",
-  "AI_RERANK_MODEL",
-  "RAG_ENABLE_AI_CLEANING",
   "LLM_API_KEY",
   "LLM_BASE_URL",
   "LLM_MODEL",
-  "EMBEDDING_API_KEY",
-  "EMBEDDING_BASE_URL",
-  "EMBEDDING_MODEL",
-  "RERANK_API_KEY",
-  "RERANK_BASE_URL",
-  "RERANK_MODEL",
 ];
 
 function resolveFilePath(filePath?: string): string {

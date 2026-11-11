@@ -164,13 +164,13 @@ export function showToast(text: string, type = "info"): void {
   if (!toast) {
     toast = document.createElement("div");
     toast.id = "admin-toast";
-    toast.className = "admin-toast";
+    toast.className = "admin-toast glass";
     toast.setAttribute("role", "status");
     toast.setAttribute("aria-live", "polite");
     document.body.appendChild(toast);
   }
   toast.textContent = text;
-  toast.className = `admin-toast is-${type} is-visible`;
+  toast.className = `admin-toast glass is-${type} is-visible`;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {
     toast!.classList.remove("is-visible");

@@ -1,12 +1,10 @@
 import path from "node:path";
-import { readNumberServerEnv, readServerEnv } from "../env";
+import { readServerEnv } from "../env";
 
 const DEFAULT_SQLITE_DB_PATH = "data/blog.sqlite";
-const DEFAULT_EMBEDDING_DIMENSIONS = 1536;
 
 export type SqliteConfig = {
   dbPath: string;
-  embeddingDimensions: number;
 };
 
 export function resolveSqliteDbPath(dbPath?: string): string {
@@ -18,7 +16,5 @@ export function resolveSqliteDbPath(dbPath?: string): string {
 export function getSqliteConfig(options: Partial<SqliteConfig> = {}): SqliteConfig {
   return {
     dbPath: resolveSqliteDbPath(options.dbPath),
-    embeddingDimensions:
-      options.embeddingDimensions ?? readNumberServerEnv("AI_EMBEDDING_DIMENSIONS", DEFAULT_EMBEDDING_DIMENSIONS),
   };
 }
