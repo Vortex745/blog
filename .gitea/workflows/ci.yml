@@ -23,9 +23,12 @@ jobs:
         with:
           persist-credentials: false
 
-      # Dockerfile `test` stage: npm ci + npm test on Linux with native SQLite binaries.
-      - name: Run application tests in Linux
-        run: docker build --target test --tag "changye-blog-ci-test:$COMMIT_SHA" .
+      # Dockerfile `test` stage: npm ci + npm test + tsc on Linux with native
+      # SQLite binaries. Untagged: the image is never consumed, only its exit
+      # code — skipping the export saves ~29s on dependency-change builds and
+      # stops per-SHA test images accumulating on the runner disk.
+      - name: Run application tests and typecheck in Linux
+        run: docker build --target test .
 
       # Dockerfile `runtime` stage: astro build, prune to production deps, then load
       # better-sqlite3 to prove the native module works in the runtime image.
