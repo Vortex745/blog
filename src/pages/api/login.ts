@@ -7,6 +7,7 @@ import {
   verifyCredentials,
 } from "../../lib/auth";
 import { SlidingWindowRateLimiter, getClientKeyFromRequest } from "../../lib/rate-limit";
+import { log } from "../../lib/logger";
 
 // Brute-force throttle: at most 5 failed logins per client IP per 15 minutes.
 const loginFailureLimiter = new SlidingWindowRateLimiter({
@@ -36,14 +37,16 @@ function buildSessionCookie(token: string, maxAge: number, secure: boolean): str
 }
 
 export const POST: APIRoute = async ({ request, url }) => {
+  const ip = getClientKeyFromRequest(request);
   try {
     const body = await request.json();
     const username = typeof body.username === "string" ? body.username.trim() : "";
     const password = typeof body.password === "string" ? body.password : "";
 
     if (!verifyCredentials(username, password)) {
-      const limit = loginFailureLimiter.check(getClientKeyFromRequest(request));
+      const limit = loginFailureLimiter.check(ip);
       if (!limit.allowed) {
+        log("warn", "login rate limited", { ip, retryAfterSeconds: limit.retryAfterSeconds });
         return new Response(
           JSON.stringify({
             ok: false,
@@ -57,6 +60,7 @@ export const POST: APIRoute = async ({ request, url }) => {
         );
       }
 
+      log("warn", "login failed", { user: username, ip });
       return new Response(JSON.stringify({ error: "用户名或密码错误" }), {
         status: 401,
         headers: { "content-type": "application/json; charset=utf-8" },
@@ -66,6 +70,7 @@ export const POST: APIRoute = async ({ request, url }) => {
     const token = await createSessionToken();
     const secure = isSecureRequest(request, url);
 
+    log("info", "login ok", { user: username, ip });
     return new Response(JSON.stringify({ success: true, token }), {
       status: 200,
       headers: {
