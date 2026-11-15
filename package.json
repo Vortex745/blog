@@ -11,7 +11,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "test": "tsx --test src/lib/*.test.ts src/lib/pi/*.test.ts"
+    "test": "tsx --test src/lib/*.test.ts src/lib/pi/*.test.ts src/middleware.test.ts"
   },
   "dependencies": {
     "@astrojs/node": "^11.0.1",
