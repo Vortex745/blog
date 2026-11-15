@@ -2,15 +2,12 @@ import type { MiddlewareHandler } from "astro";
 import { log } from "./lib/logger";
 import { getClientKeyFromRequest } from "./lib/rate-limit";
 
-// Static asset extensions. Also keeps request logging silent: the Dockerfile
-// healthcheck hits /favicon.svg every 30s and must not flood the log.
 const STATIC_ASSET_PATH = /\.(js|css|woff2?|ttf|svg|png|jpg|jpeg|webp|ico)$/i;
 
 /**
  * Performance middleware:
  * 1. Adds Cache-Control headers for static assets (immutable) and admin pages (no-cache)
  * 2. Adds security headers
- * 3. Emits one structured request log line (static assets stay silent)
  */
 const onRequest: MiddlewareHandler = async (context, next) => {
   const startedAt = Date.now();
