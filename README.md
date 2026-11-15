@@ -188,7 +188,7 @@ Nginx 在博客健康检查通过后启动；单独重建博客容器后，可�
 
 ## 日志（OpenObserve）
 
-Compose 额外运行 `openobserve`（保存并查询所有容器的日志）和 `fluent-bit`（把每个容器的 json-file 日志按容器名写入对应的日志流）。部署前在 `.env` 设置 `ZO_ROOT_USER_EMAIL` 和 `ZO_ROOT_USER_PASSWORD`（必填；密码需 8-128 位且同时包含大小写字母、数字和特殊字符，否则 openobserve 启动失败）。UI 只在 Compose 内网开放 5080 端口，通过 SSH 隧道访问：
+Compose 额外运行 `openobserve`（保存并查询 compose 容器的日志）和 `fluent-bit`（把带 `com.docker.compose.service` 标签的容器 json-file 日志按服务名写入对应的日志流）。部署前在 `.env` 设置 `ZO_ROOT_USER_EMAIL` 和 `ZO_ROOT_USER_PASSWORD`（必填；密码需 8-128 位且同时包含大小写字母、数字和特殊字符，否则 openobserve 启动失败）。UI 只在 Compose 内网开放 5080 端口，通过 SSH 隧道访问：
 
 ```bash
 ssh -L 5080:127.0.0.1:5080 <host>
