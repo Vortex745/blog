@@ -8,14 +8,15 @@ function captureLogSpy(t: import("node:test").TestContext) {
   return t.mock.method(console, "log", () => {});
 }
 
-function runMiddleware(
-  url: string,
-  response: Response,
-) {
+async function runMiddleware(url: string, response: Response): Promise<Response> {
   const request = new Request(url);
   const context = { request } as unknown as Parameters<MiddlewareHandler>[0];
   const next: Parameters<MiddlewareHandler>[1] = async () => response;
-  return onRequest(context, next);
+  const result = await onRequest(context, next);
+  if (!(result instanceof Response)) {
+    throw new Error("middleware returned no response");
+  }
+  return result;
 }
 
 test("static asset requests produce no log line", async (t) => {
