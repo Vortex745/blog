@@ -186,6 +186,25 @@ Nginx 在博客健康检查通过后启动；单独重建博客容器后，可�
 
 镜像通过 `/favicon.svg` 做健康检查，只检查 HTTP 服务是否响应。它以非 root 用户运行；Linux 上遇到写入权限错误时，检查上述三个挂载源的属主和权限。
 
+## 日志（OpenObserve）
+
+Compose 额外运行 `openobserve`（保存并查询所有容器的日志）和 `fluent-bit`（把每个容器的 json-file 日志按容器名写入对应的日志流）。部署前在 `.env` 设置 `ZO_ROOT_USER_EMAIL` 和 `ZO_ROOT_USER_PASSWORD`（必填；密码需 8-128 位且同时包含大小写字母、数字和特殊字符，否则 openobserve 启动失败）。UI 只在 Compose 内网开放 5080 端口，通过 SSH 隧道访问：
+
+```bash
+ssh -L 5080:127.0.0.1:5080 <host>
+```
+
+隧道建立后打开 `http://localhost:5080`，用上面两个变量登录。日志流按容器划分：`blog`、`agent`、`nginx`、`gitea`、`openobserve`、`fluent-bit`。保留期在 UI 的 Streams 页面按 stream 设置，建议值：
+
+| stream | 保留 |
+|------|------|
+| blog | 30 天 |
+| agent | 14 天 |
+| nginx | 14 天 |
+| gitea | 7 天 |
+
+日志数据保存在宿主机 `./data/oo`。openobserve 内存上限 768m，用 `docker stats` 观察实际占用；若长期接近上限，考虑更换 VictoriaLogs 等更低开销的存储。
+
 ## Gitea 与 CI
 
 主 `docker-compose.yml` 同时部署 Gitea 28.0.0，使用独立 SQLite 和 `gitea-data` 命名卷保存仓库、配置、用户及实例密钥。博客继续使用 `www.zijin.online`；Nginx 将 `git.zijin.online` 转发到 Gitea。Runner 3.3.0 在另一台 Linux CI 主机上运行，仅连接该主机的 Docker 引擎。

@@ -36,6 +36,11 @@ RUN_FAILED_MESSAGE = "AI 服务暂时不可用，请稍后重试"
 TOKEN_NOT_CONFIGURED = "鉴权未配置：服务端缺少 AGENT_BRIDGE_TOKEN"
 
 
+def _log(level: str, msg: str, **fields: object) -> None:
+    record = {"_timestamp": datetime.now(UTC).isoformat(), "level": level, "msg": msg, **fields}
+    print(json.dumps(record, ensure_ascii=False))
+
+
 def _env(name: str) -> str:
     return (os.environ.get(name) or "").strip()
 
@@ -136,7 +141,7 @@ async def _cleanup_sessions() -> None:
     try:
         sessions = await bot.sessions.list()
     except Exception as exc:
-        print(f"[sessions] 列举会话失败，本轮跳过：{type(exc).__name__}: {exc}")
+        _log("warn", "sessions list failed", err=f"{type(exc).__name__}: {exc}")
         return
     for session in sessions:
         if not session.key.startswith(SESSION_PREFIX):
@@ -146,14 +151,14 @@ async def _cleanup_sessions() -> None:
         except ValueError:
             updated = None
         if updated is None:
-            print(f"[sessions] 会话 {session.key} 无有效时间戳，跳过")
+            _log("warn", "session timestamp invalid", session=session.key)
             continue
         if updated < cutoff:
             try:
                 await bot.sessions.delete(session.key)
-                print(f"[sessions] 已清理过期会话（最后活跃 {session.updated_at}）")
+                _log("info", "session cleaned", session=session.key, last_active=session.updated_at)
             except Exception as exc:
-                print(f"[sessions] 删除会话失败：{type(exc).__name__}: {exc}")
+                _log("warn", "session delete failed", session=session.key, err=f"{type(exc).__name__}: {exc}")
 
 
 async def _ttl_worker() -> None:
@@ -162,7 +167,7 @@ async def _ttl_worker() -> None:
         try:
             await _cleanup_sessions()
         except Exception as exc:
-            print(f"[sessions] 清理任务异常：{type(exc).__name__}: {exc}")
+            _log("error", "session cleanup worker failed", err=f"{type(exc).__name__}: {exc}")
         await asyncio.sleep(86400)
 
 
@@ -170,8 +175,8 @@ async def _ttl_worker() -> None:
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     state.fingerprint = _fingerprint()
     state.bot = _build_bot()
-    print(f"[startup] config fingerprint={state.fingerprint} llmConfigured={_llm_configured()}")
-    print(f"[startup] 已注册工具列表: {_tool_names(state.bot) or '(空)'}")
+    _log("info", "startup", fingerprint=state.fingerprint, llm_configured=_llm_configured())
+    _log("info", "startup tools", tools=_tool_names(state.bot))
     ttl_task = asyncio.create_task(_ttl_worker())
     yield
     ttl_task.cancel()
@@ -245,14 +250,18 @@ async def chat(request: Request, body: ChatBody) -> StreamingResponse:
                 # 其余事件类型（run.started / text.completed / reasoning.* / tool.*）一律忽略
         except Exception as exc:
             final_type = "run.failed"
-            print(f"[chat] 运行异常：{type(exc).__name__}")
+            _log("error", "chat run failed", err=f"{type(exc).__name__}: {exc}")
             yield _sse({"type": "run.failed", "message": RUN_FAILED_MESSAGE})
         finally:
             if run is not None:
                 await run.aclose()  # 客户端断开时取消底层 run；幂等
-            print(
-                f"[chat] session={body.session_key.split(':', 1)[0]} final={final_type} "
-                f"deltas={delta_count} elapsed={time.monotonic() - started:.2f}s"
+            _log(
+                "info",
+                "chat summary",
+                session=body.session_key.split(":", 1)[0],
+                final=final_type,
+                deltas=delta_count,
+                elapsed=round(time.monotonic() - started, 2),
             )
 
     return StreamingResponse(event_stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})
