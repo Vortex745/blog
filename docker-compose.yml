@@ -160,7 +160,6 @@ services:
       ZO_ROOT_USER_PASSWORD: ${ZO_ROOT_USER_PASSWORD:-}
       ZO_DATA_DIR: /data
     volumes:
-      # OpenObserve parquet data and metadata.
       - ./data/oo:/data
     security_opt:
       - no-new-privileges:true
@@ -191,7 +190,6 @@ services:
         bind:
           create_host_path: false
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      # Tail DB and filesystem buffer.
       - fb-state:/state
     security_opt:
       - no-new-privileges:true
