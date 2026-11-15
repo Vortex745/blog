@@ -41,7 +41,7 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-        # Feeds the fluent-bit tag rewrite (see fluent-bit.conf); needs Docker Engine 25+.
+        # Feeds the fluent-bit tag rewrite (see fluent-bit.conf).
         labels: "com.docker.compose.service"
 
   agent:
@@ -71,7 +71,7 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-        # Feeds the fluent-bit tag rewrite (see fluent-bit.conf); needs Docker Engine 25+.
+        # Feeds the fluent-bit tag rewrite (see fluent-bit.conf).
         labels: "com.docker.compose.service"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request, sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4).status == 200 else 1)"]
@@ -105,7 +105,7 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-        # Feeds the fluent-bit tag rewrite (see fluent-bit.conf); needs Docker Engine 25+.
+        # Feeds the fluent-bit tag rewrite (see fluent-bit.conf).
         labels: "com.docker.compose.service"
 
   gitea:
@@ -144,7 +144,7 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-        # Feeds the fluent-bit tag rewrite (see fluent-bit.conf); needs Docker Engine 25+.
+        # Feeds the fluent-bit tag rewrite (see fluent-bit.conf).
         labels: "com.docker.compose.service"
 
   openobserve:
@@ -168,7 +168,7 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-        # Feeds the fluent-bit tag rewrite (see fluent-bit.conf); needs Docker Engine 25+.
+        # Feeds the fluent-bit tag rewrite (see fluent-bit.conf).
         labels: "com.docker.compose.service"
 
   fluent-bit:
@@ -198,7 +198,7 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-        # Feeds the fluent-bit tag rewrite (see fluent-bit.conf); needs Docker Engine 25+.
+        # Feeds the fluent-bit tag rewrite (see fluent-bit.conf).
         labels: "com.docker.compose.service"
 
 volumes:

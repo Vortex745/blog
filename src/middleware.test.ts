@@ -20,9 +20,10 @@ function runMiddleware(
 
 test("static asset requests produce no log line", async (t) => {
   const logSpy = captureLogSpy(t);
-  await runMiddleware("http://x/favicon.svg", new Response(null, { status: 200 }));
+  const response = await runMiddleware("http://x/favicon.svg", new Response(null, { status: 200 }));
 
   assert.equal(logSpy.mock.calls.length, 0);
+  assert.match(response.headers.get("Cache-Control") ?? "", /immutable/);
 });
 
 test("api requests emit one log line without the query string", async (t) => {
@@ -41,4 +42,5 @@ test("api requests emit one log line without the query string", async (t) => {
   assert.equal(record.status, 200);
   assert.equal(typeof record.dur_ms, "number");
   assert.ok((record.dur_ms as number) >= 0);
+  assert.equal(record.ip, "unknown");
 });
