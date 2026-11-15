@@ -4,6 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
     image: changye-blog:local
+    container_name: blog
     init: true
     restart: unless-stopped
     expose:
@@ -40,9 +41,12 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+        # Feeds the fluent-bit tag rewrite (see fluent-bit.conf); needs Docker Engine 25+.
+        labels: "com.docker.compose.service"
 
   agent:
     build: ./agent
+    container_name: agent
     init: true
     restart: unless-stopped
     expose:
@@ -67,6 +71,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+        # Feeds the fluent-bit tag rewrite (see fluent-bit.conf); needs Docker Engine 25+.
+        labels: "com.docker.compose.service"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request, sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4).status == 200 else 1)"]
       interval: 30s
@@ -76,6 +82,7 @@ services:
 
   nginx:
     image: nginx:stable-alpine
+    container_name: nginx
     restart: unless-stopped
     depends_on:
       blog:
@@ -98,9 +105,12 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+        # Feeds the fluent-bit tag rewrite (see fluent-bit.conf); needs Docker Engine 25+.
+        labels: "com.docker.compose.service"
 
   gitea:
     image: docker.gitea.com/gitea:28.0.0
+    container_name: gitea
     restart: unless-stopped
     environment:
       USER_UID: "1000"
@@ -134,6 +144,65 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+        # Feeds the fluent-bit tag rewrite (see fluent-bit.conf); needs Docker Engine 25+.
+        labels: "com.docker.compose.service"
+
+  openobserve:
+    image: public.ecr.aws/zinclabs/openobserve:v1.1.2
+    container_name: openobserve
+    init: true
+    restart: unless-stopped
+    mem_limit: 768m
+    expose:
+      - "5080"
+    environment:
+      ZO_ROOT_USER_EMAIL: ${ZO_ROOT_USER_EMAIL:-}
+      ZO_ROOT_USER_PASSWORD: ${ZO_ROOT_USER_PASSWORD:-}
+      ZO_DATA_DIR: /data
+    volumes:
+      # OpenObserve parquet data and metadata.
+      - ./data/oo:/data
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+        # Feeds the fluent-bit tag rewrite (see fluent-bit.conf); needs Docker Engine 25+.
+        labels: "com.docker.compose.service"
+
+  fluent-bit:
+    image: fluent/fluent-bit:5.2.0
+    container_name: fluent-bit
+    init: true
+    restart: unless-stopped
+    mem_limit: 128m
+    depends_on:
+      - openobserve
+    environment:
+      ZO_ROOT_USER_EMAIL: ${ZO_ROOT_USER_EMAIL:-}
+      ZO_ROOT_USER_PASSWORD: ${ZO_ROOT_USER_PASSWORD:-}
+    volumes:
+      - type: bind
+        source: ./fluent-bit.conf
+        target: /fluent-bit/etc/fluent-bit.conf
+        read_only: true
+        bind:
+          create_host_path: false
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      # Tail DB and filesystem buffer.
+      - fb-state:/state
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+        # Feeds the fluent-bit tag rewrite (see fluent-bit.conf); needs Docker Engine 25+.
+        labels: "com.docker.compose.service"
 
 volumes:
   gitea-data:
+  fb-state:
