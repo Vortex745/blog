@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import { jsonResponse, readString } from "../../../lib/api-utils";
 import { SlidingWindowRateLimiter, getClientKeyFromRequest } from "../../../lib/rate-limit";
+import { log } from "../../../lib/logger";
 import { readServerEnv } from "../../../lib/env";
 import { readContentArticles, readContentProjects, hasAnyContent } from "../../../lib/content-store";
 import { uniqueByContentKey } from "../../../lib/content-merge";
@@ -42,15 +43,28 @@ async function gatherRetrievalContent(): Promise<{ articles: RetrievalItem[]; pr
       date: p.data.date.toISOString(),
       url: `/projects/${cleanSlug(p.id)}/`,
     }));
-  } catch {
+  } catch (e) {
     // 非 Astro 运行时：静态内容集合不可用。
+    log("warn", "astro content import failed", {
+      err: e instanceof Error ? `${e.name}: ${e.message}` : String(e),
+    });
   }
 
   const hasSqlite = hasAnyContent();
   const [sqliteArticles, sqliteProjects] = hasSqlite
     ? await Promise.all([
-        readContentArticles().catch(() => []),
-        readContentProjects().catch(() => []),
+        readContentArticles().catch((e) => {
+          log("warn", "content read failed", {
+            err: e instanceof Error ? `${e.name}: ${e.message}` : String(e),
+          });
+          return [];
+        }),
+        readContentProjects().catch((e) => {
+          log("warn", "content read failed", {
+            err: e instanceof Error ? `${e.name}: ${e.message}` : String(e),
+          });
+          return [];
+        }),
       ])
     : [[], []];
 
@@ -95,9 +109,11 @@ async function gatherRetrievalContent(): Promise<{ articles: RetrievalItem[]; pr
 }
 
 export const POST: APIRoute = async ({ request }) => {
+  const ip = getClientKeyFromRequest(request);
   // 限流在 body 解析之前：无效请求同样计数。
-  const limit = chatLimiter.check(getClientKeyFromRequest(request));
+  const limit = chatLimiter.check(ip);
   if (!limit.allowed) {
+    log("warn", "chat rate limited", { ip });
     return new Response(JSON.stringify({ ok: false, message: "请求过于频繁，请稍后再试。" }), {
       status: 429,
       headers: {
@@ -111,6 +127,7 @@ export const POST: APIRoute = async ({ request }) => {
   try {
     payload = await request.json();
   } catch {
+    log("warn", "chat body parse failed", { ip });
     return jsonResponse({ ok: false, message: "请求内容不是有效的 JSON" }, 400);
   }
 
@@ -144,6 +161,7 @@ export const POST: APIRoute = async ({ request }) => {
       signal: AbortSignal.any([request.signal, AbortSignal.timeout(300_000)]),
     });
     if (!upstream.ok || !upstream.body) {
+      log("error", "bridge upstream error", { status: upstream.status });
       return jsonResponse({ ok: false, message: "AI 助手暂时不可用，请稍后再试。" }, 502);
     }
     // bridge 的 SSE 响应体字节级透传，不重新序列化。
@@ -154,7 +172,14 @@ export const POST: APIRoute = async ({ request }) => {
         "cache-control": "no-cache",
       },
     });
-  } catch {
+  } catch (e) {
+    if (request.signal.aborted) {
+      log("info", "chat aborted by client", { ip });
+    } else {
+      log("error", "chat fetch failed", {
+        err: e instanceof Error ? `${e.name}: ${e.message}` : String(e),
+      });
+    }
     return jsonResponse({ ok: false, message: "AI 助手暂时不可用，请稍后再试。" }, 502);
   }
 };
